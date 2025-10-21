@@ -19,15 +19,15 @@ test(void)
         k_StringPushSv(&s, &pArena->base, K_SV(" EIGHT"));
         k_StringPushSv(&s, &pArena->base, K_SV(" NINE"));
 
-        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
+        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{PS}'", k_StringSize(&s), k_StringCap(&s), &s);
 
         k_StringReallocWith(&s, &pArena->base, K_SV("what"));
 
-        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
+        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{PS}'", k_StringSize(&s), k_StringCap(&s), &s);
 
         k_StringDestroy(&s, &pArena->base);
 
-        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
+        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{PS}'", k_StringSize(&s), k_StringCap(&s), &s);
     }
 }
 

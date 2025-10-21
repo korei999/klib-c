@@ -1,4 +1,5 @@
 #include "print.h"
+#include "String.h"
 
 #include "ThirdParty/ryu/ryu.h"
 
@@ -891,6 +892,13 @@ k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void
     );
     if (nWritten <= -1) return 0;
     else return nWritten;
+}
+
+ssize_t
+k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+{
+    k_StringView sv = k_StringCvtSv((k_String*)arg);
+    return k_print_formatPStringView(pCtx, pFmtArgs, &sv);
 }
 
 ssize_t
