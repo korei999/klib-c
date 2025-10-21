@@ -24,6 +24,10 @@ test(void)
         k_StringReallocWith(&s, &pArena->base, K_SV("what"));
 
         K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
+
+        k_StringDestroy(&s, &pArena->base);
+
+        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
     }
 }
 
