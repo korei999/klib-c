@@ -43,7 +43,6 @@ main(void)
             .ringBufferSize = K_SIZE_1K*4,
         },
         (k_ThreadPoolInitOpts){
-            .ringBufferSize = K_SIZE_1K*4,
             .arenaReserve = K_SIZE_1M*60,
         }
     );

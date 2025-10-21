@@ -17,6 +17,7 @@ set(TestBinaries
     ThreadPool
     Logger
     CmdLine
+    Pool
 )
 
 foreach(Executable IN LISTS TestBinaries)

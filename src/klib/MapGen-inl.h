@@ -27,14 +27,14 @@
     #define K_DECL_MOD static inline
 #endif
 
-#define K_METHOD(M) K_GLUE(K_NAME, M)
-#define K_BUCKET K_METHOD(Bucket)
-#define K_MAP_RESULT K_METHOD(Result)
-
 #if !defined K_GEN_DECLS && !defined K_GEN_CODE
     #define K_GEN_DECLS
     #define K_GEN_CODE
 #endif
+
+#define K_METHOD(M) K_GLUE(K_NAME, M)
+#define K_BUCKET K_METHOD(Bucket)
+#define K_MAP_RESULT K_METHOD(Result)
 
 #ifdef K_GEN_DECLS
 

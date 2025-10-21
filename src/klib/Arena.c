@@ -134,7 +134,7 @@ k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
     s->priv.lDeleters = NULL;
     s->priv.pLCurrentDeleters = &s->priv.lDeleters;
 
-    K_ASAN_POISON(s->pData, realReserved);
+    K_ASAN_POISON(s->priv.pData, realReserved);
 
     if (commitSize > 0)
     {
@@ -207,7 +207,7 @@ k_ArenaDestroy(k_Arena* s)
         VirtualFree(s->pData, 0, MEM_RELEASE);
 #else
 #endif
-        K_ASAN_UNPOISON(s->pData, s->reserved);
+        K_ASAN_UNPOISON(s->priv.pData, s->priv.reserved);
         *s = (k_Arena){0};
     }
 }
@@ -217,7 +217,7 @@ k_ArenaReset(k_Arena* s)
 {
     k_ArenaRunDeleters(s);
 
-    K_ASAN_POISON(s->pData, s->pos);
+    K_ASAN_POISON(s->priv.pData, s->priv.pos);
 
     s->priv.pos = 0;
     s->priv.pLastAlloc = (void*)K_NPOS64;
@@ -230,7 +230,7 @@ k_ArenaResetDecommit(k_Arena* s)
 
     decommit(s, s->priv.pData, s->priv.commited);
 
-    K_ASAN_POISON(s->pData, s->pos);
+    K_ASAN_POISON(s->priv.pData, s->priv.pos);
 
     s->priv.pos = 0;
     s->priv.commited = 0;
@@ -300,7 +300,7 @@ void
 k_ArenaStateRestore(k_ArenaState* s)
 {
     k_ArenaRunDeleters(s->state.pArena);
-    K_ASAN_POISON((uint8_t*)s->pArena->pData + s->pArena->pos, s->pArena->pos - s->pos);
+    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
     s->state.pArena->priv.pos = s->state.pos;
     s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
     s->state.pArena->priv.pLCurrentDeleters = s->state.pLCurrentDeleters;

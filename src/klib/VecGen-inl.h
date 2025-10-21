@@ -12,12 +12,12 @@
     #define K_DECL_MOD static inline
 #endif
 
-#define K_METHOD(M) K_GLUE(K_NAME, M)
-
 #if !defined K_GEN_DECLS && !defined K_GEN_CODE
     #define K_GEN_DECLS
     #define K_GEN_CODE
 #endif
+
+#define K_METHOD(M) K_GLUE(K_NAME, M)
 
 #ifdef K_GEN_DECLS
 
@@ -33,7 +33,10 @@ K_DECL_MOD void K_METHOD(Destroy)(K_NAME* s, k_IAllocator* pAlloc);
 K_DECL_MOD ssize_t K_METHOD(Push)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* pVal);
 K_DECL_MOD ssize_t K_METHOD(PushMany)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* p, ssize_t size);
 K_DECL_MOD K_TYPE* K_METHOD(Pop)(K_NAME* s);
-K_DECL_MOD bool K_METHOD(Resize)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
+K_DECL_MOD bool K_METHOD(PopShrink)(K_NAME* s, k_IAllocator* pAlloc);
+K_DECL_MOD bool K_METHOD(Grow)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
+K_DECL_MOD bool K_METHOD(Shrink)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
+K_DECL_MOD bool K_METHOD(SetCap)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
 K_DECL_MOD K_TYPE K_METHOD(Get)(K_NAME* s, ssize_t i);
 K_DECL_MOD K_TYPE* K_METHOD(GetP)(K_NAME* s, ssize_t i);
 K_DECL_MOD void K_METHOD(Set)(K_NAME* s, ssize_t i, const K_TYPE* p);
@@ -71,7 +74,7 @@ K_METHOD(Push)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* pVal)
 {
     if (s->size >= s->cap)
     {
-        if (!K_METHOD(Resize)(s, pAlloc, K_MAX(8, s->cap * 2)))
+        if (!K_METHOD(Grow)(s, pAlloc, K_MAX(8, s->cap * 2)))
             return K_NPOS;
     }
 
@@ -87,7 +90,7 @@ K_METHOD(PushMany)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* p, ssize_t siz
     {
         ssize_t newCap = s->cap * 2;
         if (s->size + size > newCap) newCap = s->size + size;
-        if (!K_METHOD(Resize)(s, pAlloc, newCap))
+        if (!K_METHOD(Grow)(s, pAlloc, newCap))
             return K_NPOS;
     }
 
@@ -104,13 +107,52 @@ K_METHOD(Pop)(K_NAME* s)
 }
 
 K_DECL_MOD bool
-K_METHOD(Resize)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap)
+K_METHOD(PopShrink)(K_NAME* s, k_IAllocator* pAlloc)
+{
+    assert(s->size > 0);
+    if (s->size <= s->cap >> 2)
+    {
+        if (!K_METHOD(Shrink)(s, pAlloc, s->cap >> 1))
+            return false;
+    }
+    --s->size;
+    return true;
+}
+
+K_DECL_MOD bool
+K_METHOD(Grow)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap)
 {
     K_TYPE* pNew = K_IREALLOC_T(pAlloc, K_TYPE, s->pData, s->size, newCap);
     if (!pNew) return false;
 
     s->pData = pNew;
     s->cap = newCap;
+
+    return true;
+}
+
+K_DECL_MOD bool
+K_METHOD(Shrink)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap)
+{
+    K_TYPE* pNew = K_IREALLOC_T(pAlloc, K_TYPE, s->pData, newCap, newCap);
+    if (!pNew) return false;
+
+    s->pData = pNew;
+    s->cap = newCap;
+    if (s->size > s->cap) s->size = s->cap;
+
+    return true;
+}
+
+K_DECL_MOD bool
+K_METHOD(SetCap)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap)
+{
+    K_TYPE* pNew = K_IREALLOC_T(pAlloc, K_TYPE, s->pData, K_MIN(newCap, s->size), newCap);
+    if (!pNew) return false;
+
+    s->pData = pNew;
+    s->cap = newCap;
+    if (s->size > s->cap) s->size = s->cap;
 
     return true;
 }
