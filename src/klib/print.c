@@ -412,6 +412,7 @@ parseNumber(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs)
 {
     ssize_t startI = pCtx->fmtI;
 
+    ++pCtx->fmtI;
     while (pCtx->fmtI < pCtx->svFmt.size && isdigit(pCtx->svFmt.pData[pCtx->fmtI]))
         ++pCtx->fmtI;
 
