@@ -258,14 +258,14 @@ k_ArenaResetToPage(k_Arena* s, ssize_t nthPage)
 void
 k_ArenaRunDeleters(k_Arena* s)
 {
-    for (k_ArenaNode* walk = *s->pLCurrentDeleters; walk; walk = walk->pNext)
+    for (k_ArenaPtr* walk = *s->pLCurrentDeleters; walk; walk = walk->pNext)
         walk->pfnDeleter(walk->ppObj);
 
     *s->pLCurrentDeleters = NULL;
 }
 
 bool
-k_ArenaNodeAlloc(k_Arena* s, k_ArenaNodeAllocOpts opts)
+k_ArenaPtrAlloc(k_Arena* s, k_ArenaPtrAllocOpts opts)
 {
     void* pMem = k_ArenaMalloc(s, opts.objByteSize);
     if (!pMem) return false;

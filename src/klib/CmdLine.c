@@ -130,7 +130,7 @@ parseShort(k_CmdLine* s, int* pI, int argc, char** argv)
             }
             else
             {
-                VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){s, pCmdArg, {0}});
+                VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){.pCmdLine = s, .pCmdArg = pCmdArg});
             }
         }
         else
@@ -180,7 +180,7 @@ parseLong(k_CmdLine* s, int i, char** argv)
         }
         else
         {
-            VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){s, pCmdArg, {0}});
+            VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){.pCmdLine = s, .pCmdArg = pCmdArg});
             return K_CMD_LINE_RESULT_NEXT;
         }
     }

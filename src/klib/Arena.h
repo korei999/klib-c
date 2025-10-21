@@ -4,21 +4,21 @@
 
 typedef void (*k_ArenaDeleterPfn)(void**);
 
-typedef struct k_ArenaNode
+typedef struct k_ArenaPtr
 {
-    struct k_ArenaNode* pNext;
+    struct k_ArenaPtr* pNext;
     void** ppObj;
     k_ArenaDeleterPfn pfnDeleter;
     /* T* pObj; */
-} k_ArenaNode;
+} k_ArenaPtr;
 
-typedef struct k_ArenaNodeAllocOpts
+typedef struct k_ArenaPtrAllocOpts
 {
-    k_ArenaNode* pNode;
+    k_ArenaPtr* pNode;
     void** ppObj;
     ssize_t objByteSize;
     k_ArenaDeleterPfn pfnDeleter; /* k_nullDeleter if NULL. */
-} k_ArenaNodeAllocOpts;
+} k_ArenaPtrAllocOpts;
 
 typedef struct
 {
@@ -29,8 +29,8 @@ typedef struct
     ssize_t reserved;
     ssize_t commited;
     void* pLastAlloc;
-    k_ArenaNode* lDeleters;
-    k_ArenaNode** pLCurrentDeleters;
+    k_ArenaPtr* lDeleters;
+    k_ArenaPtr** pLCurrentDeleters;
 } k_Arena;
 
 bool k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize);
@@ -43,7 +43,7 @@ void k_ArenaReset(k_Arena* s);
 void k_ArenaResetDecommit(k_Arena* s);
 void k_ArenaResetToPage(k_Arena* s, ssize_t nthPage);
 void k_ArenaRunDeleters(k_Arena* s);
-bool k_ArenaNodeAlloc(k_Arena* s, k_ArenaNodeAllocOpts opts);
+bool k_ArenaPtrAlloc(k_Arena* s, k_ArenaPtrAllocOpts opts);
 static inline ssize_t k_ArenaReserved(k_Arena* s);
 
 static inline void*
@@ -69,9 +69,9 @@ typedef struct
     k_Arena* pArena;
     ssize_t pos;
     void* pLastAlloc;
-    k_ArenaNode** pLCurrentDeleters;
+    k_ArenaPtr** pLCurrentDeleters;
     /* */
-    k_ArenaNode* lDeleters; /* New list. */
+    k_ArenaPtr* lDeleters; /* New list. */
 } k_ArenaState;
 
 void k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena);
