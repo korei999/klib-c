@@ -85,8 +85,8 @@ K_METHOD(Rent)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* pVal)
 
     if (s->size >= s->cap)
     {
-        K_INDEX_T newCap = s->size * 2;
-        if (!K_METHOD(SetCap)(s, pAlloc, K_MAX(s->size * 2, 8))) return -1;
+        if (!K_METHOD(SetCap)(s, pAlloc, K_MAX(s->size * 2, 8)))
+            return -1;
     }
 
     s->pData[s->size++] = *pVal;

@@ -32,6 +32,8 @@ test(void)
         K_POOL_HANDLE h10 = PoolIntRent(&p, &pArena->base, &(int){10});
         K_POOL_HANDLE h11 = PoolIntRent(&p, &pArena->base, &(int){11});
 
+        (void)h0, (void)h1, (void)h2, (void)h3, (void)h4, (void)h5, (void)h6, (void)h7, (void)h8, (void)h9, (void)h10, (void)h11;
+
         bool* pDeleted = PoolIntDeletedList(&p);
         for (int i = 0; i < p.size; ++i)
         {
