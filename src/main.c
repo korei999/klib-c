@@ -1,78 +1,66 @@
-#include "kr/print.h"
-#include "kr/LibcAllocator.h"
-#include "kr/StringView.h"
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdbool.h>
+#include "klib/print.h"
+#include "klib/Gpa.h"
+#include "klib/time.h"
 
 typedef struct
 {
-    int d;
-    float f;
-    int64_t lld;
-} What;
+    int defence;
+    int durability;
+} Shield;
+
+static ssize_t
+formatPShield(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+{
+    Shield* s = (Shield*)arg;
+    return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
+        "(defence: {i}, durability: {i})",
+        s->defence, s->durability
+    ).size;
+}
 
 int
-main()
+main(int argc, char** argv)
 {
+    k_print_Map* pFormattersMap = k_print_MapAlloc(&k_GpaInst()->base);
+    k_print_MapSetGlobal(pFormattersMap);
+    k_print_MapAddFormatter(pFormattersMap, "PShield", formatPShield);
+
+    if (argc < 2)
     {
-        const krStringView svHello = KR_SV_LIT("hello");
-        printf("(%zd)svHello: %s\n", svHello.size, svHello.pData);
-    }
-
-    {
-        krLibcAllocator* pLibc = krLibcAllocatorInst();
-
-        void* p100 = krLibcAllocatorZalloc(pLibc, 100);
-        krIAllocatorFree(pLibc, p100);
-    }
-
-    {
-        int16_t* p = KR_LIBC_ALLOC(int16_t, 2);
-        free(p);
-    }
-
-    {
-        What* p0 = KR_LIBC_ALLOC(What, 1, 2.2f, 312);
-        What* p1 = KR_LIBC_ALLOC(What, .f = 666.666f, .d = -1);
-        printf("p0: %d, %f, %zd\n", p0->d, p0->f, p0->lld);
-        printf("p1: %d, %f, %zd\n", p1->d, p1->f, p1->lld);
-        free(p0);
-        free(p1);
-    }
-
-    KR_SCOPE_END(printf("after\n"))
-    {
-        printf("before\n");
-    }
-
-    KR_SCOPE_BEGIN_END(printf("hello\n"), printf("goodbye\n"))
-    {
-        printf("one\n");
-        int i = 0;
-
-        while (true)
         {
-            if (++i >= 10)
-            {
-                printf("two\n");
-                break;
-            }
+            k_print(&k_GpaInst()->base, stdout, "int: '{:+>8 f{c}:i}', float: '{:+.{i}:f}'\n", '^', 6666, 3, -32.123456789f);
+            ssize_t cafeBabe = 0xCafeBabe;
+            k_print(&k_GpaInst()->base, stdout, "cafeBabe: '{:#x:sz}'\n", cafeBabe);
         }
-    }
 
-    KR_VAR_SCOPE(ssize_t*, p = malloc(sizeof(*p)), free(p))
+        {
+            char aBuff[15];
+            ssize_t nn = k_print_toBuffer(aBuff, sizeof(aBuff), "int: '{:7 f#:i}', double: '{d}'", 123, 123.123);
+            assert(nn < (ssize_t)sizeof(aBuff) && aBuff[nn] == '\0');
+            k_print(&k_GpaInst()->base, stdout, "aBuff: ({sz}) '{PSv}'\n", nn, &(k_StringView){aBuff, nn});
+        }
+
+        k_print(&k_GpaInst()->base, stdout,
+            "fPad: '{:6.2 > f0:d}', double: '{:{i}.{i}:d}', shield: {:10 > f\\:PShield}, intAfterReused: '{:2 >{i} f-:i}', nts: '{:{i} >{i} f&:s}'\n",
+            22.22, 9, 1, -12345.12345, &(Shield){.defence = 99999, .durability = 10000}, 10, 54321, 4, 15, "HELLO BIDEN"
+        );
+    }
+    else if (argc >= 2 && !strcmp(argv[1], "--microbench"))
     {
-        *p = 100;
-        printf("*p: %zd\n", *p);
+        static const ssize_t BIG = 1000000;
+        static const char* ntsTest = "HHHHHHHHHHHHHHHH";
+
+        k_time_Type t0 = k_time_now();
+        for (ssize_t i = 0; i < BIG; ++i)
+        {
+            char aBuff[128];
+            k_print_toBuffer(aBuff, sizeof(aBuff),
+                "some string here {:5:s} just taking a bunch of space: {sz}, {sz}, {f}, {d}\n",
+                ntsTest, i, i, (float)i, (double)i
+            );
+        }
+        k_print(&k_GpaInst()->base, stdout, "took {:.3:d} ms\n", k_time_diffMSec(k_time_now(), t0));
     }
 
-    {
-        ssize_t* p = KR_IALLOC(krLibcAllocatorInst(), ssize_t, 666);
-        printf("*p: %zd\n", *p);
-        free(p);
-    }
-
-    printf("two\n");
+    k_print_MapDealloc(&pFormattersMap);
 }

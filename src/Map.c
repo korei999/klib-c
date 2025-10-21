@@ -1,46 +1,73 @@
-#include "kr/StringView.h"
-#include "kr/LibcAllocator.h"
+#include "klib/Gpa.h"
+#include "klib/print.h"
 
-#include <assert.h>
+#define K_NAME MapSvToInt
+#define K_KEY_T k_StringView
+#define K_VALUE_T int
+#define K_FN_HASH k_StringViewHash
+#define K_FN_KEY_CMP k_StringViewCmp
+#define K_GEN_DECLS
+#define K_GEN_CODE
+#include "klib/MapGen-inl.h"
 
-#define KR_NAME MapSvToInt
-#define KR_KEY_T krStringView
-#define KR_VALUE_T int
-#define KR_FN_HASH krStringViewHash
-#define KR_FN_KEY_CMP krStringViewCmp
-#define KR_DECL_MOD static
-#define KR_GEN_DECLS
-#define KR_GEN_CODE
-#include "kr/MapGen-inl.h"
+static ssize_t
+PMapSvToIntFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+{
+    MapSvToInt* s = (MapSvToInt*)arg;
+    ssize_t n = 0;
+
+    n += k_print_BuilderPushChar(pCtx->pBuilder, '[');
+
+    ssize_t i = MapSvToIntBeginI(s);
+    if (i != MapSvToIntEndI(s))
+    {
+        n += k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
+            "('{PSv}', {i})", &s->pBuckets[i].key, s->pBuckets[i].value
+        ).size;
+
+        for (i = MapSvToIntNextI(s, i); i != MapSvToIntEndI(s); i = MapSvToIntNextI(s, i))
+        {
+            n += k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
+                ", ('{PSv}', {i})", &s->pBuckets[i].key, s->pBuckets[i].value
+            ).size;
+        }
+    }
+
+    n += k_print_BuilderPushChar(pCtx->pBuilder, ']');
+
+    return n;
+}
 
 int
-main()
+main(void)
 {
-    krLibcAllocator* pAl = krLibcAllocatorInst();
+    k_Gpa* pGpa = k_GpaInst();
 
-    KR_VAR_SCOPE(MapSvToInt, m = MapSvToIntCreate(&pAl->base, 8), MapSvToIntDestroy(&m, &pAl->base))
+    k_print_Map* pFormattersMap = k_print_MapAlloc(&pGpa->base);
+    k_print_MapSetGlobal(pFormattersMap);
+    k_print_MapAddFormatter(pFormattersMap, "PMapSvToInt", PMapSvToIntFormatter);
+
+    K_VAR_SCOPE(MapSvToInt, m = MapSvToIntCreate(&pGpa->base, 8), MapSvToIntDestroy(&m, &pGpa->base))
     {
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("zero"), &(int){0});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("one"), &(int){1});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("two"), &(int){2});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("three"), &(int){3});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("four"), &(int){4});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("five"), &(int){5});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("six"), &(int){6});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("seven"), &(int){7});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("eight"), &(int){8});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("nine"), &(int){9});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("ten"), &(int){10});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("eleven"), &(int){11});
-        MapSvToIntInsert(&m, &pAl->base, &KR_SV_LIT("twelve"), &(int){12});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("zero"), &(int){0});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("one"), &(int){1});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("two"), &(int){2});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("three"), &(int){3});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("four"), &(int){4});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("five"), &(int){5});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("six"), &(int){6});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("seven"), &(int){7});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("eight"), &(int){8});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("nine"), &(int){9});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("ten"), &(int){10});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("eleven"), &(int){11});
+        MapSvToIntInsert(&m, &pGpa->base, &K_SV("twelve"), &(int){12});
 
-        MapSvToIntRemove(&m, &KR_SV_LIT("zero"));
-        MapSvToIntRemove(&m, &KR_SV_LIT("one"));
-        MapSvToIntRemove(&m, &KR_SV_LIT("two"));
-        MapSvToIntRemove(&m, &KR_SV_LIT("three"));
+        MapSvToIntRemove(&m, &K_SV("zero"));
+        MapSvToIntRemove(&m, &K_SV("one"));
+        MapSvToIntRemove(&m, &K_SV("two"));
+        MapSvToIntRemove(&m, &K_SV("three"));
 
-        for (ssize_t i = MapSvToIntBeginI(&m); i != MapSvToIntEndI(&m); i = MapSvToIntNextI(&m, i))
-            printf("(%zd) (key: '%s', value: %d)\n", i, m.pBuckets[i].key.pData, m.pBuckets[i].value);
-        printf("cap: %zd, occupied: %zd\n", m.cap, m.nOccupied);
+        k_print(&k_GpaInst()->base, stdout, "map: {PMapSvToInt}\n", &m);
     }
 }
