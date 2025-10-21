@@ -56,7 +56,7 @@ typedef struct k_LoggerInitOpts
 
 bool k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts);
 void k_LoggerDestroy(k_Logger* s);
-void k_LoggerSendVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs);
-void k_LoggerSendSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...);
-void k_LoggerSend(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...);
+void k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs);
+void k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...);
+void k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...);
 ssize_t k_LoggerDefaultFormatter(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink);

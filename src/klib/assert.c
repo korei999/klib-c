@@ -23,7 +23,7 @@ k_assert_die(const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
         va_end(args);
         svPrinted = k_print_BuilderCvtSv(&pb);
 
-        k_LoggerSendSv(k_CtxLogger(), pArena, K_LOG_LEVEL_ERROR, ntsFile, line, svPrinted);
+        k_LoggerPostSv(k_CtxLogger(), pArena, K_LOG_LEVEL_ERROR, ntsFile, line, svPrinted);
     }
 
     k_LoggerDestroy(k_CtxLogger());

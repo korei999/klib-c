@@ -321,7 +321,7 @@ k_Arena*
 k_ThreadPoolArena(k_ThreadPool* s)
 {
     (void)s;
-    assert(k_ArenaReserved(&stl_arena) > 0);
+    assert(k_ArenaMemoryReserved(&stl_arena) > 0);
     return &stl_arena;
 }
 

@@ -24,13 +24,16 @@ typedef struct
 {
     k_IAllocator base;
 
-    void* pData;
-    ssize_t pos;
-    ssize_t reserved;
-    ssize_t commited;
-    void* pLastAlloc;
-    k_ArenaPtr* lDeleters;
-    k_ArenaPtr** pLCurrentDeleters;
+    struct
+    {
+        void* pData;
+        ssize_t pos;
+        ssize_t reserved;
+        ssize_t commited;
+        void* pLastAlloc;
+        k_ArenaPtr* lDeleters;
+        k_ArenaPtr** pLCurrentDeleters;
+    } priv;
 } k_Arena;
 
 bool k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize);
@@ -44,7 +47,8 @@ void k_ArenaResetDecommit(k_Arena* s);
 void k_ArenaResetToPage(k_Arena* s, ssize_t nthPage);
 void k_ArenaRunDeleters(k_Arena* s);
 bool k_ArenaPtrAlloc(k_Arena* s, k_ArenaPtrAllocOpts opts);
-static inline ssize_t k_ArenaReserved(k_Arena* s);
+static inline ssize_t k_ArenaMemoryReserved(k_Arena* s);
+static inline ssize_t k_ArenaMemoryUsed(k_Arena* s);
 
 static inline void*
 k_ArenaAlloc(void* pSelf, void* p, ssize_t size)
@@ -56,9 +60,15 @@ k_ArenaAlloc(void* pSelf, void* p, ssize_t size)
 }
 
 static inline ssize_t
-k_ArenaReserved(k_Arena* s)
+k_ArenaMemoryReserved(k_Arena* s)
 {
-    return s->reserved;
+    return s->priv.reserved;
+}
+
+static inline ssize_t
+k_ArenaMemoryUsed(k_Arena* s)
+{
+    return s->priv.pos;
 }
 
 #define K_ARENA_ALLOC(pArena, type, ...) (type*)k_ArenaAlloc(pArena, &(type) {__VA_ARGS__}, sizeof(type))

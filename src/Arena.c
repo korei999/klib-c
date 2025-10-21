@@ -23,7 +23,7 @@ main(void)
 
         k_print(&k_GpaInst()->base, stdout, "print: '{PSv}'\n", &(k_StringView){pBytes, n});
 
-        k_print(&k_GpaInst()->base, stdout, "pos before: {ssize_t}\n", arena.pos);
+        k_print(&k_GpaInst()->base, stdout, "pos before: {ssize_t}\n", k_ArenaMemoryUsed(&arena));
 
         ArenaPtrI64 anNumber = {0};
 
@@ -44,10 +44,10 @@ main(void)
             (void)pMem;
 
             int64_t* p777 = K_ARENA_ALLOC(&arena, int64_t, 777);
-            k_print(&k_GpaInst()->base, stdout, "pos in scope: {sz}, number: {:#x:u64}, p777: {i64}\n", arena.pos, anNumber.pI, *p777);
+            k_print(&k_GpaInst()->base, stdout, "pos in scope: {sz}, number: {:#x:u64}, p777: {i64}\n", k_ArenaMemoryUsed(&arena), anNumber.pI, *p777);
         }
 
-        k_print(&k_GpaInst()->base, stdout, "pos after: {sz}, number: '{:#x:u64}'\n", arena.pos, anNumber.pI);
+        k_print(&k_GpaInst()->base, stdout, "pos after: {sz}, number: '{:#x:u64}'\n", k_ArenaMemoryUsed(&arena), anNumber.pI);
     }
     k_ArenaDestroy(&arena);
 

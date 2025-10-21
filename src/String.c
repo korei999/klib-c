@@ -1,16 +1,52 @@
-#include "klib/print.h"
-#include "klib/Gpa.h"
+#include "klib/String.h"
+
+#include "klib/Ctx.h"
+
+static void
+test(void)
+{
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        k_String s = k_StringCreateSv(&pArena->base, K_SV("HELLO"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" ONE"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" TWO"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" THREE"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" FOUR"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" FIVE"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" SIX"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" SEVEN"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" EIGHT"));
+        k_StringPushSv(&s, &pArena->base, K_SV(" NINE"));
+
+        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
+
+        k_StringReallocWith(&s, &pArena->base, K_SV("what"));
+
+        K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{s}'", k_StringSize(&s), k_StringCap(&s), k_StringDataConst(&s));
+    }
+}
 
 int
 main(void)
 {
-    k_print_Map* pPrintMap = k_print_MapAlloc(&k_GpaInst()->base);
-    k_print_MapSetGlobal(pPrintMap);
+    k_CtxInitGlobal(
+        (k_LoggerInitOpts){
+            .bPrintSource = true,
+            .bPrintTime = true,
+            .eLogLevel = K_LOG_LEVEL_DEBUG,
+            .fd = 2,
+            .ringBufferSize = K_SIZE_1K*4,
+        },
+        (k_ThreadPoolInitOpts){
+            .ringBufferSize = K_SIZE_1K*4,
+            .arenaReserve = K_SIZE_1M*60,
+        }
+    );
 
-    k_StringView sv = K_SV("HELLO BIDEN");
+    K_CTX_LOG_INFO("String test...");
+    test();
+    K_CTX_LOG_INFO("String passed");
 
-    for (ssize_t i = 0; i < sv.size; ++i)
-        k_print(&k_GpaInst()->base, stdout, "c: '{:5 > f%:c}'\n", k_StringViewGet(&sv, i));
-
-    k_print_MapDealloc(&pPrintMap);
+    k_CtxDestroyGlobal();
 }

@@ -3,6 +3,7 @@ add_subdirectory(ThirdParty)
 add_library(klib-static STATIC
     print.c
     StringView.c
+    String.c
     Arena.c
     IAllocator.c
     RingBuffer.c

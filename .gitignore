@@ -1,0 +1,9 @@
+.cache/
+.vscode/
+build/
+compile_commands.json
+tags
+.clangd
+CMakeCache.txt
+CMakeFiles/
+Makefile

@@ -69,8 +69,10 @@ decommit(k_Arena* s, void* p, ssize_t size)
 }
 
 bool
-growIfNeeded(k_Arena* s, ssize_t newPos)
+growIfNeeded(k_Arena* pSelf, ssize_t newPos)
 {
+    K_TYPEOF(pSelf->priv)* s = &pSelf->priv;
+
     if (newPos > s->commited)
     {
         const ssize_t pageSize = k_getPageSize();
@@ -105,7 +107,7 @@ k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
         .free = k_ArenaFree,
     };
     s->base.pVTable = &s_arenaVTable;
-    s->pData = NULL;
+    s->priv.pData = NULL;
 
     int err = 0;
     (void)err;
@@ -124,25 +126,25 @@ k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
 #else
 #endif
 
-    s->pData = pRes;
-    s->pos = 0;
-    s->reserved = realReserved;
-    s->commited = 0;
-    s->pLastAlloc = (void*)K_NPOS64;
-    s->lDeleters = NULL;
-    s->pLCurrentDeleters = &s->lDeleters;
+    s->priv.pData = pRes;
+    s->priv.pos = 0;
+    s->priv.reserved = realReserved;
+    s->priv.commited = 0;
+    s->priv.pLastAlloc = (void*)K_NPOS64;
+    s->priv.lDeleters = NULL;
+    s->priv.pLCurrentDeleters = &s->priv.lDeleters;
 
     K_ASAN_POISON(s->pData, realReserved);
 
     if (commitSize > 0)
     {
         const ssize_t realCommit = K_ALIGN_UP_PO2(commitSize, pageSize);
-        if (!commit(s->pData, realCommit))
+        if (!commit(s->priv.pData, realCommit))
         {
             abort();
             return false;
         }
-        s->commited = realCommit;
+        s->priv.commited = realCommit;
     }
 
     return true;
@@ -153,9 +155,9 @@ k_ArenaMalloc(void* pSelf, ssize_t nBytes)
 {
     k_Arena* s = (k_Arena*)pSelf;
     const ssize_t realSize = K_ALIGN_UP8(nBytes);
-    void* pRet = (void*)((uint8_t*)s->pData + s->pos);
-    if (!growIfNeeded(s, s->pos + realSize)) return NULL;
-    s->pLastAlloc = pRet;
+    void* pRet = (void*)((uint8_t*)s->priv.pData + s->priv.pos);
+    if (!growIfNeeded(s, s->priv.pos + realSize)) return NULL;
+    s->priv.pLastAlloc = pRet;
 
     return pRet;
 }
@@ -175,10 +177,10 @@ k_ArenaRealloc(void* pSelf, void* p, ssize_t oldNBytes, ssize_t newNBytes)
     if (!p) return malloc(newNBytes);
 
     /* bump case */
-    if (p == s->pLastAlloc)
+    if (p == s->priv.pLastAlloc)
     {
         const ssize_t realSize = K_ALIGN_UP8(newNBytes);
-        const ssize_t newPos = ((ssize_t)s->pLastAlloc - (ssize_t)s->pData) + realSize;
+        const ssize_t newPos = ((ssize_t)s->priv.pLastAlloc - (ssize_t)s->priv.pData) + realSize;
         if (!growIfNeeded(s, newPos)) return NULL;
         return p;
     }
@@ -195,10 +197,10 @@ k_ArenaDestroy(k_Arena* s)
 {
     k_ArenaRunDeleters(s);
 
-    if (s->pData)
+    if (s->priv.pData)
     {
 #ifdef K_ARENA_MMAP
-        int err = munmap(s->pData, s->reserved);
+        int err = munmap(s->priv.pData, s->priv.reserved);
         (void)err;
         assert(err != - 1);
 #elif defined ADT_ARENA_WIN32
@@ -217,8 +219,8 @@ k_ArenaReset(k_Arena* s)
 
     K_ASAN_POISON(s->pData, s->pos);
 
-    s->pos = 0;
-    s->pLastAlloc = (void*)K_NPOS64;
+    s->priv.pos = 0;
+    s->priv.pLastAlloc = (void*)K_NPOS64;
 }
 
 void
@@ -226,25 +228,27 @@ k_ArenaResetDecommit(k_Arena* s)
 {
     k_ArenaRunDeleters(s);
 
-    decommit(s, s->pData, s->commited);
+    decommit(s, s->priv.pData, s->priv.commited);
 
     K_ASAN_POISON(s->pData, s->pos);
 
-    s->pos = 0;
-    s->commited = 0;
-    s->pLastAlloc = (void*)K_NPOS64;
+    s->priv.pos = 0;
+    s->priv.commited = 0;
+    s->priv.pLastAlloc = (void*)K_NPOS64;
 }
 
 void
-k_ArenaResetToPage(k_Arena* s, ssize_t nthPage)
+k_ArenaResetToPage(k_Arena* pSelf, ssize_t nthPage)
 {
+    K_TYPEOF(pSelf->priv)* s = &pSelf->priv;
+
     const ssize_t commitSize = k_getPageSize() * nthPage;
     assert(commitSize <= s->reserved);
 
-    k_ArenaRunDeleters(s);
+    k_ArenaRunDeleters(pSelf);
 
     if (s->commited > commitSize)
-        decommit(s, (uint8_t*)s->pData + commitSize, s->commited - commitSize);
+        decommit(pSelf, (uint8_t*)s->pData + commitSize, s->commited - commitSize);
     else if (s->commited < commitSize)
         commit((uint8_t*)s->pData + s->commited, commitSize - s->commited);
 
@@ -258,10 +262,10 @@ k_ArenaResetToPage(k_Arena* s, ssize_t nthPage)
 void
 k_ArenaRunDeleters(k_Arena* s)
 {
-    for (k_ArenaPtr* walk = *s->pLCurrentDeleters; walk; walk = walk->pNext)
+    for (k_ArenaPtr* walk = *s->priv.pLCurrentDeleters; walk; walk = walk->pNext)
         walk->pfnDeleter(walk->ppObj);
 
-    *s->pLCurrentDeleters = NULL;
+    *s->priv.pLCurrentDeleters = NULL;
 }
 
 bool
@@ -274,8 +278,8 @@ k_ArenaPtrAlloc(k_Arena* s, k_ArenaPtrAllocOpts opts)
     if (!opts.pfnDeleter) opts.pNode->pfnDeleter = k_nullDeleter;
 
     opts.pNode->ppObj = opts.ppObj;
-    opts.pNode->pNext = *s->pLCurrentDeleters;
-    *s->pLCurrentDeleters = opts.pNode;
+    opts.pNode->pNext = *s->priv.pLCurrentDeleters;
+    *s->priv.pLCurrentDeleters = opts.pNode;
 
     return true;
 }
@@ -284,12 +288,12 @@ void
 k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena)
 {
     s->pArena = pArena;
-    s->pos = pArena->pos;
-    s->pLastAlloc = pArena->pLastAlloc;
-    s->pLCurrentDeleters = pArena->pLCurrentDeleters;
+    s->pos = pArena->priv.pos;
+    s->pLastAlloc = pArena->priv.pLastAlloc;
+    s->pLCurrentDeleters = pArena->priv.pLCurrentDeleters;
 
     s->lDeleters = NULL;
-    s->pArena->pLCurrentDeleters = &s->lDeleters;
+    s->pArena->priv.pLCurrentDeleters = &s->lDeleters;
 }
 
 void
@@ -297,7 +301,7 @@ k_ArenaStateRestore(k_ArenaState* s)
 {
     k_ArenaRunDeleters(s->pArena);
     K_ASAN_POISON((uint8_t*)s->pArena->pData + s->pArena->pos, s->pArena->pos - s->pos);
-    s->pArena->pos = s->pos;
-    s->pArena->pLastAlloc = s->pLastAlloc;
-    s->pArena->pLCurrentDeleters = s->pLCurrentDeleters;
+    s->pArena->priv.pos = s->pos;
+    s->pArena->priv.pLastAlloc = s->pLastAlloc;
+    s->pArena->priv.pLCurrentDeleters = s->pLCurrentDeleters;
 }

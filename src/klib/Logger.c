@@ -147,7 +147,7 @@ pushMsg(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, cons
 }
 
 void
-k_LoggerSendVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs)
+k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs)
 {
     if (eLevel > s->eLogLevel) return;
 
@@ -165,20 +165,20 @@ k_LoggerSendVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char*
 }
 
 void
-k_LoggerSendSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...)
+k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...)
 {
     va_list args;
     va_start(args, svFmt);
-    k_LoggerSendVaList(s, pArena, eLevel, ntsFile, line, svFmt, &args);
+    k_LoggerPostVaList(s, pArena, eLevel, ntsFile, line, svFmt, &args);
     va_end(args);
 }
 
 void
-k_LoggerSend(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
+k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
 {
     va_list args;
     va_start(args, ntsFmt);
-    k_LoggerSendVaList(s, pArena, eLevel, ntsFile, line, K_NTS(ntsFmt), &args);
+    k_LoggerPostVaList(s, pArena, eLevel, ntsFile, line, K_NTS(ntsFmt), &args);
     va_end(args);
 }
 
