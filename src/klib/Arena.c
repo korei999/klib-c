@@ -287,21 +287,21 @@ k_ArenaPtrAlloc(k_Arena* s, k_ArenaPtrAllocOpts opts)
 void
 k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena)
 {
-    s->pArena = pArena;
-    s->pos = pArena->priv.pos;
-    s->pLastAlloc = pArena->priv.pLastAlloc;
-    s->pLCurrentDeleters = pArena->priv.pLCurrentDeleters;
+    s->state.pArena = pArena;
+    s->state.pos = pArena->priv.pos;
+    s->state.pLastAlloc = pArena->priv.pLastAlloc;
+    s->state.pLCurrentDeleters = pArena->priv.pLCurrentDeleters;
 
     s->lDeleters = NULL;
-    s->pArena->priv.pLCurrentDeleters = &s->lDeleters;
+    s->state.pArena->priv.pLCurrentDeleters = &s->lDeleters;
 }
 
 void
 k_ArenaStateRestore(k_ArenaState* s)
 {
-    k_ArenaRunDeleters(s->pArena);
+    k_ArenaRunDeleters(s->state.pArena);
     K_ASAN_POISON((uint8_t*)s->pArena->pData + s->pArena->pos, s->pArena->pos - s->pos);
-    s->pArena->priv.pos = s->pos;
-    s->pArena->priv.pLastAlloc = s->pLastAlloc;
-    s->pArena->priv.pLCurrentDeleters = s->pLCurrentDeleters;
+    s->state.pArena->priv.pos = s->state.pos;
+    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
+    s->state.pArena->priv.pLCurrentDeleters = s->state.pLCurrentDeleters;
 }

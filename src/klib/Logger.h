@@ -29,7 +29,7 @@ typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, K_LOG_LEVEL eLogL
 typedef struct k_Logger
 {
     k_IAllocator* pAlloc;
-    k_LoggerFormatHeaderPfn pfnFormat;
+    k_LoggerFormatHeaderPfn pfnFormatHeader;
     k_RingBuffer rb;
     k_Span spDrainBuffer;
     k_Mutex mtx;

@@ -54,7 +54,26 @@ k_CtxPrintMap(void)
     return k_g_context.pPrintMap;
 }
 
-#define K_CTX_LOG_WARN(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
-#define K_CTX_LOG_ERROR(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define K_CTX_LOG_INFO(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
-#define K_CTX_LOG_DEBUG(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#if !defined K_CTX_LOG_LEVEL || (K_CTX_LOG_LEVEL >= 1)
+    #define K_CTX_LOG_ERROR(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+#else
+    #define K_CTX_LOG_ERROR(...) (void)0
+#endif
+
+#if !defined K_CTX_LOG_LEVEL || (K_CTX_LOG_LEVEL >= 2)
+    #define K_CTX_LOG_WARN(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+#else
+    #define K_CTX_LOG_WARN(...) (void)0
+#endif
+
+#if !defined K_CTX_LOG_LEVEL || (K_CTX_LOG_LEVEL >= 3)
+    #define K_CTX_LOG_INFO(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#else
+    #define K_CTX_LOG_INFO(...) (void)0
+#endif
+
+#if !defined K_CTX_LOG_LEVEL || (K_CTX_LOG_LEVEL >= 4)
+    #define K_CTX_LOG_DEBUG(...) k_LoggerPost(k_CtxLogger(), k_CtxArena(), K_LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#else
+    #define K_CTX_LOG_DEBUG(...) (void)0
+#endif

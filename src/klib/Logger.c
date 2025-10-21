@@ -42,7 +42,7 @@ loop(void* pArg)
             k_RingBufferPop(&s->rb, &lh, sizeof(lh));
             eLevel = lh.logSizeAndLevel >> 56;
             logSize = lh.logSizeAndLevel & ~(ssize_t)(255ull << 56ull);
-            const ssize_t nn = s->pfnFormat(s, eLevel, lh.ntsFile, lh.line, s->spDrainBuffer);
+            const ssize_t nn = s->pfnFormatHeader(s, eLevel, lh.ntsFile, lh.line, s->spDrainBuffer);
             k_RingBufferPopNoChecks(&s->rb, (uint8_t*)s->spDrainBuffer.pData + nn, K_MIN(s->spDrainBuffer.size - nn, logSize));
             logSize += nn;
         }
@@ -69,8 +69,8 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
     }
     s->spDrainBuffer.size = opts.ringBufferSize;
 
-    if (opts.pfnFormat) s->pfnFormat = opts.pfnFormat;
-    else s->pfnFormat = k_LoggerDefaultFormatter;
+    if (opts.pfnFormat) s->pfnFormatHeader = opts.pfnFormat;
+    else s->pfnFormatHeader = k_LoggerDefaultFormatter;
 
     s->eLogLevel = opts.eLogLevel;
     s->fd = opts.fd;

@@ -42,8 +42,8 @@ typedef ssize_t (*k_print_PfnFormat)(k_print_Context* pCtx, k_print_FmtArgs* pFm
 k_print_Map* k_print_MapAlloc(k_IAllocator* pAlloc);
 void k_print_MapSetGlobal(k_print_Map* pPrinter);
 k_print_Map* k_print_MapInst(void); /* Global printer instance. */
-bool k_print_MapAddFormatter(k_print_Map* pSelf, const char* ntsSignature, k_print_PfnFormat pfnFormat);
-bool k_print_MapAddFormatterSv(k_print_Map* pSelf, const k_StringView svSignature, k_print_PfnFormat pfnFormat);
+bool k_print_MapAddFormatter(k_print_Map* pSelf, const char* ntsSignature, k_print_PfnFormat pfnFormat); /* NOTE: thread unsafe. */
+bool k_print_MapAddFormatterSv(k_print_Map* pSelf, const k_StringView svSignature, k_print_PfnFormat pfnFormat); /* NOTE: thread unsafe. */
 bool k_print_MapRemoveFormatter(k_print_Map* pSelf, const char* ntsSignature);
 bool k_print_MapRemoveFormatterSv(k_print_Map* pSelf, const k_StringView svSignature);
 void k_print_MapDestroy(k_print_Map* pSelf);

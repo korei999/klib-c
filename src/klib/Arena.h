@@ -75,12 +75,13 @@ k_ArenaMemoryUsed(k_Arena* s)
 
 typedef struct
 {
-    /* Stored state. */
-    k_Arena* pArena;
-    ssize_t pos;
-    void* pLastAlloc;
-    k_ArenaPtr** pLCurrentDeleters;
-    /* */
+    struct
+    {
+        k_Arena* pArena;
+        ssize_t pos;
+        void* pLastAlloc;
+        k_ArenaPtr** pLCurrentDeleters;
+    } state;
     k_ArenaPtr* lDeleters; /* New list. */
 } k_ArenaState;
 

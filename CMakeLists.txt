@@ -74,6 +74,8 @@ if (OPT_FTIME_TRACE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ftime-trace")
 endif()
 
+add_definitions("-DK_CTX_LOG_LEVEL=4")
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 set(CMAKE_C_STANDARD 11)
