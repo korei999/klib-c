@@ -53,13 +53,13 @@ typedef struct Components
 
 
 static void
-ComponentsMapDestroy(Components* s)
+ComponentsDestroy(Components* s)
 {
     free(s->pDense);
 }
 
 static bool
-ComponentsMapGrow(Components* s, int newCap)
+ComponentsGrow(Components* s, int newCap)
 {
     ssize_t mainOff = sizeof(*s->pDense) + sizeof(*s->pSparse) + sizeof(*s->pFreeList) + sizeof(*s->pComponentLists);
     ssize_t totalCap = newCap * mainOff;
@@ -90,7 +90,7 @@ ComponentsMapGrow(Components* s, int newCap)
 
     for (ssize_t i = 0, off = mainOff * newCap; i < COMPONENT_ESIZE; ++i)
     {
-        if (s->pComponents[i]) memcpy(pNew + off, s->pComponents[i], s->size*COMPONENT_SIZES[i]);
+        if (s->size > 0) memcpy(pNew + off, s->pComponents[i], s->size*COMPONENT_SIZES[i]);
         s->pComponents[i] = pNew + off;
         off += COMPONENT_SIZES[i]*newCap;
     }
@@ -102,11 +102,11 @@ ComponentsMapGrow(Components* s, int newCap)
 }
 
 static ENTITY_HANDLE
-EntityCreate(Components* s)
+ComponentsCreateEntity(Components* s)
 {
     if (s->size >= s->cap)
     {
-        if (!ComponentsMapGrow(s, K_MAX(8, s->cap * 2)))
+        if (!ComponentsGrow(s, K_MAX(8, s->cap * 2)))
             return ENTITY_HANDLE_INVALID;
     }
 
@@ -124,7 +124,7 @@ EntityCreate(Components* s)
 }
 
 static void
-EntityRemove(ENTITY_HANDLE h, Components* s)
+ComponentsRemoveEntity(Components* s, ENTITY_HANDLE h)
 {
     s->pFreeList[s->freeListSize++] = h;
 
@@ -157,7 +157,7 @@ EntityRemove(ENTITY_HANDLE h, Components* s)
 }
 
 static void
-EntityAddComponent(ENTITY_HANDLE h, Components* s, COMPONENT eComp, void* pVal)
+ComponentsAdd(Components* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
 {
     const int dI = s->pSparse[h];
     ComponentList* pCl = &s->pComponentLists[dI];
@@ -171,7 +171,7 @@ EntityAddComponent(ENTITY_HANDLE h, Components* s, COMPONENT eComp, void* pVal)
 }
 
 static void*
-EntityGetComponent(ENTITY_HANDLE h, Components* s, COMPONENT eComp)
+ComponentsGet(Components* s, ENTITY_HANDLE h, COMPONENT eComp)
 {
     return (uint8_t*)s->pComponents[eComp] + s->pSparse[h]*COMPONENT_SIZES[eComp];
 }
@@ -187,51 +187,51 @@ test(void)
 {
     Components s = {0};
 
-    ENTITY_HANDLE h0 = EntityCreate(&s);
-    ENTITY_HANDLE h1 = EntityCreate(&s);
-    ENTITY_HANDLE h2 = EntityCreate(&s);
-    ENTITY_HANDLE h3 = EntityCreate(&s);
-    ENTITY_HANDLE h4 = EntityCreate(&s);
-    ENTITY_HANDLE h5 = EntityCreate(&s);
-    ENTITY_HANDLE h6 = EntityCreate(&s);
-    ENTITY_HANDLE h7 = EntityCreate(&s);
-    ENTITY_HANDLE h8 = EntityCreate(&s);
-    ENTITY_HANDLE h9 = EntityCreate(&s);
-    ENTITY_HANDLE h10 = EntityCreate(&s);
+    ENTITY_HANDLE h0 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h1 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h2 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h3 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h4 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h5 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h6 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h7 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h8 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h9 = ComponentsCreateEntity(&s);
+    ENTITY_HANDLE h10 = ComponentsCreateEntity(&s);
 
     {
         Health health0 = {77};
         Pos pos0 = {.x = 666, .y = 999};
-        EntityAddComponent(h0, &s, COMPONENT_POS, &pos0);
-        EntityAddComponent(h0, &s, COMPONENT_HEALTH, &health0);
+        ComponentsAdd(&s, h0, COMPONENT_POS, &pos0);
+        ComponentsAdd(&s, h0, COMPONENT_HEALTH, &health0);
     }
 
     {
         Health health1 = {12345};
         Pos pos1 = {.x = 111, .y = 222};
-        EntityAddComponent(h1, &s, COMPONENT_POS, &pos1);
-        EntityAddComponent(h1, &s, COMPONENT_HEALTH, &health1);
+        ComponentsAdd(&s, h1, COMPONENT_POS, &pos1);
+        ComponentsAdd(&s, h1, COMPONENT_HEALTH, &health1);
     }
 
     {
         Health health3 = {-99999};
         Pos pos2 = {.x = 3003, .y = 2002};
-        EntityAddComponent(h2, &s, COMPONENT_POS, &pos2);
-        EntityAddComponent(h2, &s, COMPONENT_HEALTH, &health3);
+        ComponentsAdd(&s, h2, COMPONENT_POS, &pos2);
+        ComponentsAdd(&s, h2, COMPONENT_HEALTH, &health3);
     }
 
     {
         Health health10 = {10};
         Pos pos10 = {.x = 10, .y = 10};
-        EntityAddComponent(h10, &s, COMPONENT_POS, &pos10);
-        EntityAddComponent(h10, &s, COMPONENT_HEALTH, &health10);
+        ComponentsAdd(&s, h10, COMPONENT_POS, &pos10);
+        ComponentsAdd(&s, h10, COMPONENT_HEALTH, &health10);
     }
 
     {
-        Pos* pPos0 = EntityGetComponent(h0, &s, COMPONENT_POS);
-        Health* pHealth0 = EntityGetComponent(h0, &s, COMPONENT_HEALTH);
-        Pos* pPos1 = EntityGetComponent(h1, &s, COMPONENT_POS);
-        Pos* pPos2 = EntityGetComponent(h2, &s, COMPONENT_POS);
+        Pos* pPos0 = ComponentsGet(&s, h0, COMPONENT_POS);
+        Health* pHealth0 = ComponentsGet(&s, h0, COMPONENT_HEALTH);
+        Pos* pPos1 = ComponentsGet(&s, h1, COMPONENT_POS);
+        Pos* pPos2 = ComponentsGet(&s, h2, COMPONENT_POS);
 
         K_CTX_LOG_DEBUG("pPos0: {:.3:f}, {:.3:f}", pPos0->x, pPos0->y);
         K_CTX_LOG_DEBUG("pHealth0: {i}", pHealth0->val);
@@ -241,7 +241,7 @@ test(void)
 
     // K_CTX_LOG_DEBUG("size: {i}", s.size);
 
-    EntityRemove(h1, &s);
+    ComponentsRemoveEntity(&s, h1);
 
     {
         Pos* pPos = ComponentAt(0, &s, COMPONENT_POS);
@@ -255,7 +255,7 @@ test(void)
     // EntityRemove(h0, &s);
     // EntityRemove(h1, &s);
 
-    ComponentsMapDestroy(&s);
+    ComponentsDestroy(&s);
 }
 
 int
