@@ -148,7 +148,10 @@ EntityRemove(ENTITY_HANDLE h, Components* s)
         );
     }
     pThisComp->size = pNewComp->size;
+    pThisComp->mask = pNewComp->mask;
     pNewComp->size = 0;
+    pNewComp->mask = 0;
+
     s->pSparse[thisSparseI] = newSparseI;
     --s->size;
 }
