@@ -86,7 +86,6 @@ ComponentsMapGrow(Components* s, int newCap)
 
         if (s->size > 0) memcpy(pNew + off, s->pComponentLists, s->size*sizeof(*s->pComponentLists));
         s->pComponentLists = (ComponentList*)(pNew + off);
-        s->pComponentLists[0].size = 0;
     }
 
     for (ssize_t i = 0, off = mainOff * newCap; i < COMPONENT_ESIZE; ++i)
