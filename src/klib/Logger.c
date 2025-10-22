@@ -165,7 +165,7 @@ k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char*
             k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
             k_print_BuilderPrintVaList(&pb, &fmtArgs, svFmt, pArgs);
             k_print_BuilderPushChar(&pb, '\n');
-            pushMsg(s, eLevel, ntsFile, line, k_print_BuilderCvtSv(&pb));
+            pushMsg(s, eLevel, ntsFile, line, k_print_BuilderToSv(&pb));
         }
     }
 }

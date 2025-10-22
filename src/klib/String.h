@@ -31,7 +31,7 @@ static inline ssize_t k_StringCap(const k_String* s);
 static inline ssize_t k_StringSize(const k_String* s);
 static inline char* k_StringData(k_String* s);
 static inline const char* k_StringDataConst(const k_String* s);
-static inline k_StringView k_StringCvtSv(const k_String* s);
+static inline k_StringView k_StringToSv(const k_String* s);
 bool k_StringReallocWith(k_String* s, k_IAllocator* pAlloc, const k_StringView svWith);
 bool k_StringPush(k_String* s, k_IAllocator* pAlloc, const char* pData, ssize_t size);
 static inline bool k_StringPushSv(k_String* s, k_IAllocator* pAlloc, const k_StringView sv);
@@ -84,7 +84,7 @@ k_StringDataConst(const k_String* s)
 }
 
 static inline k_StringView
-k_StringCvtSv(const k_String* s)
+k_StringToSv(const k_String* s)
 {
     k_StringView sv;
 

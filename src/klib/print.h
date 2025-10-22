@@ -92,7 +92,7 @@ typedef struct k_print_paddingOpts
 } k_print_paddingOpts;
 
 bool k_print_BuilderInit(k_print_Builder* pSelf, k_print_BuilderInitOpts opts);
-static inline k_StringView k_print_BuilderCvtSv(k_print_Builder* s) { return (k_StringView){ .pData = s->pData, .size = s->size }; }
+static inline k_StringView k_print_BuilderToSv(k_print_Builder* s) { return (k_StringView){ .pData = s->pData, .size = s->size }; }
 void k_print_BuilderDestroy(k_print_Builder* pSelf);
 ssize_t k_print_BuilderPushSvPadded(k_print_Builder* pSelf, const k_StringView sv, k_print_paddingOpts opts);
 ssize_t k_print_BuilderPushSvPaddedFmtArgs(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const k_StringView sv);

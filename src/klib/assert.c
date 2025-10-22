@@ -21,7 +21,7 @@ k_assert_die(const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
         k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
         k_print_BuilderPrintVaList(&pb, &fmtArgs, K_NTS(ntsFmt), &args);
         va_end(args);
-        svPrinted = k_print_BuilderCvtSv(&pb);
+        svPrinted = k_print_BuilderToSv(&pb);
 
         k_LoggerPostSv(k_CtxLogger(), pArena, K_LOG_LEVEL_ERROR, ntsFile, line, svPrinted);
     }

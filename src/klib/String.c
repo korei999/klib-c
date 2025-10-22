@@ -43,7 +43,7 @@ k_StringReallocWith(k_String* s, k_IAllocator* pAlloc, const k_StringView svWith
 {
     if (s->priv.cap <= 0) s->priv.cap = K_STRING_SMALL_SIZE;
 
-    k_StringView svThis = k_StringCvtSv(s);
+    k_StringView svThis = k_StringToSv(s);
 
     if (s->priv.cap > svWith.size)
     {
@@ -73,7 +73,7 @@ k_StringPush(k_String* s, k_IAllocator* pAlloc, const char* pData, ssize_t size)
 {
     if (s->priv.cap <= 0) s->priv.cap = K_STRING_SMALL_SIZE;
 
-    k_StringView svThis = k_StringCvtSv(s);
+    k_StringView svThis = k_StringToSv(s);
 
     if (svThis.size + size >= s->priv.cap)
     {

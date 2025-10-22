@@ -286,7 +286,7 @@ k_print_BuilderPushChar(k_print_Builder* s, const char c)
 void
 k_print_BuilderFlush(k_print_Builder* s, FILE* pFile)
 {
-    const k_StringView svPrinted = k_print_BuilderCvtSv(s);
+    const k_StringView svPrinted = k_print_BuilderToSv(s);
     fwrite(svPrinted.pData, svPrinted.size, 1, pFile);
 }
 
@@ -906,7 +906,7 @@ k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void
 ssize_t
 k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 {
-    k_StringView sv = k_StringCvtSv((k_String*)arg);
+    k_StringView sv = k_StringToSv((k_String*)arg);
     return k_print_formatPStringView(pCtx, pFmtArgs, &sv);
 }
 

@@ -71,7 +71,7 @@ ParserExpect(Parser* s, const TOKEN_TYPE* pTypes, ssize_t typesSize)
         k_print_BuilderPrint(&pb, "{TOKEN_TYPE}", pTypes[0]);
         for (ssize_t i = 1; i < typesSize; ++i)
             k_print_BuilderPrint(&pb, ", {TOKEN_TYPE}", pTypes[i]);
-        k_StringView svPrinted = k_print_BuilderCvtSv(&pb);
+        k_StringView svPrinted = k_print_BuilderToSv(&pb);
         K_CTX_LOG_ERROR("Unexpected token type {TOKEN_TYPE}, expected: {PSv} <{sz}, {sz}>",
             s->l.tok.eType, &svPrinted, s->l.line + 1, s->l.col
         );
@@ -128,7 +128,7 @@ ParserParseStruct(Parser* s)
                 return false;
 
             VecFieldPush(&s->vFields, s->pAlloc, &(Field){.svType = svType, .svName = svName});
-            K_CTX_LOG_DEBUG("type/name: '{PSv} {PSv}'", &svType, &svName);
+            K_CTX_LOG_DEBUG("field: '{PSv} {PSv}'", &svType, &svName);
         }
     }
 
@@ -177,9 +177,43 @@ ParserParse(Parser* s)
     return true;
 }
 
+static ssize_t
+cout(const char* ntsFmt, ...)
+{
+    ssize_t nn = 0;
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        va_list args;
+        va_start(args, ntsFmt);
+        char aBuff[128];
+        nn = k_print_VaList(&pArena->base, stdout, aBuff, sizeof(aBuff), K_NTS(ntsFmt), &args);
+        va_end(args);
+    }
+    return nn;
+}
+
 static void
 ParserGenerate(Parser* s)
 {
+    if (s->svStructName.size <= 0)
+    {
+        K_CTX_LOG_ERROR("Empty struct name?");
+        return;
+    }
+    if (s->vFields.size <= 0)
+    {
+        K_CTX_LOG_ERROR("No fields");
+        return;
+    }
+
+    cout("typedef struct {PSv}\n{{\n", &s->svStructName);
+    for (ssize_t i = 0; i < s->vFields.size; ++i)
+    {
+        s->vFields.pData[i].svName.pData[0] = toupper(s->vFields.pData[i].svName.pData[0]);
+        cout("    {PSv}* p{PSv};\n", &s->vFields.pData[i].svType, &s->vFields.pData[i].svName);
+    }
+    cout("} {PSv};\n", &s->svStructName);
 }
 
 static ssize_t
@@ -281,13 +315,16 @@ LexerAdvance(Lexer* s)
 int
 main(int argc, char** argv)
 {
+    k_StringView svLogLevel = K_SV("4");
+    if (argc > 2) svLogLevel = K_NTS(argv[2]);
+
     k_CtxInitGlobal(
         (k_LoggerInitOpts){
             .ringBufferSize = K_SIZE_1K*4,
             .bPrintSource = true,
             .bPrintTime = false,
             .fd = 2,
-            .eLogLevel = K_LOG_LEVEL_DEBUG,
+            .eLogLevel = k_StringViewToInt(svLogLevel, 10),
         },
         (k_ThreadPoolInitOpts){
             .arenaReserve = K_SIZE_1M*60,
