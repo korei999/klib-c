@@ -24,48 +24,72 @@ static const ssize_t COMPONENT_SIZES[COMPONENT_ESIZE] = {
     sizeof(Health),
 };
 
+typedef uint8_t COMPONENT_MASK;
+_Static_assert(sizeof(COMPONENT_MASK)*8 > COMPONENT_ESIZE, "");
+
 typedef struct ComponentList
 {
-    uint8_t aList[COMPONENT_ESIZE];
+    COMPONENT_MASK mask;
     uint8_t size;
+    uint8_t aList[COMPONENT_ESIZE];
 } ComponentList;
 
 typedef int ENTITY_HANDLE;
 static ENTITY_HANDLE ENTITY_HANDLE_INVALID = -1;
 
-typedef struct ComponentsMap
+typedef struct Components
 {
     int cap;
     int size;
     int freeListSize;
 
-    int aDense[100];
-    int aSparse[100];
-    int aFreeList[100];
-    ComponentList aComponentLists[100];
+    int* pDense;
+    int* pSparse;
+    int* pFreeList;
+    ComponentList* pComponentLists;
 
     void* pComponents[COMPONENT_ESIZE];
-} ComponentsMap;
+} Components;
 
 
 static void
-ComponentsMapDestroy(ComponentsMap* s)
+ComponentsMapDestroy(Components* s)
 {
-    free(s->pComponents[0]);
+    free(s->pDense);
 }
 
 static bool
-ComponentsMapGrow(ComponentsMap* s, int newCap)
+ComponentsMapGrow(Components* s, int newCap)
 {
-    ssize_t totalCap = 0;
+    ssize_t mainOff = sizeof(*s->pDense) + sizeof(*s->pSparse) + sizeof(*s->pFreeList) + sizeof(*s->pComponentLists);
+    ssize_t totalCap = newCap * mainOff;
     for (ssize_t i = 0; i < K_ASIZE(COMPONENT_SIZES); ++i)
         totalCap += newCap*COMPONENT_SIZES[i];
 
     uint8_t* pNew = calloc(1, totalCap);
     if (!pNew) return false;
-    void* pOld = s->pComponents[0];
+    void* pOld = s->pDense;
 
-    for (ssize_t i = 0, off = 0; i < COMPONENT_ESIZE; ++i)
+    {
+        ssize_t off = 0;
+        if (s->size > 0) memcpy(pNew, s->pDense, s->size*sizeof(*s->pDense));
+        s->pDense = (int*)pNew;
+        off += newCap * sizeof(*s->pDense);
+
+        if (s->size > 0) memcpy(pNew + off, s->pSparse, s->size*sizeof(*s->pSparse));
+        s->pSparse = (int*)(pNew + off);
+        off += newCap * sizeof(*s->pSparse);
+
+        if (s->size > 0) memcpy(pNew + off, s->pFreeList, s->size*sizeof(*s->pFreeList));
+        s->pFreeList = (int*)(pNew + off);
+        off += newCap * sizeof(*s->pFreeList);
+
+        if (s->size > 0) memcpy(pNew + off, s->pComponentLists, s->size*sizeof(*s->pComponentLists));
+        s->pComponentLists = (ComponentList*)(pNew + off);
+        s->pComponentLists[0].size = 0;
+    }
+
+    for (ssize_t i = 0, off = mainOff * newCap; i < COMPONENT_ESIZE; ++i)
     {
         if (s->pComponents[i]) memcpy(pNew + off, s->pComponents[i], s->size*COMPONENT_SIZES[i]);
         s->pComponents[i] = pNew + off;
@@ -79,7 +103,7 @@ ComponentsMapGrow(ComponentsMap* s, int newCap)
 }
 
 static ENTITY_HANDLE
-EntityCreate(ComponentsMap* s)
+EntityCreate(Components* s)
 {
     if (s->size >= s->cap)
     {
@@ -89,29 +113,29 @@ EntityCreate(ComponentsMap* s)
 
     int i;
 
-    if (s->freeListSize > 0) i = s->aFreeList[--s->freeListSize];
+    if (s->freeListSize > 0) i = s->pFreeList[--s->freeListSize];
     else i = s->size;
 
-    s->aDense[s->size] = i;
-    s->aSparse[i] = s->size;
-    s->aComponentLists[i].size = 0;
+    s->pDense[s->size] = i;
+    s->pSparse[i] = s->size;
+    s->pComponentLists[i].size = 0;
 
     ++s->size;
     return i;
 }
 
 static void
-EntityRemove(ENTITY_HANDLE h, ComponentsMap* s)
+EntityRemove(ENTITY_HANDLE h, Components* s)
 {
-    s->aFreeList[s->freeListSize++] = h;
+    s->pFreeList[s->freeListSize++] = h;
 
     const int thisSparseI = h;
-    const int thisDenseI = s->aSparse[thisSparseI];
-    const int newSparseI = s->aDense[thisDenseI] = s->aDense[s->size - 1];
-    const int newDenseI = s->aSparse[newSparseI];
+    const int thisDenseI = s->pSparse[thisSparseI];
+    const int newSparseI = s->pDense[thisDenseI] = s->pDense[s->size - 1];
+    const int newDenseI = s->pSparse[newSparseI];
 
-    ComponentList* pThisComp = &s->aComponentLists[thisDenseI];
-    ComponentList* pNewComp = &s->aComponentLists[newDenseI];
+    ComponentList* pThisComp = &s->pComponentLists[thisDenseI];
+    ComponentList* pNewComp = &s->pComponentLists[newDenseI];
 
     for (int i = 0; i < pNewComp->size; ++i)
     {
@@ -125,20 +149,19 @@ EntityRemove(ENTITY_HANDLE h, ComponentsMap* s)
         );
     }
     pThisComp->size = pNewComp->size;
-    s->aSparse[thisSparseI] = newSparseI;
+    pNewComp->size = 0;
+    s->pSparse[thisSparseI] = newSparseI;
     --s->size;
 }
 
 static void
-EntityAddComponent(ENTITY_HANDLE h, ComponentsMap* s, COMPONENT eComp, void* pVal)
+EntityAddComponent(ENTITY_HANDLE h, Components* s, COMPONENT eComp, void* pVal)
 {
-    const int dI = s->aSparse[h];
-    ComponentList* pCl = &s->aComponentLists[dI];
+    const int dI = s->pSparse[h];
+    ComponentList* pCl = &s->pComponentLists[dI];
 
-#ifndef NDEBUG
-    for (int i = 0; i < pCl->size; ++i)
-        K_ASSERT(pCl->aList[i] != eComp, "must not add same component twice");
-#endif
+    K_ASSERT(!(pCl->mask & 1 << (eComp + 1)), "");
+    pCl->mask |= 1 << (eComp + 1);
 
     pCl->aList[pCl->size++] = eComp;
     uint8_t* pComp = s->pComponents[eComp];
@@ -146,13 +169,13 @@ EntityAddComponent(ENTITY_HANDLE h, ComponentsMap* s, COMPONENT eComp, void* pVa
 }
 
 static void*
-EntityGetComponent(ENTITY_HANDLE h, ComponentsMap* s, COMPONENT eComp)
+EntityGetComponent(ENTITY_HANDLE h, Components* s, COMPONENT eComp)
 {
-    return (uint8_t*)s->pComponents[eComp] + s->aSparse[h]*COMPONENT_SIZES[eComp];
+    return (uint8_t*)s->pComponents[eComp] + s->pSparse[h]*COMPONENT_SIZES[eComp];
 }
 
 static void*
-ComponentAt(int denseI, ComponentsMap* s, COMPONENT eComp)
+ComponentAt(int denseI, Components* s, COMPONENT eComp)
 {
     return (uint8_t*)s->pComponents[eComp] + denseI*COMPONENT_SIZES[eComp];
 }
@@ -160,7 +183,7 @@ ComponentAt(int denseI, ComponentsMap* s, COMPONENT eComp)
 static void
 test(void)
 {
-    ComponentsMap s = {0};
+    Components s = {0};
 
     ENTITY_HANDLE h0 = EntityCreate(&s);
     ENTITY_HANDLE h1 = EntityCreate(&s);
