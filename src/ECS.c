@@ -159,7 +159,7 @@ EntityAddComponent(ENTITY_HANDLE h, Components* s, COMPONENT eComp, void* pVal)
     const int dI = s->pSparse[h];
     ComponentList* pCl = &s->pComponentLists[dI];
 
-    K_ASSERT(!(pCl->mask & 1 << (eComp + 1)), "");
+    K_ASSERT(!(pCl->mask & 1 << (eComp + 1)), "Adding same component twice");
     pCl->mask |= 1 << (eComp + 1);
 
     pCl->aList[pCl->size++] = eComp;
