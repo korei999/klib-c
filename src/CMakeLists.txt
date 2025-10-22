@@ -19,6 +19,7 @@ set(TestBinaries
     CmdLine
     Pool
     SOAGen
+    ECS
 )
 
 foreach(Executable IN LISTS TestBinaries)

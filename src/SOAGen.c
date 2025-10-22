@@ -207,6 +207,8 @@ ParserGenerate(Parser* s)
         return;
     }
 
+    cout("/* Generated with SOAGen.c */\n\n");
+
     cout("typedef struct {PSv}\n{{\n", &s->svStructName);
     for (ssize_t i = 0; i < s->vFields.size; ++i)
     {
@@ -256,7 +258,7 @@ LexerSkipWhitespace(Lexer* s)
 }
 
 static void
-LexerGetWord(Lexer* s)
+LexerWord(Lexer* s)
 {
     ssize_t startI = s->i++;
     ++s->col;
@@ -299,7 +301,7 @@ LexerAdvance(Lexer* s)
     }
     else if (isalpha(s->sv.pData[s->i]))
     {
-        LexerGetWord(s);
+        LexerWord(s);
     }
     else
     {
