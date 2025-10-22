@@ -37,6 +37,7 @@ typedef struct k_Logger
     k_Thread thread;
     int fd;
     K_LOG_LEVEL eLogLevel;
+    bool bStarted;
     bool bDone;
     bool bUseAnsiColors;
     bool bPrintTime;
@@ -46,7 +47,7 @@ typedef struct k_Logger
 typedef struct k_LoggerInitOpts
 {
     k_LoggerFormatHeaderPfn pfnFormat;
-    ssize_t ringBufferSize;
+    ssize_t ringBufferSize; /* Do not init if 0. */
     int fd;
     K_LOG_LEVEL eLogLevel;
     bool bForceColors; /* Use ansi colors even if not writing to stdout/stderr. */

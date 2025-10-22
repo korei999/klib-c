@@ -114,6 +114,7 @@ ssize_t k_print_VaList(k_IAllocator* pAlloc, FILE* pFile, char* pBuff, ssize_t b
 ssize_t k_print_Sv(k_IAllocator* pAlloc, FILE* pFile, const k_StringView svFmt, ...);
 ssize_t k_print(k_IAllocator* pAlloc, FILE* pFile, const char* nts, ...);
 
+ssize_t k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
@@ -133,6 +134,7 @@ static inline void
 k_print_MapAddDefaultFormatters(k_print_Map* s)
 {
     /* Larger than 8 bytes structs should be passed by pointer, doubles/floats are handled specially. */
+    k_print_MapAddFormatter(s, "bool", k_print_formatBool);
     k_print_MapAddFormatter(s, "char", k_print_formatChar);
     k_print_MapAddFormatter(s, "c", k_print_formatChar);
     k_print_MapAddFormatter(s, "int", k_print_formatInt);

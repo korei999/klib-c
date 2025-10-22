@@ -57,6 +57,8 @@ loop(void* pArg)
 bool
 k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
 {
+    if (opts.ringBufferSize <= 0) return true;
+
     k_MutexInitPlain(&s->mtx);
     k_CndVarInit(&s->cnd);
     s->pAlloc = pAlloc;
@@ -91,12 +93,16 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
 
     k_ThreadInit(&s->thread, loop, s);
 
+    s->bStarted = true;
+
     return true;
 }
 
 void
 k_LoggerDestroy(k_Logger* s)
 {
+    if (!s->bStarted) return;
+
     k_MutexLock(&s->mtx);
     s->bDone = true;
     k_MutexUnlock(&s->mtx);

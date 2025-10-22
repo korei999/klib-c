@@ -18,6 +18,7 @@ set(TestBinaries
     Logger
     CmdLine
     Pool
+    SOAGen
 )
 
 foreach(Executable IN LISTS TestBinaries)

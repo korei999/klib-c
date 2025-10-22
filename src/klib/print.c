@@ -771,6 +771,14 @@ formatInteger(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg, bool 
 }
 
 ssize_t
+k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+{
+    bool b = (bool)(ssize_t)arg;
+    static const char* map[] = {"false", "true"};
+    return k_print_formatNts(pCtx, pFmtArgs, (void*)map[b]);
+}
+
+ssize_t
 k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 {
     const int64_t c = (int64_t)arg;
