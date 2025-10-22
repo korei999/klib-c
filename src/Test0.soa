@@ -1,0 +1,8 @@
+struct Enitity
+{
+    int i0;
+    int i1;
+
+    float f0;
+    float f1;
+};
