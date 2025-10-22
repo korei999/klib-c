@@ -17,6 +17,7 @@ ssize_t k_StringViewCmp(const k_StringView* l, const k_StringView* r);
 ssize_t k_StringViewCmpRev(const k_StringView* l, const k_StringView* r);
 static inline uint64_t k_StringViewHash(const k_StringView* pSv);
 
+static inline bool k_StringViewEq(const k_StringView s, const k_StringView r);
 ssize_t k_StringViewCharAt(const k_StringView s, char c);
 ssize_t k_StringViewSubStringAt(const k_StringView s, const k_StringView svSub);
 bool k_StringViewContainsSv(const k_StringView s, const k_StringView svSub);
@@ -42,6 +43,12 @@ static inline uint64_t
 k_StringViewHash(const k_StringView* pSv)
 {
     return k_hash_crc32((uint8_t*)pSv->pData, pSv->size, 0);
+}
+
+static inline bool
+k_StringViewEq(const k_StringView s, const k_StringView r)
+{
+    return !k_StringViewCmp(&s, &r);
 }
 
 static inline k_StringView

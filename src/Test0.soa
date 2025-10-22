@@ -1,4 +1,4 @@
-struct Enitity
+struct Entity
 {
     int i0;
     int i1;
