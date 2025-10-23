@@ -173,12 +173,15 @@ ComponentsAdd(Components* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
 static void*
 ComponentsGet(Components* s, ENTITY_HANDLE h, COMPONENT eComp)
 {
-    return (uint8_t*)s->pComponents[eComp] + s->pSparse[h]*COMPONENT_SIZES[eComp];
+    int denseI = s->pSparse[h];
+    K_ASSERT(denseI >= 0 && denseI < s->size, "denseI: {i}, size: {i}", denseI, s->size);
+    return (uint8_t*)s->pComponents[eComp] + denseI*COMPONENT_SIZES[eComp];
 }
 
 static void*
 ComponentAt(int denseI, Components* s, COMPONENT eComp)
 {
+    K_ASSERT(denseI >= 0 && denseI < s->size, "denseI: {i}, size: {i}", denseI, s->size);
     return (uint8_t*)s->pComponents[eComp] + denseI*COMPONENT_SIZES[eComp];
 }
 
@@ -251,9 +254,6 @@ test(void)
             K_CTX_LOG_INFO("{i} pos: ({:.3:f}, {:.3:f}), health: {i}", i, pPos[i].x, pPos[i].y, pHealth[i].val);
         }
     }
-
-    // EntityRemove(h0, &s);
-    // EntityRemove(h1, &s);
 
     ComponentsDestroy(&s);
 }
