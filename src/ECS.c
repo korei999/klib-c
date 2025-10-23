@@ -162,8 +162,8 @@ ComponentsAdd(Components* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
     const int dI = s->pSparse[h];
     ComponentList* pCl = &s->pComponentLists[dI];
 
-    K_ASSERT(!(pCl->mask & 1 << (eComp + 1)), "Adding same component twice");
-    pCl->mask |= 1 << (eComp + 1);
+    K_ASSERT(!(pCl->mask & 1 << (eComp)), "Adding same component twice");
+    pCl->mask |= 1 << (eComp);
 
     pCl->aList[pCl->size++] = eComp;
     uint8_t* pComp = s->pComponents[eComp];
