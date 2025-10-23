@@ -598,8 +598,8 @@ parseVaList(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
     }
 
 done:
-    assert(pCtx->pBuilder->size < pCtx->pBuilder->cap);
-    pCtx->pBuilder->pData[pCtx->pBuilder->size] = '\0';
+    if (pCtx->pBuilder->size < pCtx->pBuilder->cap)
+        pCtx->pBuilder->pData[pCtx->pBuilder->size] = '\0';
     return nWritten;
 }
 
