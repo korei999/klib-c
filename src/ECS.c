@@ -126,6 +126,7 @@ ComponentsCreateEntity(Components* s)
 static void
 ComponentsRemoveEntity(Components* s, ENTITY_HANDLE h)
 {
+    K_ASSERT(h >= 0 && h < s->cap && s->pSparse[h] != -1, "");
     s->pFreeList[s->freeListSize++] = h;
 
     const int thisSparseI = h;
@@ -152,7 +153,8 @@ ComponentsRemoveEntity(Components* s, ENTITY_HANDLE h)
     pNewComp->size = 0;
     pNewComp->mask = 0;
 
-    s->pSparse[thisSparseI] = newSparseI;
+    s->pSparse[newSparseI] = newDenseI;
+    s->pSparse[thisSparseI] = -1;
     --s->size;
 }
 
