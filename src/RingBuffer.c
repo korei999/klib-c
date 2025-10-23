@@ -25,9 +25,9 @@ main(void)
         if (k_RingBufferInit(&rb, &arena.base, 32))
         {
             const k_StringView svHello = K_SV("Hello");
-            const k_StringView svIm = K_SV(" Im");
-            const k_StringView svVery = K_SV(" Very");
-            const k_StringView svToxic = K_SV(" Toxic");
+            const k_StringView svOne = K_SV(" ONE");
+            const k_StringView svTwo = K_SV(" TWO");
+            const k_StringView svThree = K_SV(" THREE");
 
             K_ARENA_SCOPE(&arena)
             {
@@ -41,37 +41,37 @@ main(void)
                     k_RingBufferPop(&rb, spHello.pData, spHello.size);
                 }
 
-                k_RingBufferPushSv(&rb, svIm);
+                k_RingBufferPushSv(&rb, svOne);
 
-                k_Span spIm = {0};
-                spIm.pData = k_ArenaMalloc(&arena, svIm.size);
-                if (spIm.pData)
+                k_Span spOne = {0};
+                spOne.pData = k_ArenaMalloc(&arena, svOne.size);
+                if (spOne.pData)
                 {
-                    spIm.size = svIm.size;
-                    k_RingBufferPop(&rb, spIm.pData, spIm.size);
+                    spOne.size = svOne.size;
+                    k_RingBufferPop(&rb, spOne.pData, spOne.size);
                 }
 
-                k_RingBufferPushSv(&rb, svVery);
+                k_RingBufferPushSv(&rb, svTwo);
 
-                k_Span spVery = {0};
-                spVery.pData = k_ArenaMalloc(&arena, svVery.size);
-                if (spVery.pData)
+                k_Span spTwo = {0};
+                spTwo.pData = k_ArenaMalloc(&arena, svTwo.size);
+                if (spTwo.pData)
                 {
-                    spVery.size = svVery.size;
-                    k_RingBufferPop(&rb, spVery.pData, spVery.size);
+                    spTwo.size = svTwo.size;
+                    k_RingBufferPop(&rb, spTwo.pData, spTwo.size);
                 }
 
-                k_RingBufferPushSv(&rb, svToxic);
+                k_RingBufferPushSv(&rb, svThree);
 
-                k_Span spToxic = {0};
-                spToxic.pData = k_ArenaMalloc(&arena, svToxic.size);
-                if (spToxic.pData)
+                k_Span spThree = {0};
+                spThree.pData = k_ArenaMalloc(&arena, svThree.size);
+                if (spThree.pData)
                 {
-                    spToxic.size = svToxic.size;
-                    k_RingBufferPop(&rb, spToxic.pData, spToxic.size);
+                    spThree.size = svThree.size;
+                    k_RingBufferPop(&rb, spThree.pData, spThree.size);
                 }
 
-                k_print(&arena.base, stdout, "{PSv}{PSv}{PSv}{PSv} (size: {sz})\n", &spHello, &spIm, &spVery, &spToxic, k_RingBufferSize(&rb));
+                k_print(&arena.base, stdout, "{PSv}{PSv}{PSv}{PSv} (size: {sz})\n", &spHello, &spOne, &spTwo, &spThree, k_RingBufferSize(&rb));
             }
 
             assert(k_RingBufferSize(&rb) == 0);
