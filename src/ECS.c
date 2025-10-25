@@ -37,62 +37,69 @@ typedef struct ComponentList
 typedef int ENTITY_HANDLE;
 static const ENTITY_HANDLE ENTITY_HANDLE_INVALID = -1;
 
+typedef struct DenseMap
+{
+    int sparseI;
+    COMPONENT_MASK mask;
+    uint8_t compListSize;
+    uint8_t aCompEnumIdxs[COMPONENT_ESIZE];
+    int aCompSparseIdxs[COMPONENT_ESIZE];
+} DenseMap;
+
+typedef struct SOAComponent
+{
+    void* pData; /* pData and pDense are both allocated with one calloc(). */
+    int* pDense;
+    int size;
+    int cap;
+    int* pSparse; /* Has ComponentMap::cap capacity and allocated alongside with the ComponentMap. */
+} SOAComponent;
+
 typedef struct ComponentMap
 {
-    int cap;
-    int size;
-    int freeListSize;
-
-    int* pDense;
+    DenseMap* pDense;
     ENTITY_HANDLE* pSparse;
     int* pFreeList;
-    ComponentList* pComponentLists;
+    SOAComponent aSOAComponents[COMPONENT_ESIZE];
 
-    void* pSoaComponents[COMPONENT_ESIZE];
+    int size;
+    int cap;
+    int freeListSize;
 } ComponentMap;
-
 
 static void
 ComponentMapDestroy(ComponentMap* s)
 {
-    free(s->pDense);
 }
 
 static bool
 ComponentMapGrow(ComponentMap* s, int newCap)
 {
-    ssize_t mainOff = sizeof(*s->pDense) + sizeof(*s->pSparse) + sizeof(*s->pFreeList) + sizeof(*s->pComponentLists);
-    ssize_t totalCap = newCap * mainOff;
-    for (ssize_t i = 0; i < K_ASIZE(COMPONENT_SIZE_MAP); ++i)
-        totalCap += newCap*COMPONENT_SIZE_MAP[i];
-
+    const ssize_t totalCap = newCap * (sizeof(*s->pDense) + sizeof(*s->pSparse) + sizeof(*s->pFreeList) + sizeof(*s->aSOAComponents[0].pSparse)*COMPONENT_ESIZE);
     uint8_t* pNew = calloc(1, totalCap);
     if (!pNew) return false;
     void* pOld = s->pDense;
 
+    ssize_t off = 0;
+
+    if (s->pDense) memcpy(pNew, s->pDense, sizeof(*s->pDense)*s->size);
+    s->pDense = (void*)(pNew);
+    off += sizeof(*s->pDense)*newCap;
+
+    if (s->pSparse) memcpy(pNew + off, s->pSparse, sizeof(*s->pSparse)*s->cap);
+    s->pSparse = (void*)(pNew + off);
+    for (int i = s->cap; i < newCap; ++i) s->pSparse[i] = -1;
+    off += sizeof(*s->pSparse)*newCap;
+
+    if (s->pFreeList) memcpy(pNew + off, s->pFreeList, sizeof(*s->pFreeList)*s->cap);
+    s->pSparse = (void*)(pNew + off);
+    off += sizeof(*s->pFreeList)*newCap;
+
+    for (ssize_t i = 0; i < COMPONENT_ESIZE; ++i)
     {
-        ssize_t off = 0;
-        if (s->size > 0) memcpy(pNew, s->pDense, s->size*sizeof(*s->pDense));
-        s->pDense = (int*)pNew;
-        off += newCap * sizeof(*s->pDense);
-
-        if (s->size > 0) memcpy(pNew + off, s->pSparse, s->size*sizeof(*s->pSparse));
-        s->pSparse = (int*)(pNew + off);
-        off += newCap * sizeof(*s->pSparse);
-
-        if (s->size > 0) memcpy(pNew + off, s->pFreeList, s->size*sizeof(*s->pFreeList));
-        s->pFreeList = (int*)(pNew + off);
-        off += newCap * sizeof(*s->pFreeList);
-
-        if (s->size > 0) memcpy(pNew + off, s->pComponentLists, s->size*sizeof(*s->pComponentLists));
-        s->pComponentLists = (ComponentList*)(pNew + off);
-    }
-
-    for (ssize_t i = 0, off = mainOff * newCap; i < COMPONENT_ESIZE; ++i)
-    {
-        if (s->size > 0) memcpy(pNew + off, s->pSoaComponents[i], s->size*COMPONENT_SIZE_MAP[i]);
-        s->pSoaComponents[i] = pNew + off;
-        off += COMPONENT_SIZE_MAP[i]*newCap;
+        memcpy(pNew + off, s->aSOAComponents[i].pSparse, sizeof(*s->aSOAComponents[0].pSparse)*s->cap);
+        s->aSOAComponents[i].pSparse = (void*)(pNew + off);
+        off += sizeof(*s->aSOAComponents[0].pSparse)*newCap;
     }
 
     free(pOld);
@@ -107,84 +114,65 @@ ComponentMapCreateEntity(ComponentMap* s)
     if (s->size >= s->cap)
     {
         if (!ComponentMapGrow(s, K_MAX(8, s->cap * 2)))
-            return ENTITY_HANDLE_INVALID;
+            return -1;
     }
 
     int i;
-
     if (s->freeListSize > 0) i = s->pFreeList[--s->freeListSize];
-    else i = s->size;
+    else i = s->size++;
 
-    s->pDense[s->size] = i;
-    s->pSparse[i] = s->size;
-    s->pComponentLists[i].size = 0;
-
-    ++s->size;
     return i;
 }
 
 static void
 ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 {
-    K_ASSERT(h >= 0 && h < s->cap && s->pSparse[h] != -1, "");
-    s->pFreeList[s->freeListSize++] = h;
-
-    const int thisSparseI = h;
-    const int thisDenseI = s->pSparse[thisSparseI];
-    const int newSparseI = s->pDense[thisDenseI] = s->pDense[s->size - 1];
-    const int newDenseI = s->pSparse[newSparseI];
-
-    ComponentList* pThisComp = &s->pComponentLists[thisDenseI];
-    ComponentList* pNewComp = &s->pComponentLists[newDenseI];
-
-    for (int i = 0; i < pNewComp->size; ++i)
-    {
-        COMPONENT thisCompI = pThisComp->aList[i] = pNewComp->aList[i];
-        const ssize_t thisCompSize = COMPONENT_SIZE_MAP[thisCompI];
-
-        memcpy(
-            (uint8_t*)s->pSoaComponents[thisCompI] + thisDenseI*thisCompSize,
-            (uint8_t*)s->pSoaComponents[thisCompI] + newDenseI*thisCompSize,
-            thisCompSize
-        );
-    }
-    pThisComp->size = pNewComp->size;
-    pThisComp->mask = pNewComp->mask;
-    pNewComp->size = 0;
-    pNewComp->mask = 0;
-
-    s->pSparse[newSparseI] = newDenseI;
-    s->pSparse[thisSparseI] = -1;
-    --s->size;
 }
 
-static void
+static bool
 ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
 {
-    const int dI = s->pSparse[h];
-    ComponentList* pCl = &s->pComponentLists[dI];
+    DenseMap* pDense = &s->pDense[s->pSparse[h]];
 
-    K_ASSERT(!(pCl->mask & 1 << (eComp)), "Adding same component twice");
-    pCl->mask |= 1 << (eComp);
+    assert(!(pDense->mask & 1 << eComp) && "trying to add same component twice");
+    pDense->mask |= 1 << eComp;
+    pDense->aCompEnumIdxs[pDense->compListSize++] = eComp;
 
-    pCl->aList[pCl->size++] = eComp;
-    uint8_t* pComp = s->pSoaComponents[eComp];
-    memcpy(pComp + dI*COMPONENT_SIZE_MAP[eComp], pVal, COMPONENT_SIZE_MAP[eComp]);
+    /* Now we need to add this entity to the SOAComponent[eComp] map. */
+    SOAComponent* pComp = &s->aSOAComponents[eComp];
+
+    if (pComp->size >= pComp->cap)
+    {
+        const int newCap = K_MAX(8, pComp->cap * 2);
+        uint8_t* pNew = calloc(1, newCap * sizeof(*pComp->pDense) + COMPONENT_SIZE_MAP[eComp]);
+        if (!pNew) return false;
+        if (pComp->pData)
+        {
+            memcpy(pNew, pComp->pData, COMPONENT_SIZE_MAP[eComp]*pComp->size);
+            memcpy(pNew + COMPONENT_SIZE_MAP[eComp]*newCap, pComp->pDense, sizeof(*pComp->pDense)*pComp->size);
+        }
+        free(pComp->pData);
+        pComp->pData = pNew;
+        pComp->pDense = (void*)(pNew + COMPONENT_SIZE_MAP[eComp]*newCap);
+        pComp->cap = newCap;
+    }
+
+    const int compDenseI = pComp->pSparse[h];
+    pComp->pDense[compDenseI] = h;
+
+    return true;
 }
 
 static void*
 ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp)
 {
-    int denseI = s->pSparse[h];
-    K_ASSERT(denseI >= 0 && denseI < s->size, "denseI: {i}, size: {i}", denseI, s->size);
-    return (uint8_t*)s->pSoaComponents[eComp] + denseI*COMPONENT_SIZE_MAP[eComp];
+    return NULL;
 }
 
 static void*
 ComponentMapAt(ComponentMap* s, int denseI, COMPONENT eComp)
 {
-    K_ASSERT(denseI >= 0 && denseI < s->size, "denseI: {i}, size: {i}", denseI, s->size);
-    return (uint8_t*)s->pSoaComponents[eComp] + denseI*COMPONENT_SIZE_MAP[eComp];
+    return NULL;
 }
 
 static void
@@ -193,85 +181,6 @@ test(void)
     ComponentMap s = {0};
 
     ENTITY_HANDLE h0 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h1 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h2 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h3 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h4 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h5 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h6 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h7 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h8 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h9 = ComponentMapCreateEntity(&s);
-    ENTITY_HANDLE h10 = ComponentMapCreateEntity(&s);
-
-    {
-        Health health0 = {77};
-        Pos pos0 = {.x = 666, .y = 999};
-        ComponentMapAdd(&s, h0, COMPONENT_POS, &pos0);
-        ComponentMapAdd(&s, h0, COMPONENT_HEALTH, &health0);
-    }
-
-    {
-        Health health1 = {12345};
-        Pos pos1 = {.x = 111, .y = 222};
-        ComponentMapAdd(&s, h1, COMPONENT_POS, &pos1);
-        ComponentMapAdd(&s, h1, COMPONENT_HEALTH, &health1);
-    }
-
-    {
-        Health health3 = {-99999};
-        Pos pos2 = {.x = 3003, .y = 2002};
-        ComponentMapAdd(&s, h2, COMPONENT_POS, &pos2);
-        ComponentMapAdd(&s, h2, COMPONENT_HEALTH, &health3);
-    }
-
-    {
-        Health health10 = {10};
-        Pos pos10 = {.x = 10, .y = 10};
-        ComponentMapAdd(&s, h10, COMPONENT_POS, &pos10);
-        ComponentMapAdd(&s, h10, COMPONENT_HEALTH, &health10);
-    }
-
-    {
-        Pos* pPos0 = ComponentMapGet(&s, h0, COMPONENT_POS);
-        Health* pHealth0 = ComponentMapGet(&s, h0, COMPONENT_HEALTH);
-        Pos* pPos1 = ComponentMapGet(&s, h1, COMPONENT_POS);
-        Pos* pPos2 = ComponentMapGet(&s, h2, COMPONENT_POS);
-
-        K_CTX_LOG_DEBUG("pPos0: {:.3:f}, {:.3:f}", pPos0->x, pPos0->y);
-        K_CTX_LOG_DEBUG("pHealth0: {i}", pHealth0->val);
-        K_CTX_LOG_DEBUG("pPos1: {:.3:f}, {:.3:f}", pPos1->x, pPos1->y);
-        K_CTX_LOG_DEBUG("pPos2: {:.3:f}, {:.3:f}", pPos2->x, pPos2->y);
-    }
-
-    // K_CTX_LOG_DEBUG("size: {i}", s.size);
-
-    ComponentMapRemoveEntity(&s, h1);
-    ComponentMapRemoveEntity(&s, h10);
-    ComponentMapRemoveEntity(&s, h9);
-    ComponentMapRemoveEntity(&s, h8);
-    ComponentMapRemoveEntity(&s, h7);
-    ComponentMapRemoveEntity(&s, h6);
-    ComponentMapRemoveEntity(&s, h5);
-    ComponentMapRemoveEntity(&s, h4);
-
-    ENTITY_HANDLE h11 = ComponentMapCreateEntity(&s);
-    {
-        Health health11 = {-1111};
-        Pos pos11 = {.x = -1111, .y = -1111};
-        ComponentMapAdd(&s, h11, COMPONENT_POS, &pos11);
-        // ComponentMapAdd(&s, h11, COMPONENT_HEALTH, &health11);
-    }
-    ComponentMapRemoveEntity(&s, h0);
-
-    {
-        Pos* pPos = ComponentMapAt(&s, 0, COMPONENT_POS);
-        Health* pHealth = ComponentMapAt(&s, 0, COMPONENT_HEALTH);
-        for (int i = 0; i < s.size; ++i)
-        {
-            K_CTX_LOG_INFO("{i} pos: ({:.3:f}, {:.3:f}), health: {i}", i, pPos[i].x, pPos[i].y, pHealth[i].val);
-        }
-    }
 
     ComponentMapDestroy(&s);
 }
