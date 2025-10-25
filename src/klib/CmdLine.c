@@ -16,9 +16,7 @@ typedef struct CmdCommand
     k_StringView svValue;
 } CmdCommand;
 
-#define K_NAME VecCmdCommand
-#define K_TYPE CmdCommand
-#include "VecGen-inl.h"
+#include "Vec.h"
 
 struct k_CmdLine
 {
@@ -29,7 +27,7 @@ struct k_CmdLine
     FILE* pFile;
     k_StringView svName;
     k_StringView svUsageDescription;
-    VecCmdCommand vCmdCommands;
+    k_Vec vCmdCommands; /* <CmdCommand> */
 };
 
 void
@@ -78,7 +76,13 @@ k_CmdLineAlloc(k_IAllocator* pAlloc, FILE* pFile, const k_StringView svName, con
         MapSvToIdxInsert(&s->mapSvToIdxs, pAlloc, &(k_StringView){&pArg->cShortName, 1}, &(ssize_t){i});
         MapSvToIdxInsert(&s->mapSvToIdxs, pAlloc, &pArg->svLongName, &(ssize_t){i});
     }
-    VecCmdCommandInit(&s->vCmdCommands, pAlloc, nArgs);
+
+    if (!k_VecInit(&s->vCmdCommands, pAlloc, nArgs, sizeof(CmdCommand)))
+    {
+        MapSvToIdxDestroy(&s->mapSvToIdxs, pAlloc);
+        k_IAllocatorFree(pAlloc, s);
+        return NULL;
+    }
 
     return s;
 }
@@ -106,7 +110,7 @@ parseShort(k_CmdLine* s, int* pI, int argc, char** argv)
                 if (charI + 1 < svArg.size && svArg.pData[charI + 1] == '=')
                 {
                     k_StringView svVal = k_StringViewSubString1(svArg, charI + 2);
-                    VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){s, pCmdArg, svVal});
+                    k_VecPush(&s->vCmdCommands, s->pAlloc, sizeof(CmdCommand), &(CmdCommand){s, pCmdArg, svVal});
                     ++(*pI);
                     break;
                 }
@@ -124,13 +128,13 @@ parseShort(k_CmdLine* s, int* pI, int argc, char** argv)
                 }
                 else
                 {
-                    VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){s, pCmdArg, K_NTS(argv[*pI])});
+                    k_VecPush(&s->vCmdCommands,  s->pAlloc, sizeof(CmdCommand), &(CmdCommand){s, pCmdArg, K_NTS(argv[*pI])});
                     ++(*pI);
                 }
             }
             else
             {
-                VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){.pCmdLine = s, .pCmdArg = pCmdArg});
+                k_VecPush(&s->vCmdCommands, s->pAlloc, sizeof(CmdCommand), &(CmdCommand){.pCmdLine = s, .pCmdArg = pCmdArg});
             }
         }
         else
@@ -174,13 +178,13 @@ parseLong(k_CmdLine* s, int i, char** argv)
             else
             {
                 const k_StringView svVal = k_StringViewSubString1(svArg, equalsI + 1);
-                VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){s, pCmdArg, svVal});
+                k_VecPush(&s->vCmdCommands, s->pAlloc, sizeof(CmdCommand), &(CmdCommand){s, pCmdArg, svVal});
                 return K_CMD_LINE_RESULT_NEXT;
             }
         }
         else
         {
-            VecCmdCommandPush(&s->vCmdCommands, s->pAlloc, &(CmdCommand){.pCmdLine = s, .pCmdArg = pCmdArg});
+            k_VecPush(&s->vCmdCommands, s->pAlloc, sizeof(CmdCommand), &(CmdCommand){.pCmdLine = s, .pCmdArg = pCmdArg});
             return K_CMD_LINE_RESULT_NEXT;
         }
     }
@@ -213,7 +217,7 @@ k_CmdLineParse(k_CmdLine* s, int argc, char** argv)
     eRes = K_CMD_LINE_RESULT_SUCCESS;
     for (ssize_t i = 0; i < s->vCmdCommands.size; ++i)
     {
-        CmdCommand* pCmd = &s->vCmdCommands.pData[i];
+        CmdCommand* pCmd = k_VecGetP(&s->vCmdCommands, sizeof(CmdCommand), i);
         if (pCmd->pCmdArg->bNeedsValue)
             eRes = pCmd->pCmdArg->pfnValueHandler(pCmd->pCmdLine, pCmd->pCmdArg, pCmd->svValue);
         else eRes = pCmd->pCmdArg->pfnHandler(pCmd->pCmdLine, pCmd->pCmdArg);
@@ -222,7 +226,7 @@ k_CmdLineParse(k_CmdLine* s, int argc, char** argv)
     }
 
 done:
-    VecCmdCommandDestroy(&s->vCmdCommands, s->pAlloc);
+    k_VecDestroy(&s->vCmdCommands, s->pAlloc);
     return eRes;
 }
 
