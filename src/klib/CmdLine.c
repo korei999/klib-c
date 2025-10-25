@@ -77,7 +77,7 @@ k_CmdLineAlloc(k_IAllocator* pAlloc, FILE* pFile, const k_StringView svName, con
         MapSvToIdxInsert(&s->mapSvToIdxs, pAlloc, &pArg->svLongName, &(ssize_t){i});
     }
 
-    if (!k_VecInit(&s->vCmdCommands, pAlloc, nArgs, sizeof(CmdCommand)))
+    if (!k_VecInit(&s->vCmdCommands, pAlloc, sizeof(CmdCommand), nArgs))
     {
         MapSvToIdxDestroy(&s->mapSvToIdxs, pAlloc);
         k_IAllocatorFree(pAlloc, s);

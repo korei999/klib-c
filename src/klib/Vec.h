@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common.h"
 #include "IAllocator.h"
 
 #include <assert.h>
@@ -13,7 +12,7 @@ typedef struct k_Vec
 } k_Vec;
 
 static inline bool
-k_VecInit(k_Vec* s, k_IAllocator* pAlloc, ssize_t cap, ssize_t mSize)
+k_VecInit(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t cap)
 {
     void* pNew = NULL;
     if (cap > 0)
@@ -37,7 +36,7 @@ k_VecDestroy(k_Vec* s, k_IAllocator* pAlloc)
 }
 
 static inline bool
-k_VecGrow(k_Vec* s, k_IAllocator* pAlloc, ssize_t newCap, ssize_t mSize)
+k_VecGrow(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap)
 {
     void* pNew = k_IAllocatorRealloc(pAlloc, s->pData, s->size * mSize, newCap * mSize);
     if (!pNew) return false;
@@ -53,7 +52,7 @@ k_VecPush(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, const void* pVal)
 {
     if (s->size >= s->cap)
     {
-        if (!k_VecGrow(s, pAlloc, K_MAX(8, s->cap * 2), mSize))
+        if (!k_VecGrow(s, pAlloc, mSize, K_MAX(8, s->cap * 2)))
             return K_NPOS;
     }
 
@@ -69,7 +68,7 @@ k_VecPushMany(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, const void* p, ssiz
     {
         ssize_t newCap = s->cap * 2;
         if (s->size + size > newCap) newCap = s->size + size;
-        if (!k_VecGrow(s, pAlloc, newCap, mSize))
+        if (!k_VecGrow(s, pAlloc, mSize, newCap))
             return K_NPOS;
     }
 
@@ -86,7 +85,7 @@ k_VecPop(k_Vec* s, ssize_t mSize)
 }
 
 static inline bool
-k_VecShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t newCap, ssize_t mSize)
+k_VecShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap)
 {
     void* pNew = k_IAllocatorRealloc(pAlloc, s->pData, s->cap*mSize, newCap*mSize);
     if (!pNew) return false;
@@ -104,7 +103,7 @@ k_VecPopShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize)
     assert(s->size > 0);
     if (s->size <= s->cap >> 2)
     {
-        if (!k_VecShrink(s, pAlloc, s->cap >> 1, mSize))
+        if (!k_VecShrink(s, pAlloc, mSize, s->cap >> 1))
             return false;
     }
     --s->size;
@@ -112,7 +111,7 @@ k_VecPopShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize)
 }
 
 static inline bool
-k_VecSetCap(k_Vec* s, k_IAllocator* pAlloc, ssize_t newCap, ssize_t mSize)
+k_VecSetCap(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap)
 {
     void* pNew = k_IAllocatorRealloc(pAlloc, s->pData, K_MIN(newCap*mSize, s->size*mSize), newCap*mSize);
     if (!pNew) return false;
