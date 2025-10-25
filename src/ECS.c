@@ -25,26 +25,16 @@ static const ssize_t COMPONENT_SIZE_MAP[COMPONENT_ESIZE] = {
     sizeof(Health),
 };
 
-typedef uint8_t COMPONENT_MASK;
-_Static_assert(sizeof(COMPONENT_MASK)*8 > COMPONENT_ESIZE, "");
-
-typedef struct ComponentList
-{
-    COMPONENT_MASK mask;
-    uint8_t size;
-    uint8_t aList[COMPONENT_ESIZE];
-} ComponentList;
-
 typedef int ENTITY_HANDLE;
 static const ENTITY_HANDLE ENTITY_HANDLE_INVALID = -1;
 
-typedef struct DenseMap
+typedef struct DenseDesc
 {
     int sparseI;
     uint8_t enumsSize;
     uint8_t aEnumDense[COMPONENT_ESIZE];
     uint8_t aEnumSparse[COMPONENT_ESIZE]; /* Holds dense index + 1, so that invalid index is 0. */
-} DenseMap;
+} DenseDesc;
 
 typedef struct SOAComponent
 {
@@ -61,7 +51,7 @@ typedef struct ComponentMap
 {
     k_IAllocator* pAlloc;
 
-    DenseMap* pDense;
+    DenseDesc* pDense;
     ENTITY_HANDLE* pSparse;
     int* pFreeList;
     SOAComponent aSOAComponents[COMPONENT_ESIZE];
@@ -172,7 +162,7 @@ ComponentMapCreateEntity(ComponentMap* s)
 static void
 ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp)
 {
-    DenseMap* pDense = &s->pDense[s->pSparse[h]];
+    DenseDesc* pDense = &s->pDense[s->pSparse[h]];
 
     K_ASSERT(pDense->aEnumSparse[eComp] != 0, "h: {i}, {i}, off: {sz}, sparse[h]: {i}", h, pDense->aEnumSparse[eComp], pDense - s->pDense, s->pSparse[h]);
 
@@ -192,8 +182,8 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp)
 
     memcpy((uint8_t*)pSOA->pData + denseI*compSize, (uint8_t*)pSOA->pData + moveDenseI*compSize, compSize);
     pSOA->pDense[denseI] = moveSparseI;
-    pSOA->pSparse[h] = -1;
     pSOA->pSparse[moveSparseI] = denseI;
+    pSOA->pSparse[h] = -1;
     pSOA->pFreeList[pSOA->freeListSize++] = denseI;
     --pSOA->size;
 }
@@ -201,12 +191,12 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp)
 static void
 ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 {
-    DenseMap* pDense = &s->pDense[s->pSparse[h]];
+    DenseDesc* pDense = &s->pDense[s->pSparse[h]];
 
     while (pDense->enumsSize > 0)
         ComponentMapRemove(s, h, pDense->aEnumDense[0]);
 
-    DenseMap* pMoveDense = &s->pDense[s->size - 1];
+    DenseDesc* pMoveDense = &s->pDense[s->size - 1];
     memcpy(pDense, pMoveDense, sizeof(*pMoveDense));
     s->pSparse[pMoveDense->sparseI] = s->pSparse[h];
     s->pSparse[h] = -1;
@@ -217,7 +207,7 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 static bool
 ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
 {
-    DenseMap* pDense = &s->pDense[s->pSparse[h]];
+    DenseDesc* pDense = &s->pDense[s->pSparse[h]];
 
     K_ASSERT(pDense->aEnumSparse[eComp] == 0, "");
     pDense->aEnumDense[pDense->enumsSize] = eComp;
@@ -319,6 +309,12 @@ test(void)
             K_CTX_LOG_DEBUG("({i}) Health: {i}",
                 s.aSOAComponents[COMPONENT_HEALTH].pDense[posI], pHealth[posI].val
             );
+        }
+
+        {
+            Health* pH13 = ComponentMapGet(&s, aH[13], COMPONENT_HEALTH);
+            Pos* p13 = ComponentMapGet(&s, aH[13], COMPONENT_POS);
+            K_CTX_LOG_DEBUG("h13 Health: {i}, p13 pos: ({:.3:f}, {:.3:f})", pH13->val, p13->x, p13->y);
         }
     }
 
