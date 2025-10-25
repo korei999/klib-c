@@ -1,5 +1,6 @@
 #include "klib/Ctx.h"
 #include "klib/assert.h"
+#include "klib/Gpa.h"
 
 typedef struct Pos
 {
@@ -41,8 +42,8 @@ typedef struct DenseMap
 {
     int sparseI;
     uint8_t enumsSize;
-    int aEnumDense[COMPONENT_ESIZE];
-    int16_t aEnumSparse[COMPONENT_ESIZE]; /* Holds dense index + 1, so that invalid index is 0. */
+    uint8_t aEnumDense[COMPONENT_ESIZE];
+    uint8_t aEnumSparse[COMPONENT_ESIZE]; /* Holds dense index + 1, so that invalid index is 0. */
 } DenseMap;
 
 typedef struct SOAComponent
@@ -58,6 +59,8 @@ typedef struct SOAComponent
 
 typedef struct ComponentMap
 {
+    k_IAllocator* pAlloc;
+
     DenseMap* pDense;
     ENTITY_HANDLE* pSparse;
     int* pFreeList;
@@ -67,6 +70,15 @@ typedef struct ComponentMap
     int cap;
     int freeListSize;
 } ComponentMap;
+
+static bool ComponentMapGrow(ComponentMap* s, int newCap);
+
+static bool
+ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap)
+{
+    s->pAlloc = pAlloc;
+    return ComponentMapGrow(s, cap);
+}
 
 static void
 ComponentMapDestroy(ComponentMap* s)
@@ -87,7 +99,7 @@ ComponentMapGrow(ComponentMap* s, int newCap)
         sizeof(*s->aSOAComponents[0].pSparse)*COMPONENT_ESIZE +
         sizeof(*s->aSOAComponents[0].pFreeList)*COMPONENT_ESIZE
     );
-    uint8_t* pNew = calloc(1, totalCap);
+    uint8_t* pNew = k_IAllocatorZalloc(s->pAlloc, totalCap);
     if (!pNew) return false;
     void* pOld = s->pDense;
 
@@ -132,7 +144,7 @@ ComponentMapGrow(ComponentMap* s, int newCap)
         off += sizeof(*s->aSOAComponents[0].pFreeList)*newCap;
     }
 
-    free(pOld);
+    k_IAllocatorFree(s->pAlloc, pOld);
     s->cap = newCap;
 
     return true;
@@ -232,14 +244,14 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
     if (pComp->size >= pComp->cap)
     {
         const int newCap = K_MAX(8, pComp->cap * 2);
-        uint8_t* pNew = calloc(1, newCap*(sizeof(*pComp->pDense) + compSize));
+        uint8_t* pNew = k_IAllocatorZalloc(s->pAlloc, newCap*(sizeof(*pComp->pDense) + compSize));
         if (!pNew) return false;
         if (pComp->pData)
         {
             memcpy(pNew, pComp->pData, compSize*pComp->size);
             memcpy(pNew + compSize*newCap, pComp->pDense, sizeof(*pComp->pDense)*pComp->size);
         }
-        free(pComp->pData);
+        k_IAllocatorFree(s->pAlloc, pComp->pData);
         pComp->pData = pNew;
         pComp->pDense = (void*)(pNew + compSize*newCap);
         pComp->cap = newCap;
@@ -272,6 +284,7 @@ static void
 test(void)
 {
     ComponentMap s = {0};
+    ComponentMapInit(&s, &k_GpaInst()->base, 8);
     ENTITY_HANDLE aH[17] = {0};
 
     for (ssize_t i = 0; i < K_ASIZE(aH) - 1; ++i)
