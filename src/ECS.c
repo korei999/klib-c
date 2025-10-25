@@ -84,9 +84,8 @@ static void
 ComponentMapDestroy(ComponentMap* s)
 {
     for (ssize_t i = 0; i < K_ASIZE(s->aSOAComponents); ++i)
-        if (s->aSOAComponents[i].cap > 0) free(s->aSOAComponents[i].pData);
-
-    free(s->pDense);
+        k_IAllocatorFree(s->pAlloc, s->aSOAComponents[i].pData);
+    k_IAllocatorFree(s->pAlloc, s->pDense);
 }
 
 static bool
