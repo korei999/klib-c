@@ -306,8 +306,13 @@ test(void)
         ComponentMapAdd(&s, aH[16], COMPONENT_HEALTH, &(Health){16});
     }
 
-    // ComponentMapRemoveEntity(&s, aH[3]);
-    ComponentMapRemove(&s, aH[4], COMPONENT_HEALTH);
+    {
+        ComponentMapAdd(&s, aH[11], COMPONENT_POS, &(Pos){11, -11});
+        ComponentMapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
+    }
+
+    // ComponentMapRemoveEntity(&s, aH[11]);
+    ComponentMapRemove(&s, aH[11], COMPONENT_HEALTH);
 
     {
         Pos* pPos = s.aSOAComponents[COMPONENT_POS].pData;
