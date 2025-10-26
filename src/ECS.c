@@ -2,38 +2,20 @@
 #include "klib/assert.h"
 #include "klib/Gpa.h"
 
-typedef struct Pos
-{
-    float x;
-    float y;
-} Pos;
-
-typedef struct Health
-{
-    int val;
-} Health;
-
-typedef enum COMPONENT
-{
-    COMPONENT_POS,
-    COMPONENT_HEALTH,
-    COMPONENT_ESIZE
-} COMPONENT;
-
-static const ssize_t COMPONENT_SIZE_MAP[COMPONENT_ESIZE] = {
-    sizeof(Pos),
-    sizeof(Health),
-};
-
 typedef int ENTITY_HANDLE;
 static const ENTITY_HANDLE ENTITY_HANDLE_INVALID = -1;
+
+typedef struct DenseEnum
+{
+    uint8_t dense;
+    uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
+} DenseEnum;
 
 typedef struct DenseDesc
 {
     int sparseI;
     uint8_t enumsSize;
-    uint8_t aEnumDense[COMPONENT_ESIZE];
-    uint8_t aEnumSparse[COMPONENT_ESIZE]; /* Holds dense index + 1, so that invalid index is 0. */
+    DenseEnum* pEnums;
 } DenseDesc;
 
 typedef struct SOAComponent
@@ -54,27 +36,49 @@ typedef struct ComponentMap
     DenseDesc* pDense;
     ENTITY_HANDLE* pSparse;
     int* pFreeList;
-    SOAComponent aSOAComponents[COMPONENT_ESIZE];
+    SOAComponent* pSOAComponents;
 
     int size;
     int cap;
     int freeListSize;
+
+    const int* pSizeMap;
+    int sizeMapSize;
 } ComponentMap;
 
 static bool ComponentMapGrow(ComponentMap* s, int newCap);
 
 static bool
-ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap)
+ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int sizeMapSize)
 {
     s->pAlloc = pAlloc;
-    return ComponentMapGrow(s, cap);
+    s->pSizeMap = pSizeMap;
+    s->sizeMapSize = sizeMapSize;
+
+    void* pSOA = k_IAllocatorZalloc(pAlloc, sizeMapSize * sizeof(*s->pSOAComponents));
+    if (!pSOA) return false;
+    s->pSOAComponents = pSOA;
+
+    if (!ComponentMapGrow(s, cap))
+    {
+        k_IAllocatorFree(pAlloc, pSOA);
+        s->pSOAComponents = NULL;
+        return false;
+    }
+
+    return true;
 }
 
 static void
 ComponentMapDestroy(ComponentMap* s)
 {
-    for (ssize_t i = 0; i < K_ASIZE(s->aSOAComponents); ++i)
-        k_IAllocatorFree(s->pAlloc, s->aSOAComponents[i].pData);
+    for (int i = 0; i < s->cap; ++i)
+        k_IAllocatorFree(s->pAlloc, s->pDense[i].pEnums);
+
+    for (ssize_t i = 0; i < s->sizeMapSize; ++i)
+        k_IAllocatorFree(s->pAlloc, s->pSOAComponents[i].pData);
+    k_IAllocatorFree(s->pAlloc, s->pSOAComponents);
+
     k_IAllocatorFree(s->pAlloc, s->pDense);
 }
 
@@ -85,8 +89,8 @@ ComponentMapGrow(ComponentMap* s, int newCap)
         sizeof(*s->pDense) +
         sizeof(*s->pSparse) +
         sizeof(*s->pFreeList) +
-        sizeof(*s->aSOAComponents[0].pSparse)*COMPONENT_ESIZE +
-        sizeof(*s->aSOAComponents[0].pFreeList)*COMPONENT_ESIZE
+        sizeof(*s->pSOAComponents[0].pSparse)*s->sizeMapSize +
+        sizeof(*s->pSOAComponents[0].pFreeList)*s->sizeMapSize
     );
     uint8_t* pNew = k_IAllocatorZalloc(s->pAlloc, totalCap);
     if (!pNew) return false;
@@ -97,6 +101,10 @@ ComponentMapGrow(ComponentMap* s, int newCap)
     {
         if (s->pDense) memcpy(pNew, s->pDense, sizeof(*s->pDense)*s->size);
         s->pDense = (void*)(pNew);
+
+        for (int i = s->cap; i < newCap; ++i)
+            s->pDense[i].pEnums = k_IAllocatorZalloc(s->pAlloc, sizeof(*s->pDense[i].pEnums) * s->sizeMapSize);
+
         off += sizeof(*s->pDense)*newCap;
     }
 
@@ -116,21 +124,22 @@ ComponentMapGrow(ComponentMap* s, int newCap)
         off += sizeof(*s->pFreeList)*newCap;
     }
 
-    for (ssize_t compI = 0; compI < COMPONENT_ESIZE; ++compI)
+    /* Populate SOAComponents. */
+    for (ssize_t compI = 0; compI < s->sizeMapSize; ++compI)
     {
-        if (s->aSOAComponents[compI].pSparse)
-            memcpy(pNew + off, s->aSOAComponents[compI].pSparse, sizeof(*s->aSOAComponents[0].pSparse)*s->cap);
+        if (s->pSOAComponents[compI].pSparse)
+            memcpy(pNew + off, s->pSOAComponents[compI].pSparse, sizeof(*s->pSOAComponents[0].pSparse)*s->cap);
 
-        s->aSOAComponents[compI].pSparse = (void*)(pNew + off);
-        off += sizeof(*s->aSOAComponents[0].pSparse)*newCap;
+        s->pSOAComponents[compI].pSparse = (void*)(pNew + off);
+        off += sizeof(*s->pSOAComponents[0].pSparse)*newCap;
         for (int i = s->cap; i < newCap; ++i)
-            s->aSOAComponents[compI].pSparse[i] = -1;
+            s->pSOAComponents[compI].pSparse[i] = -1;
 
-        if (s->aSOAComponents[compI].pFreeList)
-            memcpy(pNew + off, s->aSOAComponents[compI].pFreeList, sizeof(*s->aSOAComponents[0].pFreeList)*s->cap);
+        if (s->pSOAComponents[compI].pFreeList)
+            memcpy(pNew + off, s->pSOAComponents[compI].pFreeList, sizeof(*s->pSOAComponents[0].pFreeList)*s->cap);
 
-        s->aSOAComponents[compI].pFreeList = (void*)(pNew + off);
-        off += sizeof(*s->aSOAComponents[0].pFreeList)*newCap;
+        s->pSOAComponents[compI].pFreeList = (void*)(pNew + off);
+        off += sizeof(*s->pSOAComponents[0].pFreeList)*newCap;
     }
 
     k_IAllocatorFree(s->pAlloc, pOld);
@@ -160,19 +169,19 @@ ComponentMapCreateEntity(ComponentMap* s)
 }
 
 static void
-ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp)
+ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
     DenseDesc* pDense = &s->pDense[s->pSparse[h]];
 
-    K_ASSERT(pDense->aEnumSparse[eComp] != 0, "h: {i}, {i}, off: {sz}, sparse[h]: {i}", h, pDense->aEnumSparse[eComp], pDense - s->pDense, s->pSparse[h]);
+    K_ASSERT(pDense->pEnums[eComp].sparse != 0, "h: {i}, {i}, off: {sz}, sparse[h]: {i}", h, pDense->pEnums[eComp].sparse, pDense - s->pDense, s->pSparse[h]);
 
-    const int enumDenseI = pDense->aEnumSparse[eComp] - 1;
-    pDense->aEnumDense[enumDenseI] = pDense->aEnumDense[--pDense->enumsSize]; /* Swap with last. */
-    pDense->aEnumSparse[pDense->aEnumDense[enumDenseI]] = enumDenseI + 1;
-    pDense->aEnumSparse[eComp] = 0;
+    const int enumDenseI = pDense->pEnums[eComp].sparse - 1;
+    pDense->pEnums[enumDenseI].dense = pDense->pEnums[--pDense->enumsSize].dense; /* Swap with last. */
+    pDense->pEnums[pDense->pEnums[enumDenseI].dense].sparse = enumDenseI + 1;
+    pDense->pEnums[eComp].sparse = 0;
 
-    SOAComponent* pSOA = &s->aSOAComponents[eComp];
-    const ssize_t compSize = COMPONENT_SIZE_MAP[eComp];
+    SOAComponent* pSOA = &s->pSOAComponents[eComp];
+    const ssize_t compSize = s->pSizeMap[eComp];
 
     const int denseI = pSOA->pSparse[h];
     const int moveSparseI = pSOA->pDense[pSOA->size - 1];
@@ -194,10 +203,14 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
     DenseDesc* pDense = &s->pDense[s->pSparse[h]];
 
     while (pDense->enumsSize > 0)
-        ComponentMapRemove(s, h, pDense->aEnumDense[0]);
+        ComponentMapRemove(s, h, pDense->pEnums[0].dense);
 
     DenseDesc* pMoveDense = &s->pDense[s->size - 1];
-    memcpy(pDense, pMoveDense, sizeof(*pMoveDense));
+
+    pDense->sparseI = pMoveDense->sparseI;
+    pDense->enumsSize = pMoveDense->enumsSize;
+    memcpy(pDense->pEnums, pMoveDense->pEnums, sizeof(*pMoveDense->pEnums)*pMoveDense->enumsSize);
+
     s->pSparse[pMoveDense->sparseI] = s->pSparse[h];
     s->pSparse[h] = -1;
     s->pFreeList[s->freeListSize++] = s->pSparse[h];
@@ -205,17 +218,17 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 }
 
 static bool
-ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
+ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
 {
     DenseDesc* pDense = &s->pDense[s->pSparse[h]];
 
-    K_ASSERT(pDense->aEnumSparse[eComp] == 0, "");
-    pDense->aEnumDense[pDense->enumsSize] = eComp;
-    pDense->aEnumSparse[eComp] = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
+    K_ASSERT(pDense->pEnums[eComp].sparse == 0, "");
+    pDense->pEnums[pDense->enumsSize].dense = eComp;
+    pDense->pEnums[eComp].sparse = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
 
     /* Now we need to add this entity to the SOAComponents[eComp] map. */
-    SOAComponent* pComp = &s->aSOAComponents[eComp];
-    const ssize_t compSize = COMPONENT_SIZE_MAP[eComp];
+    SOAComponent* pComp = &s->pSOAComponents[eComp];
+    const ssize_t compSize = s->pSizeMap[eComp];
 
     if (pComp->size >= pComp->cap)
     {
@@ -243,24 +256,47 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp, void* pVal)
 }
 
 static void*
-ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, COMPONENT eComp)
+ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
-    SOAComponent* pSOA = &s->aSOAComponents[eComp];
+    SOAComponent* pSOA = &s->pSOAComponents[eComp];
     const int denseI = pSOA->pSparse[h];
-    return (uint8_t*)pSOA->pData + denseI*COMPONENT_SIZE_MAP[eComp];
+    return (uint8_t*)pSOA->pData + denseI*s->pSizeMap[eComp];
 }
 
 static void*
-ComponentMapAt(ComponentMap* s, int denseI, COMPONENT eComp)
+ComponentMapAt(ComponentMap* s, int denseI, int eComp)
 {
     return NULL;
 }
+
+typedef struct Pos
+{
+    float x;
+    float y;
+} Pos;
+
+typedef struct Health
+{
+    int val;
+} Health;
+
+typedef enum COMPONENT
+{
+    COMPONENT_POS,
+    COMPONENT_HEALTH,
+    COMPONENT_ESIZE
+} COMPONENT;
+
+static const int COMPONENT_SIZE_MAP[COMPONENT_ESIZE] = {
+    sizeof(Pos),
+    sizeof(Health),
+};
 
 static void
 test(void)
 {
     ComponentMap s = {0};
-    ComponentMapInit(&s, &k_GpaInst()->base, 8);
+    ComponentMapInit(&s, &k_GpaInst()->base, 8, COMPONENT_SIZE_MAP, K_ASIZE(COMPONENT_SIZE_MAP));
     ENTITY_HANDLE aH[17] = {0};
 
     for (ssize_t i = 0; i < K_ASIZE(aH) - 1; ++i)
@@ -295,19 +331,19 @@ test(void)
     ComponentMapRemove(&s, aH[11], COMPONENT_HEALTH);
 
     {
-        Pos* pPos = s.aSOAComponents[COMPONENT_POS].pData;
-        for (int posI = 0; posI < s.aSOAComponents[COMPONENT_POS].size; ++posI)
+        Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;
+        for (int posI = 0; posI < s.pSOAComponents[COMPONENT_POS].size; ++posI)
         {
             K_CTX_LOG_DEBUG("({i}) pos: ({:.3:f}, {:.3:f})",
-                s.aSOAComponents[COMPONENT_POS].pDense[posI], pPos[posI].x, pPos[posI].y
+                s.pSOAComponents[COMPONENT_POS].pDense[posI], pPos[posI].x, pPos[posI].y
             );
         }
         K_CTX_LOG_DEBUG("");
-        Health* pHealth = s.aSOAComponents[COMPONENT_HEALTH].pData;
-        for (int posI = 0; posI < s.aSOAComponents[COMPONENT_HEALTH].size; ++posI)
+        Health* pHealth = s.pSOAComponents[COMPONENT_HEALTH].pData;
+        for (int posI = 0; posI < s.pSOAComponents[COMPONENT_HEALTH].size; ++posI)
         {
             K_CTX_LOG_DEBUG("({i}) Health: {i}",
-                s.aSOAComponents[COMPONENT_HEALTH].pDense[posI], pHealth[posI].val
+                s.pSOAComponents[COMPONENT_HEALTH].pDense[posI], pHealth[posI].val
             );
         }
 
