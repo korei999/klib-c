@@ -147,7 +147,7 @@ ComponentMapGrow(ComponentMap* s, int newCap)
 }
 
 static ENTITY_HANDLE
-ComponentMapCreateEntity(ComponentMap* s)
+ComponentMapAddEntity(ComponentMap* s)
 {
     if (s->size >= s->cap)
     {
@@ -215,6 +215,7 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
     --s->size;
 }
 
+/* Add eComp component to the entity h. */
 static bool
 ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
 {
@@ -247,8 +248,10 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
     const int compDenseI = pComp->freeListSize > 0 ? pComp->pFreeList[--pComp->freeListSize] : pComp->size;
     pComp->pSparse[h] = compDenseI;
     pComp->pDense[compDenseI] = h;
+
     if (pVal) memcpy((uint8_t*)pComp->pData + compDenseI*compSize, pVal, compSize);
     else memset((uint8_t*)pComp->pData + compDenseI*compSize, 0, compSize);
+
     ++pComp->size;
 
     return true;
@@ -257,6 +260,8 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
 static void*
 ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
+    K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
+    K_ASSERT(h >= 0 && h < s->size, "h: {}, size: {}", h, s->size);
     SOAComponent* pComp = &s->pSOAComponents[eComp];
     const int denseI = pComp->pSparse[h];
     return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
@@ -265,7 +270,10 @@ ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 static void*
 ComponentMapAt(ComponentMap* s, int denseI, int eComp)
 {
-    return NULL;
+    K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
+    K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {}, cap: {}", denseI, s->cap);
+    SOAComponent* pComp = &s->pSOAComponents[eComp];
+    return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }
 
 typedef struct Pos
@@ -298,7 +306,7 @@ test(void)
     ENTITY_HANDLE aH[17] = {0};
 
     for (ssize_t i = 0; i < K_ASIZE(aH) - 1; ++i)
-        aH[i] = ComponentMapCreateEntity(&s);
+        aH[i] = ComponentMapAddEntity(&s);
 
     {
         Pos p3 = {.x = 3, .y = -3};
@@ -312,7 +320,7 @@ test(void)
     }
 
     {
-        aH[16] = ComponentMapCreateEntity(&s);
+        aH[16] = ComponentMapAddEntity(&s);
         ComponentMapAdd(&s, aH[16], COMPONENT_POS, &(Pos){.x = 16, .y = -16});
         ComponentMapAdd(&s, aH[16], COMPONENT_HEALTH, &(Health){16});
     }
