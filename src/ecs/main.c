@@ -63,7 +63,9 @@ test(void)
     ecs_MapRemoveEntity(&s, aH[16]);
 
     ecs_MapRemove(&s, aH[11], COMPONENT_HEALTH);
+    K_ASSERT_ALWAYS(!ecs_MapHas(&s, aH[11], COMPONENT_HEALTH), "");
     ecs_MapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
+    K_ASSERT_ALWAYS(ecs_MapHas(&s, aH[11], COMPONENT_HEALTH), "");
 
     {
         Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;

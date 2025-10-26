@@ -9,12 +9,12 @@ typedef struct DenseEnum
     uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
 } DenseEnum;
 
-typedef struct DenseDesc2
+typedef struct DenseDesc
 {
     int sparseI;
     uint8_t enumsSize;
     DenseEnum pEnums[];
-} DenseDesc2;
+} DenseDesc;
 
 static bool MapGrow(ecs_Map* s, int newCap);
 
@@ -29,7 +29,7 @@ ecs_MapInit(ecs_Map* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int 
     if (!pSOA) return false;
     s->pSOAComponents = pSOA;
 
-    s->denseStride = sizeof(DenseDesc2) + sizeof(DenseEnum)*sizeMapSize;
+    s->denseStride = sizeof(DenseDesc) + sizeof(DenseEnum)*sizeMapSize;
 
     if (!MapGrow(s, cap))
     {
@@ -125,7 +125,7 @@ ecs_MapAddEntity(ecs_Map* s)
     int i = s->freeListSize > 0 ? s->pFreeList[--s->freeListSize] : s->size;
 
     s->pSparse[s->size] = i;
-    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->denseStride*i);
+    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->denseStride*i);
     pDense[i].sparseI = s->size;
     pDense[i].enumsSize = 0;
 
@@ -137,7 +137,7 @@ ecs_MapAddEntity(ecs_Map* s)
 void
 ecs_MapRemove(ecs_Map* s, ECS_ENTITY h, int eComp)
 {
-    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
+    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     K_ASSERT(pDense->pEnums[eComp].sparse != 0,
         "h: {i}, {i}, off: {sz}, sparse[h]: {i}",
@@ -171,12 +171,12 @@ ecs_MapRemoveEntity(ecs_Map* s, ECS_ENTITY h)
 {
     K_ASSERT(h >= 0 && h < s->cap, "h: {i}, cap: {i}", h, s->cap);
     K_ASSERT(s->pSparse[h] != -1, "already deleted");
-    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
+    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     while (pDense->enumsSize > 0)
         ecs_MapRemove(s, h, pDense->pEnums[0].dense);
 
-    DenseDesc2* pMoveDense = (DenseDesc2*)(s->pDense + (s->size - 1)*s->denseStride);
+    DenseDesc* pMoveDense = (DenseDesc*)(s->pDense + (s->size - 1)*s->denseStride);
 
     pDense->sparseI = pMoveDense->sparseI;
     pDense->enumsSize = pMoveDense->enumsSize;
@@ -191,7 +191,7 @@ ecs_MapRemoveEntity(ecs_Map* s, ECS_ENTITY h)
 bool
 ecs_MapAdd(ecs_Map* s, ECS_ENTITY h, int eComp, void* pVal)
 {
-    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
+    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     K_ASSERT(pDense->pEnums[eComp].sparse == 0, "adding component({i}) twice", eComp);
     pDense->pEnums[pDense->enumsSize].dense = eComp;
@@ -227,4 +227,11 @@ ecs_MapAdd(ecs_Map* s, ECS_ENTITY h, int eComp, void* pVal)
     ++pComp->size;
 
     return true;
+}
+
+bool
+ecs_MapHas(ecs_Map* s, ECS_ENTITY h, int eComp)
+{
+    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h]*s->denseStride);
+    return pDense->pEnums[eComp].sparse != 0;
 }
