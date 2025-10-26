@@ -12,12 +12,12 @@ typedef struct DenseEnum
     uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
 } DenseEnum;
 
-typedef struct DenseDesc
+typedef struct DenseDesc2
 {
     int sparseI;
     uint8_t enumsSize;
-    DenseEnum* pEnums;
-} DenseDesc;
+    DenseEnum pEnums[];
+} DenseDesc2;
 
 typedef struct SOAComponent
 {
@@ -34,11 +34,13 @@ typedef struct ComponentMap
 {
     k_IAllocator* pAlloc;
 
-    DenseDesc* pDense;
+    uint8_t* pDense;
+
     ENTITY_HANDLE* pSparse;
     int* pFreeList;
     SOAComponent* pSOAComponents;
 
+    int denseStride;
     int size;
     int cap;
     int freeListSize;
@@ -55,10 +57,10 @@ void ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp);
 void ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h);
 bool ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal); /* Add eComp component to the entity h. */
 
-static void* ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp);
-static void* ComponentMapAt(ComponentMap* s, int denseI, int eComp);
+static inline void* ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp);
+static inline void* ComponentMapAt(ComponentMap* s, int denseI, int eComp);
 
-static void*
+static inline void*
 ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
     K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
@@ -68,7 +70,7 @@ ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
     return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }
 
-static void*
+static inline void*
 ComponentMapAt(ComponentMap* s, int denseI, int eComp)
 {
     K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");

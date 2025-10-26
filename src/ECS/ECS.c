@@ -16,6 +16,8 @@ ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSiz
     if (!pSOA) return false;
     s->pSOAComponents = pSOA;
 
+    s->denseStride = sizeof(DenseDesc2) + sizeof(DenseEnum)*sizeMapSize;
+
     if (!ComponentMapGrow(s, cap))
     {
         k_IAllocatorFree(pAlloc, pSOA);
@@ -29,10 +31,9 @@ ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSiz
 void
 ComponentMapDestroy(ComponentMap* s)
 {
-    for (int i = 0; i < s->cap; ++i)
-        k_IAllocatorFree(s->pAlloc, s->pDense[i].pEnums);
     for (ssize_t i = 0; i < s->sizeMapSize; ++i)
         k_IAllocatorFree(s->pAlloc, s->pSOAComponents[i].pData);
+
     k_IAllocatorFree(s->pAlloc, s->pSOAComponents);
     k_IAllocatorFree(s->pAlloc, s->pDense);
 }
@@ -41,7 +42,7 @@ static bool
 ComponentMapGrow(ComponentMap* s, int newCap)
 {
     const ssize_t totalCap = newCap * (
-        sizeof(*s->pDense) +
+        s->denseStride +
         sizeof(*s->pSparse) +
         sizeof(*s->pFreeList) +
         sizeof(*s->pSOAComponents[0].pSparse)*s->sizeMapSize +
@@ -54,13 +55,9 @@ ComponentMapGrow(ComponentMap* s, int newCap)
     ssize_t off = 0;
 
     {
-        if (s->pDense) memcpy(pNew, s->pDense, sizeof(*s->pDense)*s->size);
-        s->pDense = (void*)(pNew);
-
-        for (int i = s->cap; i < newCap; ++i)
-            s->pDense[i].pEnums = k_IAllocatorZalloc(s->pAlloc, sizeof(*s->pDense[i].pEnums) * s->sizeMapSize);
-
-        off += sizeof(*s->pDense)*newCap;
+        if (s->pDense) memcpy(pNew, s->pDense, s->denseStride*s->size);
+        s->pDense = pNew;
+        off += s->denseStride*newCap;
     }
 
     {
@@ -115,8 +112,9 @@ ComponentMapAddEntity(ComponentMap* s)
     int i = s->freeListSize > 0 ? s->pFreeList[--s->freeListSize] : s->size;
 
     s->pSparse[s->size] = i;
-    s->pDense[i].sparseI = s->size;
-    s->pDense[i].enumsSize = 0;
+    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->denseStride*i);
+    pDense[i].sparseI = s->size;
+    pDense[i].enumsSize = 0;
 
     ++s->size;
 
@@ -126,9 +124,12 @@ ComponentMapAddEntity(ComponentMap* s)
 void
 ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
-    DenseDesc* pDense = &s->pDense[s->pSparse[h]];
+    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
-    K_ASSERT(pDense->pEnums[eComp].sparse != 0, "h: {i}, {i}, off: {sz}, sparse[h]: {i}", h, pDense->pEnums[eComp].sparse, pDense - s->pDense, s->pSparse[h]);
+    K_ASSERT(pDense->pEnums[eComp].sparse != 0,
+        "h: {i}, {i}, off: {sz}, sparse[h]: {i}",
+        h, pDense->pEnums[eComp].sparse, ((uint8_t*)pDense - s->pDense)/s->denseStride, s->pSparse[h]
+    );
 
     const int enumDenseI = pDense->pEnums[eComp].sparse - 1;
     pDense->pEnums[enumDenseI].dense = pDense->pEnums[--pDense->enumsSize].dense; /* Swap with last. */
@@ -155,12 +156,14 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 void
 ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 {
-    DenseDesc* pDense = &s->pDense[s->pSparse[h]];
+    // DenseDesc* pDense = &s->pDense[s->pSparse[h]];
+    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     while (pDense->enumsSize > 0)
         ComponentMapRemove(s, h, pDense->pEnums[0].dense);
 
-    DenseDesc* pMoveDense = &s->pDense[s->size - 1];
+    // DenseDesc* pMoveDense = &s->pDense[s->size - 1];
+    DenseDesc2* pMoveDense = (DenseDesc2*)(s->pDense + (s->size - 1)*s->denseStride);
 
     pDense->sparseI = pMoveDense->sparseI;
     pDense->enumsSize = pMoveDense->enumsSize;
@@ -175,7 +178,8 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 bool
 ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
 {
-    DenseDesc* pDense = &s->pDense[s->pSparse[h]];
+    // DenseDesc* pDense = &s->pDense[s->pSparse[h]];
+    DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     K_ASSERT(pDense->pEnums[eComp].sparse == 0, "");
     pDense->pEnums[pDense->enumsSize].dense = eComp;
