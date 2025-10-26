@@ -178,21 +178,21 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
     pDense->pEnums[pDense->pEnums[enumDenseI].dense].sparse = enumDenseI + 1;
     pDense->pEnums[eComp].sparse = 0;
 
-    SOAComponent* pSOA = &s->pSOAComponents[eComp];
+    SOAComponent* pComp = &s->pSOAComponents[eComp];
     const ssize_t compSize = s->pSizeMap[eComp];
 
-    const int denseI = pSOA->pSparse[h];
-    const int moveSparseI = pSOA->pDense[pSOA->size - 1];
-    const int moveDenseI = pSOA->pSparse[moveSparseI];
+    const int denseI = pComp->pSparse[h];
+    const int moveSparseI = pComp->pDense[pComp->size - 1];
+    const int moveDenseI = pComp->pSparse[moveSparseI];
 
-    K_ASSERT(pSOA->pDense[denseI] == h, "sparseI: {i}, h: {i}", pSOA->pDense[denseI], h);
+    K_ASSERT(pComp->pDense[denseI] == h, "sparseI: {i}, h: {i}", pComp->pDense[denseI], h);
 
-    memcpy((uint8_t*)pSOA->pData + denseI*compSize, (uint8_t*)pSOA->pData + moveDenseI*compSize, compSize);
-    pSOA->pDense[denseI] = moveSparseI;
-    pSOA->pSparse[moveSparseI] = denseI;
-    pSOA->pSparse[h] = -1;
-    pSOA->pFreeList[pSOA->freeListSize++] = denseI;
-    --pSOA->size;
+    memcpy((uint8_t*)pComp->pData + denseI*compSize, (uint8_t*)pComp->pData + moveDenseI*compSize, compSize);
+    pComp->pDense[denseI] = moveSparseI;
+    pComp->pSparse[moveSparseI] = denseI;
+    pComp->pSparse[h] = -1;
+    pComp->pFreeList[pComp->freeListSize++] = denseI;
+    --pComp->size;
 }
 
 static void
@@ -244,11 +244,12 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
         pComp->cap = newCap;
     }
 
-    const int compDenseI = pComp->freeListSize > 0 ? pComp->pFreeList[--pComp->freeListSize] : pComp->size++;
+    const int compDenseI = pComp->freeListSize > 0 ? pComp->pFreeList[--pComp->freeListSize] : pComp->size;
     pComp->pSparse[h] = compDenseI;
     pComp->pDense[compDenseI] = h;
     if (pVal) memcpy((uint8_t*)pComp->pData + compDenseI*compSize, pVal, compSize);
     else memset((uint8_t*)pComp->pData + compDenseI*compSize, 0, compSize);
+    ++pComp->size;
 
     return true;
 }
@@ -256,9 +257,9 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
 static void*
 ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
-    SOAComponent* pSOA = &s->pSOAComponents[eComp];
-    const int denseI = pSOA->pSparse[h];
-    return (uint8_t*)pSOA->pData + denseI*s->pSizeMap[eComp];
+    SOAComponent* pComp = &s->pSOAComponents[eComp];
+    const int denseI = pComp->pSparse[h];
+    return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }
 
 static void*
@@ -325,7 +326,9 @@ test(void)
 
     ComponentMapRemoveEntity(&s, aH[4]);
     ComponentMapRemoveEntity(&s, aH[16]);
+
     ComponentMapRemove(&s, aH[11], COMPONENT_HEALTH);
+    ComponentMapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
 
     {
         Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;
@@ -348,6 +351,9 @@ test(void)
             Health* pH13 = ComponentMapGet(&s, aH[13], COMPONENT_HEALTH);
             Pos* p13 = ComponentMapGet(&s, aH[13], COMPONENT_POS);
             K_CTX_LOG_DEBUG("h13 Health: {i}, p13 pos: ({:.3:f}, {:.3:f})", pH13->val, p13->x, p13->y);
+
+            Health* pH11 = ComponentMapGet(&s, aH[11], COMPONENT_HEALTH);
+            K_CTX_LOG_DEBUG("h11 Health: {i}", pH11->val);
         }
     }
 
