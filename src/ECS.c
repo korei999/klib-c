@@ -282,12 +282,11 @@ typedef enum COMPONENT
 {
     COMPONENT_POS,
     COMPONENT_HEALTH,
-    COMPONENT_ESIZE
 } COMPONENT;
 
-static const int COMPONENT_SIZE_MAP[COMPONENT_ESIZE] = {
-    sizeof(Pos),
-    sizeof(Health),
+static const int COMPONENT_SIZE_MAP[] = {
+    [COMPONENT_POS] = sizeof(Pos),
+    [COMPONENT_HEALTH] = sizeof(Health),
 };
 
 static void
