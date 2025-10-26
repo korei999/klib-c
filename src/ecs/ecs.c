@@ -169,13 +169,13 @@ ecs_MapRemove(ecs_Map* s, ECS_ENTITY h, int eComp)
 void
 ecs_MapRemoveEntity(ecs_Map* s, ECS_ENTITY h)
 {
-    // DenseDesc* pDense = &s->pDense[s->pSparse[h]];
+    K_ASSERT(h >= 0 && h < s->cap, "h: {i}, cap: {i}", h, s->cap);
+    K_ASSERT(s->pSparse[h] != -1, "already deleted");
     DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     while (pDense->enumsSize > 0)
         ecs_MapRemove(s, h, pDense->pEnums[0].dense);
 
-    // DenseDesc* pMoveDense = &s->pDense[s->size - 1];
     DenseDesc2* pMoveDense = (DenseDesc2*)(s->pDense + (s->size - 1)*s->denseStride);
 
     pDense->sparseI = pMoveDense->sparseI;
@@ -191,10 +191,9 @@ ecs_MapRemoveEntity(ecs_Map* s, ECS_ENTITY h)
 bool
 ecs_MapAdd(ecs_Map* s, ECS_ENTITY h, int eComp, void* pVal)
 {
-    // DenseDesc* pDense = &s->pDense[s->pSparse[h]];
     DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
-    K_ASSERT(pDense->pEnums[eComp].sparse == 0, "");
+    K_ASSERT(pDense->pEnums[eComp].sparse == 0, "adding component({i}) twice", eComp);
     pDense->pEnums[pDense->enumsSize].dense = eComp;
     pDense->pEnums[eComp].sparse = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
 

@@ -64,6 +64,7 @@ test(void)
 
     ecs_MapRemove(&s, aH[11], COMPONENT_HEALTH);
     ecs_MapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
+    ecs_MapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
 
     {
         Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;
