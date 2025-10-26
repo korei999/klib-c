@@ -74,11 +74,9 @@ ComponentMapDestroy(ComponentMap* s)
 {
     for (int i = 0; i < s->cap; ++i)
         k_IAllocatorFree(s->pAlloc, s->pDense[i].pEnums);
-
     for (ssize_t i = 0; i < s->sizeMapSize; ++i)
         k_IAllocatorFree(s->pAlloc, s->pSOAComponents[i].pData);
     k_IAllocatorFree(s->pAlloc, s->pSOAComponents);
-
     k_IAllocatorFree(s->pAlloc, s->pDense);
 }
 
