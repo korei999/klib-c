@@ -16,10 +16,10 @@ typedef struct DenseDesc2
     DenseEnum pEnums[];
 } DenseDesc2;
 
-static bool ComponentMapGrow(ComponentMap* s, int newCap);
+static bool MapGrow(ecs_Map* s, int newCap);
 
 bool
-ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int sizeMapSize)
+ecs_MapInit(ecs_Map* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int sizeMapSize)
 {
     s->pAlloc = pAlloc;
     s->pSizeMap = pSizeMap;
@@ -31,7 +31,7 @@ ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSiz
 
     s->denseStride = sizeof(DenseDesc2) + sizeof(DenseEnum)*sizeMapSize;
 
-    if (!ComponentMapGrow(s, cap))
+    if (!MapGrow(s, cap))
     {
         k_IAllocatorFree(pAlloc, pSOA);
         s->pSOAComponents = NULL;
@@ -42,7 +42,7 @@ ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSiz
 }
 
 void
-ComponentMapDestroy(ComponentMap* s)
+ecs_MapDestroy(ecs_Map* s)
 {
     for (ssize_t i = 0; i < s->sizeMapSize; ++i)
         k_IAllocatorFree(s->pAlloc, s->pSOAComponents[i].pData);
@@ -52,7 +52,7 @@ ComponentMapDestroy(ComponentMap* s)
 }
 
 static bool
-ComponentMapGrow(ComponentMap* s, int newCap)
+MapGrow(ecs_Map* s, int newCap)
 {
     const ssize_t totalCap = newCap * (
         s->denseStride +
@@ -113,12 +113,12 @@ ComponentMapGrow(ComponentMap* s, int newCap)
     return true;
 }
 
-ENTITY_HANDLE
-ComponentMapAddEntity(ComponentMap* s)
+ECS_ENTITY
+ecs_MapAddEntity(ecs_Map* s)
 {
     if (s->size >= s->cap)
     {
-        if (!ComponentMapGrow(s, K_MAX(8, s->cap * 2)))
+        if (!MapGrow(s, K_MAX(8, s->cap * 2)))
             return -1;
     }
 
@@ -135,7 +135,7 @@ ComponentMapAddEntity(ComponentMap* s)
 }
 
 void
-ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
+ecs_MapRemove(ecs_Map* s, ECS_ENTITY h, int eComp)
 {
     DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
@@ -149,7 +149,7 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
     pDense->pEnums[pDense->pEnums[enumDenseI].dense].sparse = enumDenseI + 1;
     pDense->pEnums[eComp].sparse = 0;
 
-    SOAComponent* pComp = &s->pSOAComponents[eComp];
+    ecs_Component* pComp = &s->pSOAComponents[eComp];
     const ssize_t compSize = s->pSizeMap[eComp];
 
     const int denseI = pComp->pSparse[h];
@@ -167,13 +167,13 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 }
 
 void
-ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
+ecs_MapRemoveEntity(ecs_Map* s, ECS_ENTITY h)
 {
     // DenseDesc* pDense = &s->pDense[s->pSparse[h]];
     DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
 
     while (pDense->enumsSize > 0)
-        ComponentMapRemove(s, h, pDense->pEnums[0].dense);
+        ecs_MapRemove(s, h, pDense->pEnums[0].dense);
 
     // DenseDesc* pMoveDense = &s->pDense[s->size - 1];
     DenseDesc2* pMoveDense = (DenseDesc2*)(s->pDense + (s->size - 1)*s->denseStride);
@@ -189,7 +189,7 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 }
 
 bool
-ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
+ecs_MapAdd(ecs_Map* s, ECS_ENTITY h, int eComp, void* pVal)
 {
     // DenseDesc* pDense = &s->pDense[s->pSparse[h]];
     DenseDesc2* pDense = (DenseDesc2*)(s->pDense + s->pSparse[h]*s->denseStride);
@@ -199,7 +199,7 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
     pDense->pEnums[eComp].sparse = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
 
     /* Now we need to add this entity to the SOAComponents[eComp] map. */
-    SOAComponent* pComp = &s->pSOAComponents[eComp];
+    ecs_Component* pComp = &s->pSOAComponents[eComp];
     const ssize_t compSize = s->pSizeMap[eComp];
 
     if (pComp->size >= pComp->cap)
