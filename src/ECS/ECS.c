@@ -1,54 +1,11 @@
-#include "klib/Ctx.h"
+#include "ECS.h"
+
 #include "klib/assert.h"
-#include "klib/Gpa.h"
-
-typedef int ENTITY_HANDLE;
-static const ENTITY_HANDLE ENTITY_HANDLE_INVALID = -1;
-
-typedef struct DenseEnum
-{
-    uint8_t dense;
-    uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
-} DenseEnum;
-
-typedef struct DenseDesc
-{
-    int sparseI;
-    uint8_t enumsSize;
-    DenseEnum* pEnums;
-} DenseDesc;
-
-typedef struct SOAComponent
-{
-    void* pData; /* pData and pDense are both allocated with one calloc(). */
-    int* pDense;
-    int size;
-    int cap;
-    int freeListSize;
-    int* pSparse; /* Has ComponentMap::cap capacity and allocated alongside with the ComponentMap. */
-    int* pFreeList; /* Allocated just like sparse. */
-} SOAComponent;
-
-typedef struct ComponentMap
-{
-    k_IAllocator* pAlloc;
-
-    DenseDesc* pDense;
-    ENTITY_HANDLE* pSparse;
-    int* pFreeList;
-    SOAComponent* pSOAComponents;
-
-    int size;
-    int cap;
-    int freeListSize;
-
-    const int* pSizeMap;
-    int sizeMapSize;
-} ComponentMap;
+#include "klib/IAllocator.h"
 
 static bool ComponentMapGrow(ComponentMap* s, int newCap);
 
-static bool
+bool
 ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int sizeMapSize)
 {
     s->pAlloc = pAlloc;
@@ -69,7 +26,7 @@ ComponentMapInit(ComponentMap* s, k_IAllocator* pAlloc, int cap, const int* pSiz
     return true;
 }
 
-static void
+void
 ComponentMapDestroy(ComponentMap* s)
 {
     for (int i = 0; i < s->cap; ++i)
@@ -146,7 +103,7 @@ ComponentMapGrow(ComponentMap* s, int newCap)
     return true;
 }
 
-static ENTITY_HANDLE
+ENTITY_HANDLE
 ComponentMapAddEntity(ComponentMap* s)
 {
     if (s->size >= s->cap)
@@ -166,7 +123,7 @@ ComponentMapAddEntity(ComponentMap* s)
     return i;
 }
 
-static void
+void
 ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
 {
     DenseDesc* pDense = &s->pDense[s->pSparse[h]];
@@ -195,7 +152,7 @@ ComponentMapRemove(ComponentMap* s, ENTITY_HANDLE h, int eComp)
     --pComp->size;
 }
 
-static void
+void
 ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
 {
     DenseDesc* pDense = &s->pDense[s->pSparse[h]];
@@ -215,8 +172,7 @@ ComponentMapRemoveEntity(ComponentMap* s, ENTITY_HANDLE h)
     --s->size;
 }
 
-/* Add eComp component to the entity h. */
-static bool
+bool
 ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
 {
     DenseDesc* pDense = &s->pDense[s->pSparse[h]];
@@ -255,136 +211,4 @@ ComponentMapAdd(ComponentMap* s, ENTITY_HANDLE h, int eComp, void* pVal)
     ++pComp->size;
 
     return true;
-}
-
-static void*
-ComponentMapGet(ComponentMap* s, ENTITY_HANDLE h, int eComp)
-{
-    K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
-    K_ASSERT(h >= 0 && h < s->size, "h: {}, size: {}", h, s->size);
-    SOAComponent* pComp = &s->pSOAComponents[eComp];
-    const int denseI = pComp->pSparse[h];
-    return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
-}
-
-static void*
-ComponentMapAt(ComponentMap* s, int denseI, int eComp)
-{
-    K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
-    K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {}, cap: {}", denseI, s->cap);
-    SOAComponent* pComp = &s->pSOAComponents[eComp];
-    return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
-}
-
-typedef struct Pos
-{
-    float x;
-    float y;
-} Pos;
-
-typedef struct Health
-{
-    int val;
-} Health;
-
-typedef enum COMPONENT
-{
-    COMPONENT_POS,
-    COMPONENT_HEALTH,
-} COMPONENT;
-
-static const int COMPONENT_SIZE_MAP[] = {
-    [COMPONENT_POS] = sizeof(Pos),
-    [COMPONENT_HEALTH] = sizeof(Health),
-};
-
-static void
-test(void)
-{
-    ComponentMap s = {0};
-    ComponentMapInit(&s, &k_GpaInst()->base, 8, COMPONENT_SIZE_MAP, K_ASIZE(COMPONENT_SIZE_MAP));
-    ENTITY_HANDLE aH[17] = {0};
-
-    for (ssize_t i = 0; i < K_ASIZE(aH) - 1; ++i)
-        aH[i] = ComponentMapAddEntity(&s);
-
-    {
-        Pos p3 = {.x = 3, .y = -3};
-        ComponentMapAdd(&s, aH[3], COMPONENT_POS, &p3);
-    }
-    {
-        Pos p4 = {.x = 4, .y = -4};
-        Health hl4 = {4};
-        ComponentMapAdd(&s, aH[4], COMPONENT_POS, &p4);
-        ComponentMapAdd(&s, aH[4], COMPONENT_HEALTH, &hl4);
-    }
-
-    {
-        aH[16] = ComponentMapAddEntity(&s);
-        ComponentMapAdd(&s, aH[16], COMPONENT_POS, &(Pos){.x = 16, .y = -16});
-        ComponentMapAdd(&s, aH[16], COMPONENT_HEALTH, &(Health){16});
-    }
-
-    {
-        ComponentMapAdd(&s, aH[11], COMPONENT_POS, &(Pos){11, -11});
-        ComponentMapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
-        ComponentMapAdd(&s, aH[13], COMPONENT_POS, &(Pos){13, -13});
-        ComponentMapAdd(&s, aH[13], COMPONENT_HEALTH, &(Health){13});
-    }
-
-    ComponentMapRemoveEntity(&s, aH[4]);
-    ComponentMapRemoveEntity(&s, aH[16]);
-
-    ComponentMapRemove(&s, aH[11], COMPONENT_HEALTH);
-    ComponentMapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
-
-    {
-        Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;
-        for (int posI = 0; posI < s.pSOAComponents[COMPONENT_POS].size; ++posI)
-        {
-            K_CTX_LOG_DEBUG("({i}) pos: ({:.3:f}, {:.3:f})",
-                s.pSOAComponents[COMPONENT_POS].pDense[posI], pPos[posI].x, pPos[posI].y
-            );
-        }
-        K_CTX_LOG_DEBUG("");
-        Health* pHealth = s.pSOAComponents[COMPONENT_HEALTH].pData;
-        for (int posI = 0; posI < s.pSOAComponents[COMPONENT_HEALTH].size; ++posI)
-        {
-            K_CTX_LOG_DEBUG("({i}) Health: {i}",
-                s.pSOAComponents[COMPONENT_HEALTH].pDense[posI], pHealth[posI].val
-            );
-        }
-
-        {
-            Health* pH13 = ComponentMapGet(&s, aH[13], COMPONENT_HEALTH);
-            Pos* p13 = ComponentMapGet(&s, aH[13], COMPONENT_POS);
-            K_CTX_LOG_DEBUG("h13 Health: {i}, p13 pos: ({:.3:f}, {:.3:f})", pH13->val, p13->x, p13->y);
-
-            Health* pH11 = ComponentMapGet(&s, aH[11], COMPONENT_HEALTH);
-            K_CTX_LOG_DEBUG("h11 Health: {i}", pH11->val);
-        }
-    }
-
-    ComponentMapDestroy(&s);
-}
-
-int
-main(void)
-{
-    k_CtxInitGlobal(
-        (k_LoggerInitOpts){
-            .bPrintSource = true,
-            .bPrintTime = false,
-            .ringBufferSize = K_SIZE_1K*4,
-            .fd = 2,
-            .eLogLevel = K_LOG_LEVEL_DEBUG,
-        },
-        (k_ThreadPoolInitOpts){
-            .arenaReserve = K_SIZE_1M*60,
-        }
-    );
-
-    test();
-
-    k_CtxDestroyGlobal();
 }

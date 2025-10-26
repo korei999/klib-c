@@ -2,6 +2,8 @@ set(subProject ${projName})
 
 add_subdirectory(klib)
 
+add_subdirectory(ECS)
+
 target_sources(${subProject} PRIVATE
     main.c
 )
@@ -19,7 +21,6 @@ set(TestBinaries
     CmdLine
     Pool
     SOAGen
-    ECS
 )
 
 foreach(Executable IN LISTS TestBinaries)
