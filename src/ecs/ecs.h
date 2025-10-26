@@ -6,19 +6,6 @@
 typedef int ENTITY_HANDLE;
 static const ENTITY_HANDLE ENTITY_HANDLE_INVALID = -1;
 
-typedef struct DenseEnum
-{
-    uint8_t dense;
-    uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
-} DenseEnum;
-
-typedef struct DenseDesc2
-{
-    int sparseI;
-    uint8_t enumsSize;
-    DenseEnum pEnums[];
-} DenseDesc2;
-
 typedef struct SOAComponent
 {
     void* pData; /* pData and pDense are both allocated with one calloc(). */

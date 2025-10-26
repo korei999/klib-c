@@ -2,7 +2,7 @@ set(subProject ${projName})
 
 add_subdirectory(klib)
 
-add_subdirectory(ECS)
+add_subdirectory(ecs)
 
 target_sources(${subProject} PRIVATE
     main.c

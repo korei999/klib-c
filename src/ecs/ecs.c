@@ -1,7 +1,20 @@
-#include "ECS.h"
+#include "ecs.h"
 
 #include "klib/assert.h"
 #include "klib/IAllocator.h"
+
+typedef struct DenseEnum
+{
+    uint8_t dense;
+    uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
+} DenseEnum;
+
+typedef struct DenseDesc2
+{
+    int sparseI;
+    uint8_t enumsSize;
+    DenseEnum pEnums[];
+} DenseDesc2;
 
 static bool ComponentMapGrow(ComponentMap* s, int newCap);
 

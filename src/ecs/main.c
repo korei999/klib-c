@@ -1,7 +1,7 @@
 #include "klib/Ctx.h"
 #include "klib/Gpa.h"
 
-#include "ECS.h"
+#include "ecs.h"
 
 typedef struct Pos
 {
