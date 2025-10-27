@@ -12,9 +12,10 @@ typedef struct k_Ctx
     k_print_Map* pPrintMap;
 } k_Ctx;
 
-extern k_Ctx k_g_context;
+extern k_Ctx* k_g_pContext;
 
 k_Ctx* k_CtxInitGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts);
+static inline k_Ctx* k_CtxSetGloabl(k_Ctx* s);
 static inline k_Ctx* k_CtxInst(void);
 static inline k_Arena* k_CtxArena(void);
 static inline k_ThreadPool* k_CtxThreadPool(void);
@@ -25,33 +26,39 @@ void k_CtxDestroyArenaForThisThread(void);
 void k_CtxDestroyGlobal(void);
 
 static inline k_Ctx*
+k_CtxSetGloabl(k_Ctx* s)
+{
+    return k_g_pContext = s;
+}
+
+static inline k_Ctx*
 k_CtxInst(void)
 {
-    return &k_g_context;
+    return k_g_pContext;
 }
 
 static inline k_Arena*
 k_CtxArena(void)
 {
-    return k_ThreadPoolArena(&k_g_context.threadPool);
+    return k_ThreadPoolArena(&k_g_pContext->threadPool);
 }
 
 static inline k_ThreadPool*
 k_CtxThreadPool(void)
 {
-    return &k_g_context.threadPool;
+    return &k_g_pContext->threadPool;
 }
 
 static inline k_Logger*
 k_CtxLogger(void)
 {
-    return &k_g_context.logger;
+    return &k_g_pContext->logger;
 }
 
 static inline k_print_Map*
 k_CtxPrintMap(void)
 {
-    return k_g_context.pPrintMap;
+    return k_g_pContext->pPrintMap;
 }
 
 #if !defined K_CTX_LOG_LEVEL || (K_CTX_LOG_LEVEL >= 1)

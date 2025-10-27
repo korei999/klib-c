@@ -2,31 +2,49 @@
 
 #include "Gpa.h"
 
-k_Ctx k_g_context;
+k_Ctx* k_g_pContext;
 
 k_Ctx*
 k_CtxInitGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts)
 {
     k_Gpa* pGpa = k_GpaInst();
+    k_Ctx* pNew = k_GpaZalloc(pGpa, sizeof(k_Ctx));
+    if (!pNew) return NULL;
+
     k_print_Map* pPrintMap = k_print_MapAlloc(&pGpa->base);
-    if (!pPrintMap) goto fail;
+    if (!pPrintMap)
+    {
+        k_GpaFree(pGpa, pNew);
+        return NULL;
+    }
+
     k_print_MapSetGlobal(pPrintMap);
-    k_g_context.pPrintMap = pPrintMap;
+    pNew->pPrintMap = pPrintMap;
 
     if (loggerOpts.ringBufferSize > 0)
-        k_LoggerInit(&k_g_context.logger, &pGpa->base, loggerOpts);
-    k_ThreadPoolInit(&k_g_context.threadPool, threadPoolOpts);
+    {
+        if (!k_LoggerInit(&pNew->logger, &pGpa->base, loggerOpts))
+        {
+            k_print_MapDealloc(&pNew->pPrintMap);
+            k_GpaFree(pGpa, pNew);
+            return NULL;
+        }
+    }
 
-    return &k_g_context;
+    if (!k_ThreadPoolInit(&pNew->threadPool, threadPoolOpts))
+    {
+        k_LoggerDestroy(&pNew->logger);
+        k_print_MapDealloc(&pNew->pPrintMap);
+        k_GpaFree(pGpa, pNew);
+    }
 
-fail:
-    return NULL;
+    return k_g_pContext = pNew;
 }
 
 k_Arena*
 k_CtxInitArenaForThisThread(ssize_t reserveSize)
 {
-    k_Arena* pArena = k_ThreadPoolArena(&k_g_context.threadPool);
+    k_Arena* pArena = k_ThreadPoolArena(&k_g_pContext->threadPool);
     k_ArenaInit(pArena, reserveSize, 0);
     return pArena;
 }
@@ -34,13 +52,13 @@ k_CtxInitArenaForThisThread(ssize_t reserveSize)
 void
 k_CtxDestroyArenaForThisThread(void)
 {
-    k_ArenaDestroy(k_ThreadPoolArena(&k_g_context.threadPool));
+    k_ArenaDestroy(k_ThreadPoolArena(&k_g_pContext->threadPool));
 }
 
 void
 k_CtxDestroyGlobal(void)
 {
-    k_LoggerDestroy(&k_g_context.logger);
-    k_ThreadPoolDestroy(&k_g_context.threadPool);
-    k_print_MapDealloc(&k_g_context.pPrintMap);
+    k_LoggerDestroy(&k_g_pContext->logger);
+    k_ThreadPoolDestroy(&k_g_pContext->threadPool);
+    k_print_MapDealloc(&k_g_pContext->pPrintMap);
 }
