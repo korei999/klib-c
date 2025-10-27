@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <nmmintrin.h>
 
+/* Not a real crc remainder. Just a hash function using crc32 hardware intrinsic. */
 K_NO_UB static inline uint64_t
 k_hash_crc32(const uint8_t* p, ssize_t byteSize, uint64_t seed)
 {
@@ -28,4 +29,17 @@ k_hash_crc32(const uint8_t* p, ssize_t byteSize, uint64_t seed)
     }
 
     return ~crc;
+}
+
+K_NO_UB static inline uint64_t
+k_hash_mulXor(const uint8_t* p, ssize_t byteSize, uint64_t seed)
+{
+    ssize_t i = 0;
+    uint64_t hash = seed;
+    static const uint64_t randomGiantNumber = 0xf9135213895caf14LLU;
+
+    for (; i < byteSize; ++i)
+        hash += (p[i] * randomGiantNumber) ^ p[i];
+
+    return hash;
 }
