@@ -78,7 +78,7 @@ K_METHOD(Push)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* pVal)
             return K_NPOS;
     }
 
-    s->pData[s->size++] = *pVal;
+    s->pData[s->size++] = *(K_TYPE*)pVal;
     return s->size - 1;
 }
 
@@ -175,7 +175,7 @@ K_DECL_MOD void
 K_METHOD(Set)(K_NAME* s, ssize_t i, const K_TYPE* p)
 {
     assert(i >= 0 && i < s->size);
-    s->pData[i] = *p;
+    s->pData[i] = *(K_TYPE*)p;
 }
 
 #endif /* K_GEN_CODE */
