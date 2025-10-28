@@ -799,6 +799,15 @@ k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 }
 
 ssize_t
+k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+{
+    wchar_t wc = (wchar_t)(uint64_t)arg;
+    char aBuff[8] = {0};
+    ssize_t nn = wctomb(aBuff, wc);
+    return k_print_formatPStringView(pCtx, pFmtArgs, &(k_StringView){aBuff, nn});
+}
+
+ssize_t
 k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 {
     int64_t i = (int)((int64_t)arg);

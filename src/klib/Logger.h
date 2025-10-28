@@ -24,12 +24,16 @@ static const K_LOG_LEVEL K_LOG_LEVEL_DEBUG = 4;
 
 struct k_Logger;
 
-typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, K_LOG_LEVEL eLogLevel, const char* ntsFile, ssize_t line, k_Span sp);
+typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, void* pArg, K_LOG_LEVEL eLogLevel, const char* ntsFile, ssize_t line, k_Span sp);
+typedef ssize_t (*k_LoggerSinkPfn)(struct k_Logger* s, void* pArg, k_Span sp);
 
 typedef struct k_Logger
 {
     k_IAllocator* pAlloc;
     k_LoggerFormatHeaderPfn pfnFormatHeader;
+    void* pFormatHeaderArg;
+    k_LoggerSinkPfn pfnSink;
+    void* pSinkArg;
     k_RingBuffer rb;
     k_Span spDrainBuffer;
     k_Mutex mtx;
@@ -46,9 +50,12 @@ typedef struct k_Logger
 
 typedef struct k_LoggerInitOpts
 {
-    k_LoggerFormatHeaderPfn pfnFormat;
+    k_LoggerFormatHeaderPfn pfnFormat; /* k_LoggerDefaultFormatter if null. */
+    void* pFormatArg;
+    k_LoggerSinkPfn pfnSink; /* k_LoggerDefaultSink if null. */
+    void* pSinkArg;
     ssize_t ringBufferSize; /* Do not init if 0. */
-    int fd;
+    int fd; /* 2 (stderr) if 0. */
     K_LOG_LEVEL eLogLevel;
     bool bForceColors; /* Use ansi colors even if not writing to stdout/stderr. */
     bool bPrintTime;
@@ -60,4 +67,5 @@ void k_LoggerDestroy(k_Logger* s);
 void k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs);
 void k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...);
 void k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...);
-ssize_t k_LoggerDefaultFormatter(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink);
+ssize_t k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink);
+ssize_t k_LoggerDefaultSink(k_Logger* s, void* pArg, k_Span sp);

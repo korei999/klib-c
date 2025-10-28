@@ -42,13 +42,13 @@ loop(void* pArg)
             k_RingBufferPop(&s->rb, &lh, sizeof(lh));
             eLevel = lh.logSizeAndLevel >> 56;
             logSize = lh.logSizeAndLevel & ~(ssize_t)(255ull << 56ull);
-            const ssize_t nn = s->pfnFormatHeader(s, eLevel, lh.ntsFile, lh.line, s->spDrainBuffer);
+            const ssize_t nn = s->pfnFormatHeader(s, s->pFormatHeaderArg, eLevel, lh.ntsFile, lh.line, s->spDrainBuffer);
             k_RingBufferPopNoChecks(&s->rb, (uint8_t*)s->spDrainBuffer.pData + nn, K_MIN(s->spDrainBuffer.size - nn, logSize));
             logSize += nn;
         }
         k_MutexUnlock(&s->mtx);
 
-        k_file_write(s->fd, s->spDrainBuffer.pData, K_MIN(s->spDrainBuffer.size, logSize));
+        s->pfnSink(s, s->pSinkArg, (k_Span){s->spDrainBuffer.pData, K_MIN(s->spDrainBuffer.size, logSize)});
     }
 
     return 0;
@@ -74,8 +74,13 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
     if (opts.pfnFormat) s->pfnFormatHeader = opts.pfnFormat;
     else s->pfnFormatHeader = k_LoggerDefaultFormatter;
 
+    if (opts.pfnSink) s->pfnSink = opts.pfnSink;
+    else s->pfnSink = k_LoggerDefaultSink;
+
+    if (opts.fd) s->fd = opts.fd;
+    else s->fd = 2;
+
     s->eLogLevel = opts.eLogLevel;
-    s->fd = opts.fd;
     s->bDone = false;
 
     if (opts.bForceColors)
@@ -189,8 +194,10 @@ k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFi
 }
 
 ssize_t
-k_LoggerDefaultFormatter(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink)
+k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink)
 {
+    (void)pArg;
+
     static const char* mapColored[] = {
         "",
         K_LOGGER_ANSI_COLOR_YELLOW "WARNING" K_LOGGER_ANSI_COLOR_NORM,
@@ -253,4 +260,11 @@ k_LoggerDefaultFormatter(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, s
             &(k_StringView){aTimeBuff, timeBuffSize}
         );
     }
+}
+
+ssize_t
+k_LoggerDefaultSink(k_Logger* s, void* pArg, k_Span sp)
+{
+    (void)pArg;
+    return k_file_write(s->fd, sp.pData, sp.size);
 }

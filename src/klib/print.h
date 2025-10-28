@@ -116,6 +116,7 @@ ssize_t k_print(k_IAllocator* pAlloc, FILE* pFile, const char* nts, ...);
 
 ssize_t k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
+ssize_t k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
@@ -137,6 +138,8 @@ k_print_MapAddDefaultFormatters(k_print_Map* s)
     k_print_MapAddFormatter(s, "bool", k_print_formatBool);
     k_print_MapAddFormatter(s, "char", k_print_formatChar);
     k_print_MapAddFormatter(s, "c", k_print_formatChar);
+    k_print_MapAddFormatter(s, "wchar_t", k_print_formatWChar);
+    k_print_MapAddFormatter(s, "wc", k_print_formatWChar);
     k_print_MapAddFormatter(s, "int", k_print_formatInt);
     k_print_MapAddFormatter(s, "i", k_print_formatI32);
     k_print_MapAddFormatter(s, "u", k_print_formatU32);
