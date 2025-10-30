@@ -15,7 +15,7 @@ typedef struct k_Ctx
 extern k_Ctx* k_g_pContext;
 
 k_Ctx* k_CtxInitGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts);
-static inline k_Ctx* k_CtxSetGloabl(k_Ctx* s);
+static inline k_Ctx* k_CtxSetGlobal(k_Ctx* s);
 static inline k_Ctx* k_CtxInst(void);
 static inline k_Arena* k_CtxArena(void);
 static inline k_ThreadPool* k_CtxThreadPool(void);
@@ -26,7 +26,7 @@ void k_CtxDestroyArenaForThisThread(void);
 void k_CtxDestroyGlobal(void);
 
 static inline k_Ctx*
-k_CtxSetGloabl(k_Ctx* s)
+k_CtxSetGlobal(k_Ctx* s)
 {
     return k_g_pContext = s;
 }
