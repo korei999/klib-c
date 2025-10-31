@@ -47,8 +47,8 @@ typedef struct K_BUCKET
 typedef struct K_MAP_RESULT
 {
     K_BUCKET* pBucket;
-    K_MAP_BUCKET_FLAG eFlag;
     uint64_t hash;
+    K_MAP_BUCKET_FLAG eFlag;
     K_MAP_RESULT_STATUS eStatus;
 } K_MAP_RESULT;
 
@@ -186,12 +186,12 @@ K_METHOD(InsertHashed)(K_NAME* pSelf, k_IAllocator* pAlloc, const K_KEY_T* pKey,
     pBucket->value = *pVal;
 
     if (K_FN_KEY_CMP(&pBucket->key, pKey) == 0)
-        return (K_MAP_RESULT){.pBucket = pBucket, .eFlag = *pEFlag, .hash = hash, .eStatus = K_MAP_RESULT_STATUS_FOUND};
+        return (K_MAP_RESULT){.pBucket = pBucket, .hash = hash, .eFlag = *pEFlag, .eStatus = K_MAP_RESULT_STATUS_FOUND};
 
     pBucket->key = *pKey;
     ++pSelf->size;
 
-    return (K_MAP_RESULT){.pBucket = pBucket, .eFlag = *pEFlag, .hash = hash, .eStatus = K_MAP_RESULT_STATUS_INSERTED};
+    return (K_MAP_RESULT){.pBucket = pBucket, .hash = hash, .eFlag = *pEFlag, .eStatus = K_MAP_RESULT_STATUS_INSERTED};
 }
 
 K_DECL_MOD K_MAP_RESULT
