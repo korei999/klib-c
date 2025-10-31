@@ -42,12 +42,12 @@ typedef struct K_BUCKET
 {
     K_KEY_T key;
     K_VALUE_T value;
-    K_MAP_BUCKET_FLAG eFlag;
 } K_BUCKET;
 
 typedef struct K_MAP_RESULT
 {
     K_BUCKET* pBucket;
+    K_MAP_BUCKET_FLAG eFlag;
     uint64_t hash;
     K_MAP_RESULT_STATUS eStatus;
 } K_MAP_RESULT;
@@ -72,6 +72,7 @@ K_DECL_MOD ssize_t K_METHOD(NextI)(K_NAME* pSelf, ssize_t i);
 K_DECL_MOD ssize_t K_METHOD(BeginI)(K_NAME* pSelf);
 K_DECL_MOD ssize_t K_METHOD(EndI)(K_NAME* pSelf);
 
+K_DECL_MOD K_MAP_BUCKET_FLAG* K_METHOD(Flags)(K_NAME* pSelf);
 K_DECL_MOD float K_METHOD(LoadFactor)(K_NAME* pSelf);
 K_DECL_MOD bool K_METHOD(Rehash)(K_NAME* pSelf, k_IAllocator* pAlloc, ssize_t newCap);
 K_DECL_MOD ssize_t K_METHOD(InsertionI)(K_NAME* pSelf, const K_KEY_T* pKey, uint64_t hash);
@@ -92,7 +93,7 @@ K_METHOD(Init)(K_NAME* pSelf, k_IAllocator* pAlloc, ssize_t prealloc)
 
     const ssize_t cap = k_NextPowerofTwo64(K_MAX(prealloc, 8));
 
-    pSelf->pBuckets = k_IAllocatorZalloc(pAlloc, sizeof(*pSelf->pBuckets) * cap);
+    pSelf->pBuckets = k_IAllocatorZalloc(pAlloc, (sizeof(K_BUCKET) + sizeof(K_MAP_BUCKET_FLAG))*cap);
     if (!pSelf->pBuckets) return false;
     pSelf->cap = cap;
     pSelf->size = 0;
@@ -116,6 +117,12 @@ K_METHOD(Destroy)(K_NAME* pSelf, k_IAllocator* pAlloc)
     pSelf->cap = 0;
 }
 
+K_DECL_MOD K_MAP_BUCKET_FLAG*
+K_METHOD(Flags)(K_NAME* s)
+{
+    return (K_MAP_BUCKET_FLAG*)(s->pBuckets + s->cap);
+}
+
 K_DECL_MOD float
 K_METHOD(LoadFactor)(K_NAME* pSelf)
 {
@@ -130,9 +137,10 @@ K_METHOD(Rehash)(K_NAME* pSelf, k_IAllocator* pAlloc, ssize_t newCap)
     K_NAME mNew = K_METHOD(Create)(pAlloc, newCap);
     if (!mNew.pBuckets) return false;
 
+    K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
     for (ssize_t i = 0; i < pSelf->cap; ++i)
     {
-        if (pSelf->pBuckets[i].eFlag == K_MAP_BUCKET_FLAG_OCCUPIED)
+        if (pEFlags[i] == K_MAP_BUCKET_FLAG_OCCUPIED)
             K_METHOD(Insert)(&mNew, pAlloc, &pSelf->pBuckets[i].key, &pSelf->pBuckets[i].value);
     }
 
@@ -145,8 +153,9 @@ K_DECL_MOD ssize_t
 K_METHOD(InsertionI)(K_NAME* pSelf, const K_KEY_T* pKey, uint64_t hash)
 {
     ssize_t idx = (ssize_t)(hash & (uint64_t)(pSelf->cap - 1));
+    K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
 
-    while (pSelf->pBuckets[idx].eFlag == K_MAP_BUCKET_FLAG_OCCUPIED)
+    while (pEFlags[idx] == K_MAP_BUCKET_FLAG_OCCUPIED)
     {
         if (K_FN_KEY_CMP(&pSelf->pBuckets[idx].key, pKey) == 0) break;
         idx = (idx + 1) & (pSelf->cap - 1);
@@ -171,17 +180,18 @@ K_METHOD(InsertHashed)(K_NAME* pSelf, k_IAllocator* pAlloc, const K_KEY_T* pKey,
 
     const ssize_t idx = K_METHOD(InsertionI)(pSelf, pKey, hash);
     K_BUCKET* pBucket = &pSelf->pBuckets[idx];
+    K_MAP_BUCKET_FLAG* pEFlag = K_METHOD(Flags)(pSelf) + idx;
 
-    pBucket->eFlag = K_MAP_BUCKET_FLAG_OCCUPIED;
+    *pEFlag = K_MAP_BUCKET_FLAG_OCCUPIED;
     pBucket->value = *pVal;
 
     if (K_FN_KEY_CMP(&pBucket->key, pKey) == 0)
-        return (K_MAP_RESULT){.pBucket = pBucket, .hash = hash, .eStatus = K_MAP_RESULT_STATUS_FOUND};
+        return (K_MAP_RESULT){.pBucket = pBucket, .eFlag = *pEFlag, .hash = hash, .eStatus = K_MAP_RESULT_STATUS_FOUND};
 
     pBucket->key = *pKey;
     ++pSelf->size;
 
-    return (K_MAP_RESULT){.pBucket = pBucket, .hash = hash, .eStatus = K_MAP_RESULT_STATUS_INSERTED};
+    return (K_MAP_RESULT){.pBucket = pBucket, .eFlag = *pEFlag, .hash = hash, .eStatus = K_MAP_RESULT_STATUS_INSERTED};
 }
 
 K_DECL_MOD K_MAP_RESULT
@@ -206,10 +216,11 @@ K_METHOD(RemoveI)(K_NAME* pSelf, ssize_t i)
     assert(i >= 0 && i < pSelf->cap);
 
     K_BUCKET* pBucket = &pSelf->pBuckets[i];
+    K_MAP_BUCKET_FLAG* pEFlag = K_METHOD(Flags)(pSelf) + i;
 
     pBucket->key = (K_KEY_T){0};
     pBucket->value = (K_VALUE_T){0};
-    pBucket->eFlag = K_MAP_BUCKET_FLAG_DELETED;
+    *pEFlag = K_MAP_BUCKET_FLAG_DELETED;
 
     --pSelf->size;
 }
@@ -235,14 +246,16 @@ K_METHOD(SearchHashed)(K_NAME* pSelf, const K_KEY_T* pKey, uint64_t hash)
     if (pSelf->size <= 0) return res;
 
     ssize_t idx = (ssize_t)(hash & (uint64_t)(pSelf->cap - 1));
+    K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
 
-    while (pSelf->pBuckets[idx].eFlag != K_MAP_BUCKET_FLAG_NONE) /* deleted or occupied */
+    while (pEFlags[idx] != K_MAP_BUCKET_FLAG_NONE) /* deleted or occupied */
     {
-        if (pSelf->pBuckets[idx].eFlag != K_MAP_BUCKET_FLAG_DELETED &&
+        if (pEFlags[idx] != K_MAP_BUCKET_FLAG_DELETED &&
             K_FN_KEY_CMP(&pSelf->pBuckets[idx].key, pKey) == 0
         )
         {
             res.pBucket = (K_BUCKET*)(&pSelf->pBuckets[idx]);
+            res.eFlag = pEFlags[idx];
             res.eStatus = K_MAP_RESULT_STATUS_FOUND;
             break;
         }
@@ -263,7 +276,8 @@ K_DECL_MOD ssize_t
 K_METHOD(FirstI)(K_NAME* pSelf)
 {
     ssize_t i = 0;
-    while (i < pSelf->cap && pSelf->pBuckets[i].eFlag != K_MAP_BUCKET_FLAG_OCCUPIED)
+    K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
+    while (i < pSelf->cap && pEFlags[i] != K_MAP_BUCKET_FLAG_OCCUPIED)
         ++i;
 
     return i;
@@ -272,8 +286,9 @@ K_METHOD(FirstI)(K_NAME* pSelf)
 K_DECL_MOD ssize_t
 K_METHOD(LastI)(K_NAME* pSelf)
 {
+    K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
     ssize_t i = pSelf->cap - 1;
-    while (i >= 0 && pSelf->pBuckets[i].eFlag != K_MAP_BUCKET_FLAG_OCCUPIED)
+    while (i >= 0 && pEFlags[i] != K_MAP_BUCKET_FLAG_OCCUPIED)
         --i;
 
     return i;
@@ -282,8 +297,9 @@ K_METHOD(LastI)(K_NAME* pSelf)
 K_DECL_MOD ssize_t
 K_METHOD(NextI)(K_NAME* pSelf, ssize_t i)
 {
+    K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
     do ++i;
-    while (i < pSelf->cap && pSelf->pBuckets[i].eFlag != K_MAP_BUCKET_FLAG_OCCUPIED);
+    while (i < pSelf->cap && pEFlags[i] != K_MAP_BUCKET_FLAG_OCCUPIED);
 
     return i;
 }

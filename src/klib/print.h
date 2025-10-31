@@ -25,13 +25,8 @@ static const ssize_t K_PRINT_FMT_ARG_EATEN = -666999;
 
 #define K_PRINT_PREALLOC_SIZE 256
 
-struct k_print_Map;
 typedef struct k_print_Map k_print_Map;
-
-struct k_print_Context;
 typedef struct k_print_Context k_print_Context;
-
-struct k_print_FmtArgs;
 typedef struct k_print_FmtArgs k_print_FmtArgs;
 
 k_print_FmtArgs k_print_FmtArgsCreate(void);
@@ -136,6 +131,7 @@ k_print_MapAddDefaultFormatters(k_print_Map* s)
 {
     /* Larger than 8 bytes structs should be passed by pointer, doubles/floats are handled specially. */
     k_print_MapAddFormatter(s, "bool", k_print_formatBool);
+    k_print_MapAddFormatter(s, "b", k_print_formatBool);
     k_print_MapAddFormatter(s, "char", k_print_formatChar);
     k_print_MapAddFormatter(s, "c", k_print_formatChar);
     k_print_MapAddFormatter(s, "wchar_t", k_print_formatWChar);
