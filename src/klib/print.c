@@ -205,6 +205,7 @@ k_print_BuilderPushSvPadded(k_print_Builder* s, const k_StringView sv, k_print_p
         s->size += padSize;
     }
 
+    s->pData[s->size] = '\0';
     return maxSize;
 }
 
@@ -244,6 +245,7 @@ k_print_BuilderPush(k_print_Builder* s, const char* pStr, ssize_t size)
             {
                 memcpy(s->pData + s->size, pStr, maxFit);
                 s->size += maxFit;
+                s->pData[s->size] = '\0';
                 return maxFit;
             }
             else
@@ -255,6 +257,7 @@ k_print_BuilderPush(k_print_Builder* s, const char* pStr, ssize_t size)
 
     memcpy(s->pData + s->size, pStr, size);
     s->size += size;
+    s->pData[s->size] = '\0';
     return size;
 }
 
@@ -275,6 +278,7 @@ k_print_BuilderPushChar(k_print_Builder* s, const char c)
     }
 
     s->pData[s->size++] = c;
+    s->pData[s->size] = '\0';
     return 1;
 }
 
