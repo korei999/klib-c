@@ -12,6 +12,7 @@
 typedef struct LogHeader
 {
     const char* ntsFile;
+    const char* ntsFunc;
     ssize_t line;
     ssize_t logSizeAndLevel; /* Most significant (leftmost) byte is log level. */
 } LogHeader;
@@ -42,7 +43,7 @@ loop(void* pArg)
             k_RingBufferPop(&s->rb, &lh, sizeof(lh));
             eLevel = lh.logSizeAndLevel >> 56;
             logSize = lh.logSizeAndLevel & ~(ssize_t)(255ull << 56ull);
-            const ssize_t nn = s->pfnFormatHeader(s, s->pFormatHeaderArg, eLevel, lh.ntsFile, lh.line, s->spDrainBuffer);
+            const ssize_t nn = s->pfnFormatHeader(s, s->pFormatHeaderArg, eLevel, lh.ntsFile, lh.ntsFunc, lh.line, s->spDrainBuffer);
             k_RingBufferPopNoChecks(&s->rb, (uint8_t*)s->spDrainBuffer.pData + nn, K_MIN(s->spDrainBuffer.size - nn, logSize));
             logSize += nn;
         }
@@ -95,6 +96,7 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
 
     s->bPrintTime = opts.bPrintTime;
     s->bPrintSource = opts.bPrintSource;
+    s->bPrintFunc = opts.bPrintFunc;
 
     k_ThreadInit(&s->thread, loop, s);
 
@@ -120,12 +122,13 @@ k_LoggerDestroy(k_Logger* s)
 }
 
 static bool
-pushMsg(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svMsg)
+pushMsg(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
 {
     if (svMsg.size + (ssize_t)sizeof(LogHeader) > k_RingBufferCap(&s->rb)) return false;
 
     LogHeader lh = {
         .ntsFile = ntsFile,
+        .ntsFunc = ntsFunc,
         .line = line,
         .logSizeAndLevel = svMsg.size | ((ssize_t)eLevel << 56ll),
     };
@@ -158,7 +161,7 @@ pushMsg(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, cons
 }
 
 void
-k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs)
+k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, va_list* pArgs)
 {
     if (eLevel > s->eLogLevel) return;
 
@@ -170,38 +173,38 @@ k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char*
             k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
             k_print_BuilderPrintVaList(&pb, &fmtArgs, svFmt, pArgs);
             k_print_BuilderPushChar(&pb, '\n');
-            pushMsg(s, eLevel, ntsFile, line, k_print_BuilderToSv(&pb));
+            pushMsg(s, eLevel, ntsFile, ntsFunc, line, k_print_BuilderToSv(&pb));
         }
     }
 }
 
 void
-k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...)
+k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...)
 {
     va_list args;
     va_start(args, svFmt);
-    k_LoggerPostVaList(s, pArena, eLevel, ntsFile, line, svFmt, &args);
+    k_LoggerPostVaList(s, pArena, eLevel, ntsFile, ntsFunc, line, svFmt, &args);
     va_end(args);
 }
 
 void
-k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
+k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...)
 {
     va_list args;
     va_start(args, ntsFmt);
-    k_LoggerPostVaList(s, pArena, eLevel, ntsFile, line, K_NTS(ntsFmt), &args);
+    k_LoggerPostVaList(s, pArena, eLevel, ntsFile, ntsFunc, line, K_NTS(ntsFmt), &args);
     va_end(args);
 }
 
 ssize_t
-k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink)
+k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span spSink)
 {
     (void)pArg;
 
     static const char* mapColored[] = {
         "",
-        K_LOGGER_ANSI_COLOR_YELLOW "WARNING" K_LOGGER_ANSI_COLOR_NORM,
-        K_LOGGER_ANSI_COLOR_RED "ERROR" K_LOGGER_ANSI_COLOR_NORM,
+        K_LOGGER_ANSI_COLOR_YELLOW K_LOGGER_ANSI_COLOR_BOLD "WARNING" K_LOGGER_ANSI_COLOR_NORM,
+        K_LOGGER_ANSI_COLOR_RED K_LOGGER_ANSI_COLOR_BOLD "ERROR" K_LOGGER_ANSI_COLOR_NORM,
         K_LOGGER_ANSI_COLOR_BLUE "INFO" K_LOGGER_ANSI_COLOR_NORM,
         K_LOGGER_ANSI_COLOR_CYAN "DEBUG" K_LOGGER_ANSI_COLOR_NORM,
     };
@@ -244,10 +247,11 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
 
         return k_print_toBuffer(
             spSink.pData, spSink.size,
-            "({s}{s}" "{PSv}{s}" "{s}{s}" "{sz}): ",
+            "[{s}{s}" "{PSv}{s}" "{s}{s}" "{s}{s}" "{sz}]: ",
             ntsLevel, len > 0 ? ", " : "",
             &(k_StringView){aTimeBuff, timeBuffSize}, timeBuffSize > 0 ? ", " : "",
             ntsShorterFile, shorterFileSize > 0 ? ", " : "",
+            s->bPrintFunc ? ntsFunc : "", s->bPrintFunc ? ", " : "",
             line
         );
     }
@@ -255,8 +259,9 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
     {
         return k_print_toBuffer(
             spSink.pData, spSink.size,
-            "({s}{s}" "{PSv}): ",
+            "[{s}{s}" "{s}{s}" "{PSv}]: ",
             ntsLevel, len > 0 && timeBuffSize > 0 ? ", " : "",
+            s->bPrintFunc ? ntsFunc : "", s->bPrintFunc ? ", " : "",
             &(k_StringView){aTimeBuff, timeBuffSize}
         );
     }

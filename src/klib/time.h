@@ -15,7 +15,7 @@ typedef ssize_t k_time_Type;
 
 k_time_Type k_time_now(void);
 k_time_Type k_time_frequency(void);
-static inline k_time_Type k_time_diff(k_time_Type timeNow, k_time_Type startTime); /* Unified to microseconds. */
+static inline k_time_Type k_time_diff(k_time_Type timeNow, k_time_Type startTime); /* Microseconds. */
 static inline double k_time_diffSec(k_time_Type time, k_time_Type startTime);
 static inline double k_time_diffMSec(k_time_Type time, k_time_Type startTime);
 

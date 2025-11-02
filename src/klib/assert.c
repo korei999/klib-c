@@ -3,7 +3,7 @@
 #include "Ctx.h"
 
 void
-k_assert_die(const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
+k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...)
 {
     k_Arena* pArena = k_CtxArena();
     char aBuff[128];
@@ -23,7 +23,7 @@ k_assert_die(const char* ntsFile, ssize_t line, const char* ntsFmt, ...)
         va_end(args);
         svPrinted = k_print_BuilderToSv(&pb);
 
-        k_LoggerPostSv(k_CtxLogger(), pArena, K_LOG_LEVEL_ERROR, ntsFile, line, svPrinted);
+        k_LoggerPostSv(k_CtxLogger(), pArena, K_LOG_LEVEL_ERROR, ntsFile, ntsFunc, line, svPrinted);
     }
 
     k_LoggerDestroy(k_CtxLogger());

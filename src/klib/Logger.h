@@ -7,6 +7,15 @@
 #include <stdio.h>
 
 #define K_LOGGER_ANSI_COLOR_NORM  "\x1b[0m"
+#define K_LOGGER_ANSI_COLOR_BOLD "\x1b[1m"
+#define K_LOGGER_ANSI_COLOR_DIM "\x1b[2m"
+#define K_LOGGER_ANSI_COLOR_ITALIC "\x1b[3m"
+#define K_LOGGER_ANSI_COLOR_UNDERLINE "\x1b[4m"
+#define K_LOGGER_ANSI_COLOR_BLINK "\x1b[5m"
+#define K_LOGGER_ANSI_COLOR_REVERSE "\x1b[7m"
+#define K_LOGGER_ANSI_COLOR_INVIS "\x1b[8m"
+#define K_LOGGER_ANSI_COLOR_STRIKE "\x1b[9m"
+
 #define K_LOGGER_ANSI_COLOR_RED  "\x1b[31m"
 #define K_LOGGER_ANSI_COLOR_GREEN  "\x1b[32m"
 #define K_LOGGER_ANSI_COLOR_YELLOW  "\x1b[33m"
@@ -14,6 +23,14 @@
 #define K_LOGGER_ANSI_COLOR_MAGENTA  "\x1b[35m"
 #define K_LOGGER_ANSI_COLOR_CYAN  "\x1b[36m"
 #define K_LOGGER_ANSI_COLOR_WHITE  "\x1b[37m"
+
+#define K_LOGGER_ANSI_COLOR_BG_RED "\x1b[41m"
+#define K_LOGGER_ANSI_COLOR_BG_GREEN "\x1b[42m"
+#define K_LOGGER_ANSI_COLOR_BG_YELLOW "\x1b[43m"
+#define K_LOGGER_ANSI_COLOR_BG_BLUE "\x1b[44m"
+#define K_LOGGER_ANSI_COLOR_BG_MAGENTA "\x1b[45m"
+#define K_LOGGER_ANSI_COLOR_BG_CYAN "\x1b[46m"
+#define K_LOGGER_ANSI_COLOR_BG_WHITE "\x1b[47m"
 
 typedef uint8_t K_LOG_LEVEL;
 static const K_LOG_LEVEL K_LOG_LEVEL_NONE = 0;
@@ -24,7 +41,7 @@ static const K_LOG_LEVEL K_LOG_LEVEL_DEBUG = 4;
 
 struct k_Logger;
 
-typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, void* pArg, K_LOG_LEVEL eLogLevel, const char* ntsFile, ssize_t line, k_Span sp);
+typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, void* pArg, K_LOG_LEVEL eLogLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span sp);
 typedef ssize_t (*k_LoggerSinkPfn)(struct k_Logger* s, void* pArg, k_Span sp);
 
 typedef struct k_Logger
@@ -46,6 +63,7 @@ typedef struct k_Logger
     bool bUseAnsiColors;
     bool bPrintTime;
     bool bPrintSource;
+    bool bPrintFunc;
 } k_Logger;
 
 typedef struct k_LoggerInitOpts
@@ -60,12 +78,13 @@ typedef struct k_LoggerInitOpts
     bool bForceColors; /* Use ansi colors even if not writing to stdout/stderr. */
     bool bPrintTime;
     bool bPrintSource;
+    bool bPrintFunc;
 } k_LoggerInitOpts;
 
 bool k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts);
 void k_LoggerDestroy(k_Logger* s);
-void k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, va_list* pArgs);
-void k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const k_StringView svFmt, ...);
-void k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, const char* ntsFmt, ...);
-ssize_t k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, ssize_t line, k_Span spSink);
+void k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, va_list* pArgs);
+void k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...);
+void k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...);
+ssize_t k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span spSink);
 ssize_t k_LoggerDefaultSink(k_Logger* s, void* pArg, k_Span sp);
