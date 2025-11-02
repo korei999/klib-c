@@ -259,9 +259,8 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
     {
         return k_print_toBuffer(
             spSink.pData, spSink.size,
-            "[{s}{s}" "{s}{s}" "{PSv}]: ",
+            "[{s}{s}" "{PSv}]: ",
             ntsLevel, len > 0 && timeBuffSize > 0 ? ", " : "",
-            s->bPrintFunc ? ntsFunc : "", s->bPrintFunc ? ", " : "",
             &(k_StringView){aTimeBuff, timeBuffSize}
         );
     }
