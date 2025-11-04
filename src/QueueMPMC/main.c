@@ -10,7 +10,6 @@
 static k_QueueMPMC s_q;
 static k_atomic_U64 s_accumulator;
 static k_atomic_U64 s_counter;
-
 static void
 produser(void* pArg)
 {
@@ -71,9 +70,9 @@ main(void)
         }
     );
 
-    K_CTX_LOG_INFO("QueueSPSC test...");
+    K_CTX_LOG_INFO("QueueMPMC test...");
     test();
-    K_CTX_LOG_INFO("QueueSPSC test passed");
+    K_CTX_LOG_INFO("QueueMPMC test passed");
 
     k_CtxDestroyGlobal();
 }
