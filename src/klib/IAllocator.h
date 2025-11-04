@@ -76,12 +76,12 @@ k_IAllocatorAlloc(void* pSelf, void* p, ssize_t size)
 #define K_PTR_SIZE ((ssize_t)sizeof(void*))
 
 ssize_t k_getPageSize(void);
-static inline ssize_t k_NextPowerofTwo64(ssize_t x);
+static inline ssize_t k_nextPowerofTwo64(ssize_t x);
 static inline bool k_isPowerOf2(ssize_t x) { return (x & (x - 1)) == 0; }
 static inline void k_nullDeleter(void** pp) { *pp = NULL; }
 
 static inline ssize_t
-k_NextPowerofTwo64(ssize_t x)
+k_nextPowerofTwo64(ssize_t x)
 {
     --x;
 

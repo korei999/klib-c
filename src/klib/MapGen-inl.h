@@ -91,7 +91,7 @@ K_METHOD(Init)(K_NAME* pSelf, k_IAllocator* pAlloc, ssize_t prealloc)
     assert(pAlloc != NULL);
     assert(pSelf != NULL);
 
-    const ssize_t cap = k_NextPowerofTwo64(K_MAX(prealloc, 8));
+    const ssize_t cap = k_nextPowerofTwo64(K_MAX(prealloc, 8));
 
     pSelf->pBuckets = k_IAllocatorZalloc(pAlloc, (sizeof(K_BUCKET) + sizeof(K_MAP_BUCKET_FLAG))*cap);
     if (!pSelf->pBuckets) return false;

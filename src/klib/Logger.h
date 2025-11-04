@@ -39,6 +39,12 @@ static const K_LOG_LEVEL K_LOG_LEVEL_ERROR = 2;
 static const K_LOG_LEVEL K_LOG_LEVEL_INFO = 3;
 static const K_LOG_LEVEL K_LOG_LEVEL_DEBUG = 4;
 
+typedef uint8_t K_LOGGER_FLAGS;
+static const K_LOGGER_FLAGS K_LOGGER_FLAG_COLORS = 1;
+static const K_LOGGER_FLAGS K_LOGGER_FLAG_TIME = 1 << 1;
+static const K_LOGGER_FLAGS K_LOGGER_FLAG_SOURCE = 1 << 2;
+static const K_LOGGER_FLAGS K_LOGGER_FLAG_FUNC = 1 << 3;
+
 struct k_Logger;
 
 typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, void* pArg, K_LOG_LEVEL eLogLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span sp);
@@ -60,10 +66,7 @@ typedef struct k_Logger
     K_LOG_LEVEL eLogLevel;
     bool bStarted;
     bool bDone;
-    bool bUseAnsiColors;
-    bool bPrintTime;
-    bool bPrintSource;
-    bool bPrintFunc;
+    K_LOGGER_FLAGS eFlags;
 } k_Logger;
 
 typedef struct k_LoggerInitOpts
@@ -75,10 +78,7 @@ typedef struct k_LoggerInitOpts
     ssize_t ringBufferSize; /* Do not init if 0. */
     int fd; /* 2 (stderr) if 0. */
     K_LOG_LEVEL eLogLevel;
-    bool bForceColors; /* Use ansi colors even if not writing to stdout/stderr. */
-    bool bPrintTime;
-    bool bPrintSource;
-    bool bPrintFunc;
+    K_LOGGER_FLAGS eFlags;
 } k_LoggerInitOpts;
 
 bool k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts);

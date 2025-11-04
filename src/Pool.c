@@ -46,10 +46,9 @@ test(void)
 int
 main(void)
 {
-    k_CtxInitGlobal(
+    k_CtxAllocGlobal(
         (k_LoggerInitOpts){
-            .bPrintSource = true,
-            .bPrintTime = true,
+            .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_TIME,
             .eLogLevel = K_LOG_LEVEL_DEBUG,
             .fd = 2,
             .ringBufferSize = K_SIZE_1K*4,

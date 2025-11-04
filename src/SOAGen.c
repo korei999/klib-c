@@ -320,11 +320,10 @@ main(int argc, char** argv)
     k_StringView svLogLevel = K_SV("4");
     if (argc > 2) svLogLevel = K_NTS(argv[2]);
 
-    k_CtxInitGlobal(
+    k_CtxAllocGlobal(
         (k_LoggerInitOpts){
             .ringBufferSize = K_SIZE_1K*4,
-            .bPrintSource = true,
-            .bPrintTime = false,
+            .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_SOURCE,
             .fd = 2,
             .eLogLevel = k_StringViewToInt(svLogLevel, 10),
         },

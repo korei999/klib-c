@@ -35,9 +35,6 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
 
 #define K_SCOPE_BEGIN_END(begin, end) for (int _adt_defer_ = ((begin), 0); !_adt_defer_; _adt_defer_ = 1, (end))
 
-#define K_VAR_SCOPE(type, init, destroy)                                                                               \
-    for (type init, *_adt_defer_p_ = NULL; !_adt_defer_p_; _adt_defer_p_ = (void*)0xCafeBabeLLU, (destroy))
-
 #define K_ASIZE(a) ((ssize_t)sizeof(a) / (ssize_t)sizeof((a)[0]))
 
 #define K_MIN(x, y) ((x) < (y) ? (x) : (y))

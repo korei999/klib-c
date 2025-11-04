@@ -1,6 +1,5 @@
 #include "IAllocator.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct
@@ -45,8 +44,7 @@ k_GpaZalloc(void* s, ssize_t nBytes)
 static inline void*
 k_GpaRealloc(void* s, void* p, ssize_t nBytesOld, ssize_t nBytesNew)
 {
-    (void)s;
-    (void)nBytesOld;
+    (void)s, (void)nBytesOld;
     return realloc(p, nBytesNew);
 }
 

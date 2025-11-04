@@ -5,7 +5,7 @@
 k_Ctx* k_g_pContext;
 
 k_Ctx*
-k_CtxInitGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts)
+k_CtxAllocGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts)
 {
     k_Ctx* pNew = calloc(1, sizeof(k_Ctx));
     k_Gpa* pGpa = k_GpaInst();

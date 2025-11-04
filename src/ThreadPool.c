@@ -48,7 +48,7 @@ static k_atomic_Int s_atomCounter = {0};
 static void
 funcBigLoad(void* p)
 {
-    k_AtomicIntAddRelaxed(&s_atomCounter, 1);
+    k_atomic_IntAddRelaxed(&s_atomCounter, 1);
     (void)p;
     for (ssize_t i = 0; i < 9999; ++i)
     {
@@ -118,7 +118,7 @@ main(void)
 
     k_ThreadPoolDestroy(&tp);
 
-    int counter = k_AtomicIntLoadRelaxed(&s_atomCounter);
+    int counter = k_atomic_IntLoadRelaxed(&s_atomCounter);
     k_print(&gpa.base, stderr, "s_atomCounter: {i}\n", counter);
     assert(counter == BIG);
 }

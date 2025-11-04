@@ -77,12 +77,11 @@ test(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-    k_CtxInitGlobal(
+    k_CtxAllocGlobal(
         (k_LoggerInitOpts){
             .eLogLevel = K_LOG_LEVEL_DEBUG,
             .fd = 2,
-            .bPrintTime = true,
-            .bPrintSource = true,
+            .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_SOURCE,
             .ringBufferSize = K_SIZE_1K*4,
         },
         (k_ThreadPoolInitOpts){

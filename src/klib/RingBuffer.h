@@ -13,7 +13,7 @@ typedef struct k_RingBuffer
         ssize_t headI;
         ssize_t tailI;
         ssize_t size;
-        ssize_t cap;
+        ssize_t capMinus1;
     } priv;
 } k_RingBuffer;
 
@@ -38,7 +38,7 @@ k_RingBufferSize(k_RingBuffer* s)
 static inline ssize_t
 k_RingBufferCap(k_RingBuffer* s)
 {
-    return s->priv.cap - 1;
+    return s->priv.capMinus1;
 }
 
 static inline bool

@@ -136,3 +136,6 @@ k_VecSet(k_Vec* s, ssize_t i, ssize_t mSize, const void* p)
     assert(i >= 0 && i < s->size);
     memcpy((uint8_t*)s->pData + i*mSize, p, mSize);
 }
+
+#define K_VEC_FOR_EACH(s, Type, pIt) for (Type* pIt = (s)->pData; pIt < ((Type*)(s)->pData) + (s)->size; ++pIt)
+#define K_VEC_FOR_EACH_REV(s, Type, pIt) for (Type* pIt = (Type*)(s)->pData + (s)->size - 1; pIt >= (Type*)(s)->pData; --pIt)

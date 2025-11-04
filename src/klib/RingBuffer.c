@@ -3,7 +3,7 @@
 bool
 k_RingBufferInit(k_RingBuffer* s, k_IAllocator* pAlloc, ssize_t cap)
 {
-    ssize_t capPo2 = k_isPowerOf2(cap) ? cap : k_NextPowerofTwo64(cap);
+    ssize_t capPo2 = k_isPowerOf2(cap) ? cap : k_nextPowerofTwo64(cap);
     uint8_t* pNewData = k_IAllocatorMalloc(pAlloc, capPo2);
     if (!pNewData) return false;
 
@@ -13,7 +13,7 @@ k_RingBufferInit(k_RingBuffer* s, k_IAllocator* pAlloc, ssize_t cap)
     s->priv.headI = 0;
     s->priv.tailI = 0;
     s->priv.size = 0;
-    s->priv.cap = capPo2;
+    s->priv.capMinus1 = capPo2 - 1;
 
     return true;
 }
@@ -29,11 +29,11 @@ void
 k_RingBufferPushNoChecks(k_RingBuffer* pSelf, const void* p, ssize_t size)
 {
     K_TYPEOF(pSelf->priv)* s = &pSelf->priv;
-    const ssize_t nextTailI = (s->tailI + size) & (s->cap - 1);
+    const ssize_t nextTailI = (s->tailI + size) & (s->capMinus1);
 
     if (s->tailI >= s->headI)
     {
-        const ssize_t tailToEnd = K_MIN(s->cap - s->tailI, size);
+        const ssize_t tailToEnd = K_MIN(s->capMinus1 + 1 - s->tailI, size);
         memcpy(s->pData + s->tailI, p, tailToEnd);
         memcpy(s->pData, (uint8_t*)p + tailToEnd, size - tailToEnd);
     }
@@ -50,11 +50,11 @@ void
 k_RingBufferPopNoChecks(k_RingBuffer* pSelf, void* p, ssize_t size)
 {
     K_TYPEOF(pSelf->priv)* s = &pSelf->priv;
-    const ssize_t nextHeadI = (s->headI + size) & (s->cap - 1);
+    const ssize_t nextHeadI = (s->headI + size) & (s->capMinus1);
 
     if (s->headI >= s->tailI)
     {
-        const ssize_t headToEnd = K_MIN(s->cap - s->headI, size);
+        const ssize_t headToEnd = K_MIN(s->capMinus1 + 1 - s->headI, size);
         memcpy(p, s->pData + s->headI, headToEnd);
         memcpy((uint8_t*)p + headToEnd, s->pData, size - headToEnd);
     }
@@ -82,7 +82,7 @@ k_RingBufferPushV(k_RingBuffer* s, const k_Span* pSps, ssize_t spCount)
     ssize_t totalSize = 0;
     for (ssize_t i = 0; i < spCount; ++i) totalSize += pSps[i].size;
     if (totalSize <= 0) return true;
-    if (totalSize + s->priv.size > k_RingBufferCap(s)) return false;
+    if (totalSize + s->priv.size >= k_RingBufferCap(s)) return false;
 
     for (ssize_t i = 0; i < spCount; ++i)
         k_RingBufferPushNoChecks(s, pSps[i].pData, pSps[i].size);

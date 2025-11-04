@@ -84,19 +84,11 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
     s->eLogLevel = opts.eLogLevel;
     s->bDone = false;
 
-    if (opts.bForceColors)
-    {
-        s->bUseAnsiColors = true;
-    }
-    else
-    {
-        if (k_file_isatty(opts.fd)) s->bUseAnsiColors = true;
-        else s->bUseAnsiColors = false;
-    }
+    s->eFlags = opts.eFlags;
 
-    s->bPrintTime = opts.bPrintTime;
-    s->bPrintSource = opts.bPrintSource;
-    s->bPrintFunc = opts.bPrintFunc;
+    if ((opts.eFlags & K_LOGGER_FLAG_COLORS) || k_file_isatty(opts.fd))
+        s->eFlags |= K_LOGGER_FLAG_COLORS;
+    else s->eFlags &= ~K_LOGGER_FLAG_COLORS;
 
     k_ThreadInit(&s->thread, loop, s);
 
@@ -218,14 +210,14 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
     const char* ntsLevel = "";
     if (eLevel <= K_LOG_LEVEL_DEBUG)
     {
-        if (s->bUseAnsiColors) ntsLevel = mapColored[eLevel];
+        if (s->eFlags & K_LOGGER_FLAG_COLORS) ntsLevel = mapColored[eLevel];
         else ntsLevel = map[eLevel];
     }
     const ssize_t len = strlen(ntsLevel);
 
     char aTimeBuff[64];
     ssize_t timeBuffSize = 0;
-    if (s->bPrintTime)
+    if (s->eFlags & K_LOGGER_FLAG_TIME)
     {
         time_t now = time(NULL);
 
@@ -240,7 +232,7 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
     }
 
     const char* ntsShorterFile = "";
-    if (s->bPrintSource)
+    if (s->eFlags & K_LOGGER_FLAG_SOURCE)
     {
         ntsShorterFile = k_file_shorterFILE(ntsFile);
         const ssize_t shorterFileSize = strlen(ntsShorterFile);
@@ -251,7 +243,7 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
             ntsLevel, len > 0 ? ", " : "",
             &(k_StringView){aTimeBuff, timeBuffSize}, timeBuffSize > 0 ? ", " : "",
             ntsShorterFile, shorterFileSize > 0 ? ", " : "",
-            s->bPrintFunc ? ntsFunc : "", s->bPrintFunc ? ", " : "",
+            s->eFlags & K_LOGGER_FLAG_FUNC ? ntsFunc : "", s->eFlags & K_LOGGER_FLAG_FUNC ? ", " : "",
             line
         );
     }

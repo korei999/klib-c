@@ -14,7 +14,7 @@ typedef struct k_Ctx
 
 extern k_Ctx* k_g_pContext;
 
-k_Ctx* k_CtxInitGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts);
+k_Ctx* k_CtxAllocGlobal(k_LoggerInitOpts loggerOpts, k_ThreadPoolInitOpts threadPoolOpts);
 static inline k_Ctx* k_CtxSetGlobal(k_Ctx* s);
 static inline k_Ctx* k_CtxInst(void);
 static inline k_Arena* k_CtxArena(void);

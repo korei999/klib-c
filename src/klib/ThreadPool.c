@@ -173,7 +173,7 @@ loop(void* pUser)
     assert(s->arenaReserve > 0);
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4)) goto fail;
     if (s->pfnLoopStart) s->pfnLoopStart(s->pLoopStartArg);
-    stl_threadI = k_AtomicIntAddRelaxed(&s->atomIdCounter, 1);
+    stl_threadI = k_atomic_IntAddRelaxed(&s->atomIdCounter, 1);
 
     while (true)
     {
@@ -181,25 +181,25 @@ loop(void* pUser)
 
         k_MutexLock(&s->mtxRb);
         {
-            while (k_RingBufferEmpty(&s->rbTasks) && !k_AtomicIntLoadAcquire(&s->atomBDone))
+            while (k_RingBufferEmpty(&s->rbTasks) && !k_atomic_IntLoadAcquire(&s->atomBDone))
                 k_CndVarWait(&s->cndRb, &s->mtxRb);
 
-            if (k_AtomicIntLoadAcquire(&s->atomBDone))
+            if (k_atomic_IntLoadAcquire(&s->atomBDone))
             {
                 k_MutexUnlock(&s->mtxRb);
                 goto done;
             }
 
-            k_AtomicIntAddRelaxed(&s->atomNActiveTasks, 1);
+            k_atomic_IntAddRelaxed(&s->atomNActiveTasks, 1);
             popTask(&tb, s);
         }
         k_MutexUnlock(&s->mtxRb);
 
         execTask(&tb);
-        k_AtomicIntSubRelease(&s->atomNActiveTasks, 1);
+        k_atomic_IntSubRelease(&s->atomNActiveTasks, 1);
 
         k_MutexLock(&s->mtxRb);
-        if (k_RingBufferEmpty(&s->rbTasks) && k_AtomicIntLoadAcquire(&s->atomNActiveTasks) <= 0)
+        if (k_RingBufferEmpty(&s->rbTasks) && k_atomic_IntLoadAcquire(&s->atomNActiveTasks) <= 0)
             k_CndVarSignal(&s->cndWait);
         k_MutexUnlock(&s->mtxRb);
     }
@@ -217,7 +217,7 @@ fail:
 static bool
 start(k_ThreadPool* s)
 {
-    k_AtomicIntAddRelaxed(&s->atomIdCounter, 1);
+    k_atomic_IntAddRelaxed(&s->atomIdCounter, 1);
     for (ssize_t i = 0; i < s->nThreads; ++i)
         if (!k_ThreadInit(&s->pThreads[i], loop, s)) goto fail;
 
@@ -225,7 +225,7 @@ start(k_ThreadPool* s)
 
     s->bStarted = true;
 
-    while (k_AtomicIntLoadRelaxed(&s->atomIdCounter) <= s->nThreads)
+    while (k_atomic_IntLoadRelaxed(&s->atomIdCounter) <= s->nThreads)
         k_ThreadYield();
 
     return true;
@@ -280,7 +280,7 @@ k_ThreadPoolDestroy(k_ThreadPool* s)
         k_ThreadPoolWait(s);
 
         k_MutexLock(&s->mtxRb);
-        k_AtomicIntStoreRelease(&s->atomBDone, true);
+        k_atomic_IntStoreRelease(&s->atomBDone, true);
         k_MutexUnlock(&s->mtxRb);
 
         k_CndVarBroadcast(&s->cndRb);
@@ -288,7 +288,7 @@ k_ThreadPoolDestroy(k_ThreadPool* s)
         for (ssize_t i = 0; i < s->nThreads; ++i)
             k_ThreadJoin(&s->pThreads[i]);
 
-        assert(k_AtomicIntLoadAcquire(&s->atomNActiveTasks) == 0);
+        assert(k_atomic_IntLoadAcquire(&s->atomNActiveTasks) == 0);
 
         k_IAllocatorFree(&gpa.base, s->pThreads);
         k_RingBufferDestroy(&s->rbTasks, &gpa.base);
@@ -308,11 +308,11 @@ k_ThreadPoolWait(k_ThreadPool* s)
     stealTasks(s);
 
     k_MutexLock(&s->mtxRb);
-    int n = k_AtomicIntLoadRelaxed(&s->atomNActiveTasks);
+    int n = k_atomic_IntLoadRelaxed(&s->atomNActiveTasks);
     while (k_RingBufferSize(&s->rbTasks) > 0 || n > 0)
     {
         k_CndVarWait(&s->cndWait, &s->mtxRb);
-        n = k_AtomicIntLoadRelaxed(&s->atomNActiveTasks);
+        n = k_atomic_IntLoadRelaxed(&s->atomNActiveTasks);
     }
     k_MutexUnlock(&s->mtxRb);
 }

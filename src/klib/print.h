@@ -76,7 +76,6 @@ typedef struct k_print_BuilderInitOpts
     k_IAllocator* pAllocOrNull; /* If null pBuffer of bufferSize will be used. Otherwise builder will be filled using this allocator. */
     char* pBufferOrNull;
     ssize_t preallocOrBufferSize;
-
 } k_print_BuilderInitOpts;
 
 typedef struct k_print_paddingOpts

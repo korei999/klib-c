@@ -11,13 +11,12 @@ func(void* pArg)
 int
 main(void)
 {
-    k_CtxInitGlobal(
+    k_CtxAllocGlobal(
         (k_LoggerInitOpts){
             .fd = 2 /* stderr */,
             .eLogLevel = K_LOG_LEVEL_DEBUG,
             .ringBufferSize = K_SIZE_1K*4,
-            .bPrintTime = true,
-            .bPrintSource = true,
+            .eFlags = K_LOGGER_FLAG_TIME | K_LOGGER_FLAG_SOURCE,
         },
         (k_ThreadPoolInitOpts){
             .nThreads = k_optimalThreadCount(),

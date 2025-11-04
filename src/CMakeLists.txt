@@ -3,6 +3,7 @@ set(subProject ${projName})
 add_subdirectory(klib)
 
 add_subdirectory(ecs)
+add_subdirectory(QueueMPMC)
 
 target_sources(${subProject} PRIVATE
     main.c

@@ -47,7 +47,8 @@ main(void)
     k_print_MapSetGlobal(pFormattersMap);
     k_print_MapAddFormatter(pFormattersMap, "PMapSvToInt", PMapSvToIntFormatter);
 
-    K_VAR_SCOPE(MapSvToInt, m = MapSvToIntCreate(&pGpa->base, 8), MapSvToIntDestroy(&m, &pGpa->base))
+    MapSvToInt m = MapSvToIntCreate(&pGpa->base, 8);
+    if (MapSvToIntInit(&m, &pGpa->base, 8))
     {
         MapSvToIntInsert(&m, &pGpa->base, &K_SV("zero"), &(int){0});
         MapSvToIntInsert(&m, &pGpa->base, &K_SV("one"), &(int){1});
@@ -68,6 +69,7 @@ main(void)
         MapSvToIntRemove(&m, &K_SV("two"));
         MapSvToIntRemove(&m, &K_SV("three"));
 
-        k_print(&k_GpaInst()->base, stdout, "map: {PMapSvToInt}\n", &m);
+        k_print(&pGpa->base, stdout, "map: {PMapSvToInt}\n", &m);
     }
+    MapSvToIntDestroy(&m, &pGpa->base);
 }

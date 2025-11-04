@@ -53,47 +53,60 @@ typedef struct k_atomic_Int
     volatile k_atomic_IntType volNum;
 } k_atomic_Int;
 
-K_ALWAYS_INLINE static k_atomic_IntType k_AtomicIntLoadRelaxed(k_atomic_Int* s);
-K_ALWAYS_INLINE static k_atomic_IntType k_AtomicIntLoadAcquire(k_atomic_Int* s);
-K_ALWAYS_INLINE static void k_AtomicIntStoreRelease(k_atomic_Int* s, k_atomic_IntType val);
-K_ALWAYS_INLINE static k_atomic_IntType k_AtomicIntAddRelaxed(k_atomic_Int* s, k_atomic_IntType val);
-K_ALWAYS_INLINE static k_atomic_IntType k_AtomicIntAddRelease(k_atomic_Int* s, k_atomic_IntType val);
-K_ALWAYS_INLINE static k_atomic_IntType k_AtomicIntSubRelease(k_atomic_Int* s, k_atomic_IntType val);
+typedef struct k_atomic_U64
+{
+    volatile uint64_t volNum;
+} k_atomic_U64;
+
+K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntLoadRelaxed(k_atomic_Int* s);
+K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntLoadAcquire(k_atomic_Int* s);
+K_ALWAYS_INLINE static void k_atomic_IntStoreRelease(k_atomic_Int* s, k_atomic_IntType val);
+K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntAddRelaxed(k_atomic_Int* s, k_atomic_IntType val);
+K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntAddRelease(k_atomic_Int* s, k_atomic_IntType val);
+K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntSubRelease(k_atomic_Int* s, k_atomic_IntType val);
+K_ALWAYS_INLINE static bool k_atomic_IntCASRelaxed(k_atomic_Int* s, k_atomic_IntType* pExpected, k_atomic_IntType desired);
+
+K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadRelaxed(k_atomic_U64* s);
+K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadAcquire(k_atomic_U64* s);
+K_ALWAYS_INLINE static void k_atomic_U64StoreRelease(k_atomic_U64* s, uint64_t val);
+K_ALWAYS_INLINE static bool k_atomic_U64CASRelaxed(k_atomic_U64* s, uint64_t* pExpected, uint64_t desired);
+K_ALWAYS_INLINE static uint64_t k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val);
+K_ALWAYS_INLINE static uint64_t k_atomic_U64SubRelaxed(k_atomic_U64* s, uint64_t val);
 
 #if defined _WIN32
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntLoadRelaxed(k_atomic_Int* s)
+k_atomic_IntLoadRelaxed(k_atomic_Int* s)
 {
     return InterlockedCompareExchangeNoFence(&s->volNum, 0, 0);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntLoadAcquire(k_atomic_Int* s)
+k_atomic_IntLoadAcquire(k_atomic_Int* s)
 {
     return InterlockedCompareExchangeAcquire(&s->volNum, 0, 0);
 }
 
 K_ALWAYS_INLINE static void
-k_AtomicIntStoreRelease(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntStoreRelease(k_atomic_Int* s, k_atomic_IntType val)
 {
     InterlockedExchange(&s->volNum, val);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntAddRelaxed(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntAddRelaxed(k_atomic_Int* s, k_atomic_IntType val)
 {
     return InterlockedAddNoFence(&s->volNum, val);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntAddRelease(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntAddRelease(k_atomic_Int* s, k_atomic_IntType val)
 {
     return InterlockedAddRelease(&s->volNum, val);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntSubRelease(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntSubRelease(k_atomic_Int* s, k_atomic_IntType val)
 {
     return InterlockedAddRelease(&s->volNum, -val);
 }
@@ -101,39 +114,81 @@ k_AtomicIntSubRelease(k_atomic_Int* s, k_atomic_IntType val)
 #elif defined __unix__
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntLoadRelaxed(k_atomic_Int* s)
+k_atomic_IntLoadRelaxed(k_atomic_Int* s)
 {
     return __atomic_load_n(&s->volNum, __ATOMIC_RELAXED);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntLoadAcquire(k_atomic_Int* s)
+k_atomic_IntLoadAcquire(k_atomic_Int* s)
 {
     return __atomic_load_n(&s->volNum, __ATOMIC_ACQUIRE);
 }
 
 K_ALWAYS_INLINE static void
-k_AtomicIntStoreRelease(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntStoreRelease(k_atomic_Int* s, k_atomic_IntType val)
 {
     __atomic_store_n(&s->volNum, val, __ATOMIC_RELEASE);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntAddRelaxed(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntAddRelaxed(k_atomic_Int* s, k_atomic_IntType val)
 {
     return __atomic_fetch_add(&s->volNum, val, __ATOMIC_RELAXED);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntAddRelease(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntAddRelease(k_atomic_Int* s, k_atomic_IntType val)
 {
     return __atomic_fetch_add(&s->volNum, val, __ATOMIC_RELEASE);
 }
 
 K_ALWAYS_INLINE static k_atomic_IntType
-k_AtomicIntSubRelease(k_atomic_Int* s, k_atomic_IntType val)
+k_atomic_IntSubRelease(k_atomic_Int* s, k_atomic_IntType val)
 {
     return __atomic_fetch_sub(&s->volNum, val, __ATOMIC_RELEASE);
+}
+
+K_ALWAYS_INLINE static bool
+k_atomic_IntCASRelaxed(k_atomic_Int* s, k_atomic_IntType* pExpected, k_atomic_IntType desired)
+{
+    return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static uint64_t
+k_atomic_U64LoadRelaxed(k_atomic_U64* s)
+{
+    return __atomic_load_n(&s->volNum, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static uint64_t
+k_atomic_U64LoadAcquire(k_atomic_U64* s)
+{
+    return __atomic_load_n(&s->volNum, __ATOMIC_ACQUIRE);
+}
+
+K_ALWAYS_INLINE static void
+k_atomic_U64StoreRelease(k_atomic_U64* s, uint64_t val)
+{
+    __atomic_store_n(&s->volNum, val, __ATOMIC_RELEASE);
+}
+
+K_ALWAYS_INLINE static bool
+k_atomic_U64CASRelaxed(k_atomic_U64* s, uint64_t* pExpected, uint64_t desired)
+{
+    return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static uint64_t
+k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val)
+{
+    return __atomic_fetch_add(&s->volNum, val, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static uint64_t
+k_atomic_U64SubRelaxed(k_atomic_U64* s, uint64_t val)
+{
+    return __atomic_fetch_sub(&s->volNum, val, __ATOMIC_RELAXED);
 }
 
 #endif
