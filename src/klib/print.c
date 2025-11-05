@@ -783,16 +783,13 @@ ssize_t
 k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 {
     const int64_t c = (int64_t)arg;
-    static const char s_asciis[] = {
-        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
-    };
 
     if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_FMT)
         return k_print_eatFmtArg(pFmtArgs, c);
 
     ssize_t nWritten = 0;
     char toPrint;
-    if (c >= 32 && c <= 126) toPrint = s_asciis[c - 32];
+    if (c >= 32 && c <= 126) toPrint = c;
     else toPrint = ' ';
 
     ssize_t n = k_print_BuilderPushSvPaddedFmtArgs(pCtx->pBuilder, pFmtArgs, (k_StringView){&toPrint, 1});
