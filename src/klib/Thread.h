@@ -396,6 +396,7 @@ k_CndVarBroadcast(k_CndVar* s)
 typedef struct k_TicketMutex
 {
     k_atomic_U64 ticketId;
+    char aPad[64];
     k_atomic_U64 servingId;
 } k_TicketMutex;
 
@@ -403,7 +404,7 @@ static inline void
 k_TicketMutexLock(k_TicketMutex* s)
 {
     uint64_t ticket = k_atomic_U64AddRelaxed(&s->ticketId, 1);
-    while (k_atomic_U64LoadRelaxed(&s->servingId) != ticket)
+    while (ticket != s->servingId.volNum)
         ;
 }
 

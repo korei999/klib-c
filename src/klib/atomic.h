@@ -71,6 +71,7 @@ K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadAcquire(k_atomic_U64* s);
 K_ALWAYS_INLINE static void k_atomic_U64StoreRelease(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static bool k_atomic_U64CASRelaxed(k_atomic_U64* s, uint64_t* pExpected, uint64_t desired);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val);
+K_ALWAYS_INLINE static uint64_t k_atomic_U64AddRelease(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64SubRelaxed(k_atomic_U64* s, uint64_t val);
 
 typedef struct k_atomic_U8
@@ -188,6 +189,12 @@ K_ALWAYS_INLINE static uint64_t
 k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val)
 {
     return __atomic_fetch_add(&s->volNum, val, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static uint64_t
+k_atomic_U64AddRelease(k_atomic_U64* s, uint64_t val)
+{
+    return __atomic_fetch_add(&s->volNum, val, __ATOMIC_RELEASE);
 }
 
 K_ALWAYS_INLINE static uint64_t

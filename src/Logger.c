@@ -26,11 +26,11 @@ main(void)
     );
 
     k_ThreadPool* pThreadPool = k_CtxThreadPool();
-    for (ssize_t i = 0; i < 20; ++i)
+    for (ssize_t i = 0; i < 40; ++i)
         k_ThreadPoolAdd(pThreadPool, func, &i, sizeof(i));
     k_ThreadPoolWait(pThreadPool);
 
-    for (ssize_t i = 0; i < 10; ++i)
+    for (ssize_t i = 0; i < 20; ++i)
         K_CTX_LOG_INFO("i: {d}", (double)i);
 
     k_CtxDestroyGlobal();

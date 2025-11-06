@@ -4,8 +4,6 @@
 
 #include "QueueMPMC.h"
 
-#include <unistd.h>
-
 #define TARGET 10000
 static k_QueueMPMC s_q;
 static k_atomic_U64 s_accumulator;
