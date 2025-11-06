@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "atomic.h"
 
 #include <assert.h>
 
@@ -391,4 +391,24 @@ k_CndVarBroadcast(k_CndVar* s)
     (void)err;
 
 #endif
+}
+
+typedef struct k_TicketMutex
+{
+    k_atomic_U64 ticketId;
+    k_atomic_U64 servingId;
+} k_TicketMutex;
+
+static inline void
+k_TicketMutexLock(k_TicketMutex* s)
+{
+    uint64_t ticket = k_atomic_U64AddRelaxed(&s->ticketId, 1);
+    while (k_atomic_U64LoadRelaxed(&s->servingId) != ticket)
+        ;
+}
+
+static inline void
+k_TicketMutexUnlock(k_TicketMutex* s)
+{
+    k_atomic_U64AddRelaxed(&s->servingId, 1);
 }

@@ -53,11 +53,6 @@ typedef struct k_atomic_Int
     volatile k_atomic_IntType volNum;
 } k_atomic_Int;
 
-typedef struct k_atomic_U64
-{
-    volatile uint64_t volNum;
-} k_atomic_U64;
-
 K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntLoadRelaxed(k_atomic_Int* s);
 K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntLoadAcquire(k_atomic_Int* s);
 K_ALWAYS_INLINE static void k_atomic_IntStoreRelease(k_atomic_Int* s, k_atomic_IntType val);
@@ -66,12 +61,22 @@ K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntAddRelease(k_atomic_Int* s, 
 K_ALWAYS_INLINE static k_atomic_IntType k_atomic_IntSubRelease(k_atomic_Int* s, k_atomic_IntType val);
 K_ALWAYS_INLINE static bool k_atomic_IntCASRelaxed(k_atomic_Int* s, k_atomic_IntType* pExpected, k_atomic_IntType desired);
 
+typedef struct k_atomic_U64
+{
+    volatile uint64_t volNum;
+} k_atomic_U64;
+
 K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadRelaxed(k_atomic_U64* s);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadAcquire(k_atomic_U64* s);
 K_ALWAYS_INLINE static void k_atomic_U64StoreRelease(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static bool k_atomic_U64CASRelaxed(k_atomic_U64* s, uint64_t* pExpected, uint64_t desired);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64SubRelaxed(k_atomic_U64* s, uint64_t val);
+
+typedef struct k_atomic_U8
+{
+    volatile bool volNum;
+} k_atomic_U8;
 
 #if defined _WIN32
 

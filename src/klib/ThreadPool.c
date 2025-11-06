@@ -241,7 +241,7 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args)
     k_Thread* pNewThreads = NULL;
     if (args.nThreads > 0)
     {
-        pNewThreads = K_IMALLOC_T(&gpa.base, k_Thread, args.nThreads);
+        pNewThreads = K_IZALLOC_T(&gpa.base, k_Thread, args.nThreads);
         if (!pNewThreads) return false;
 
         if (!k_RingBufferInit(&s->rbTasks, &gpa.base, args.ringBufferSize)) goto fail;
