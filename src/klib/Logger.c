@@ -25,7 +25,7 @@ loop(void* pArg)
     while (true)
     {
         LogHeader lh = {0};
-        K_LOG_LEVEL eLevel = 0;
+        K_LOGGER_LEVEL eLevel = 0;
         ssize_t logSize = 0;
 
         k_MutexLock(&s->mtx);
@@ -114,7 +114,7 @@ k_LoggerDestroy(k_Logger* s)
 }
 
 static bool
-pushMsg(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
+pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
 {
     if (svMsg.size + (ssize_t)sizeof(LogHeader) > k_RingBufferCap(&s->rb)) return false;
 
@@ -153,7 +153,7 @@ pushMsg(k_Logger* s, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFun
 }
 
 void
-k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, va_list* pArgs)
+k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, va_list* pArgs)
 {
     if (eLevel > s->eLogLevel) return;
 
@@ -171,7 +171,7 @@ k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char*
 }
 
 void
-k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...)
+k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...)
 {
     va_list args;
     va_start(args, svFmt);
@@ -180,7 +180,7 @@ k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* nts
 }
 
 void
-k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...)
+k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...)
 {
     va_list args;
     va_start(args, ntsFmt);
@@ -189,7 +189,7 @@ k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFi
 }
 
 ssize_t
-k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span spSink)
+k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span spSink)
 {
     (void)pArg;
 
@@ -208,7 +208,7 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char
         "DEBUG",
     };
     const char* ntsLevel = "";
-    if (eLevel <= K_LOG_LEVEL_DEBUG)
+    if (eLevel <= K_LOGGER_LEVEL_DEBUG)
     {
         if (s->eFlags & K_LOGGER_FLAG_COLORS) ntsLevel = mapColored[eLevel];
         else ntsLevel = map[eLevel];

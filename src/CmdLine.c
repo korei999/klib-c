@@ -79,7 +79,7 @@ main(int argc, char** argv)
 {
     k_CtxAllocGlobal(
         (k_LoggerInitOpts){
-            .eLogLevel = K_LOG_LEVEL_DEBUG,
+            .eLogLevel = K_LOGGER_LEVEL_DEBUG,
             .fd = 2,
             .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_SOURCE,
             .ringBufferSize = K_SIZE_1K*4,

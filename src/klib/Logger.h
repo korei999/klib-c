@@ -32,12 +32,12 @@
 #define K_LOGGER_ANSI_COLOR_BG_CYAN "\x1b[46m"
 #define K_LOGGER_ANSI_COLOR_BG_WHITE "\x1b[47m"
 
-typedef uint8_t K_LOG_LEVEL;
-static const K_LOG_LEVEL K_LOG_LEVEL_NONE = 0;
-static const K_LOG_LEVEL K_LOG_LEVEL_WARNING = 1;
-static const K_LOG_LEVEL K_LOG_LEVEL_ERROR = 2;
-static const K_LOG_LEVEL K_LOG_LEVEL_INFO = 3;
-static const K_LOG_LEVEL K_LOG_LEVEL_DEBUG = 4;
+typedef uint8_t K_LOGGER_LEVEL;
+static const K_LOGGER_LEVEL K_LOGGER_LEVEL_NONE = 0;
+static const K_LOGGER_LEVEL K_LOGGER_LEVEL_WARNING = 1;
+static const K_LOGGER_LEVEL K_LOGGER_LEVEL_ERROR = 2;
+static const K_LOGGER_LEVEL K_LOGGER_LEVEL_INFO = 3;
+static const K_LOGGER_LEVEL K_LOGGER_LEVEL_DEBUG = 4;
 
 typedef uint8_t K_LOGGER_FLAGS;
 static const K_LOGGER_FLAGS K_LOGGER_FLAG_COLORS = 1;
@@ -47,7 +47,7 @@ static const K_LOGGER_FLAGS K_LOGGER_FLAG_FUNC = 1 << 3;
 
 struct k_Logger;
 
-typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, void* pArg, K_LOG_LEVEL eLogLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span sp);
+typedef ssize_t (*k_LoggerFormatHeaderPfn)(struct k_Logger* s, void* pArg, K_LOGGER_LEVEL eLogLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span sp);
 typedef ssize_t (*k_LoggerSinkPfn)(struct k_Logger* s, void* pArg, k_Span sp);
 
 typedef struct k_Logger
@@ -63,7 +63,7 @@ typedef struct k_Logger
     k_CndVar cnd;
     k_Thread thread;
     int fd;
-    K_LOG_LEVEL eLogLevel;
+    K_LOGGER_LEVEL eLogLevel;
     bool bStarted;
     bool bDone;
     K_LOGGER_FLAGS eFlags;
@@ -77,14 +77,14 @@ typedef struct k_LoggerInitOpts
     void* pSinkArg;
     ssize_t ringBufferSize; /* Do not init if 0. */
     int fd; /* 2 (stderr) if 0. */
-    K_LOG_LEVEL eLogLevel;
+    K_LOGGER_LEVEL eLogLevel;
     K_LOGGER_FLAGS eFlags;
 } k_LoggerInitOpts;
 
 bool k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts);
 void k_LoggerDestroy(k_Logger* s);
-void k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, va_list* pArgs);
-void k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...);
-void k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...);
-ssize_t k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOG_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span spSink);
+void k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, va_list* pArgs);
+void k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...);
+void k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...);
+ssize_t k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, k_Span spSink);
 ssize_t k_LoggerDefaultSink(k_Logger* s, void* pArg, k_Span sp);

@@ -61,7 +61,7 @@ main(void)
             .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_TIME,
             .ringBufferSize = K_SIZE_1K*4,
             .fd = 2,
-            .eLogLevel = K_LOG_LEVEL_DEBUG,
+            .eLogLevel = K_LOGGER_LEVEL_DEBUG,
         },
         (k_ThreadPoolInitOpts){
             .arenaReserve = K_SIZE_1M*60,

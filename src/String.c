@@ -41,7 +41,7 @@ main(void)
     k_CtxAllocGlobal(
         (k_LoggerInitOpts){
             .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_TIME,
-            .eLogLevel = K_LOG_LEVEL_DEBUG,
+            .eLogLevel = K_LOGGER_LEVEL_DEBUG,
             .fd = 2,
             .ringBufferSize = K_SIZE_1K*4,
         },
