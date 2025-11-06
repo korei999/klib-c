@@ -13,7 +13,9 @@ static k_atomic_U64 s_counter;
 static void
 produser(void* pArg)
 {
-    k_QueueMPMCPush(&s_q, &(int){(ssize_t)pArg}, sizeof(int));
+    while (!k_QueueMPMCPush(&s_q, &(int){(ssize_t)pArg}, sizeof(int)))
+        ;
+
     k_atomic_U64AddRelaxed(&s_counter, 1);
 }
 
@@ -33,14 +35,14 @@ consumer(void* pArg)
 static void
 test(void)
 {
-    K_ASSERT_ALWAYS(k_QueueMPMCInit(&s_q, &k_GpaInst()->base, (k_QueueMPMCInitOpts){.maxMemberSize = 64, .capPo2 = TARGET*2}), "");
+    K_ASSERT_ALWAYS(k_QueueMPMCInit(&s_q, &k_GpaInst()->base, (k_QueueMPMCInitOpts){.maxMemberSize = 64, .capPo2 = TARGET>>2}), "");
 
     k_ThreadPool* pTp = k_CtxThreadPool();
 
+    for (ssize_t i = 0; i < 2; ++i)
+        k_ThreadPoolAddP(pTp, consumer, NULL);
     for (ssize_t i = 0; i < TARGET; ++i)
         k_ThreadPoolAddP(pTp, produser, (void*)i);
-    for (ssize_t i = 0; i < TARGET; ++i)
-        k_ThreadPoolAddP(pTp, consumer, NULL);
 
     k_ThreadPoolWait(pTp);
 
@@ -65,7 +67,7 @@ main(void)
         },
         (k_ThreadPoolInitOpts){
             .arenaReserve = K_SIZE_1M*60,
-            .nThreads = k_optimalThreadCount(),
+            .nThreads = 12,
             .ringBufferSize = K_SIZE_1K*4,
         }
     );
