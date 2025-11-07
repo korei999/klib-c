@@ -31,16 +31,9 @@ k_RingBufferPushNoChecks(k_RingBuffer* pSelf, const void* p, ssize_t size)
     K_TYPEOF(pSelf->priv)* s = &pSelf->priv;
     const ssize_t nextTailI = (s->tailI + size) & (s->capMinus1);
 
-    if (s->tailI >= s->headI)
-    {
-        const ssize_t tailToEnd = K_MIN(s->capMinus1 + 1 - s->tailI, size);
-        memcpy(s->pData + s->tailI, p, tailToEnd);
-        memcpy(s->pData, (uint8_t*)p + tailToEnd, size - tailToEnd);
-    }
-    else
-    {
-        memcpy(s->pData + s->tailI, p, size);
-    }
+    const ssize_t tailToEnd = K_MIN(s->capMinus1 + 1 - s->tailI, size);
+    memcpy(s->pData + s->tailI, p, tailToEnd);
+    memcpy(s->pData, (uint8_t*)p + tailToEnd, size - tailToEnd);
 
     s->size += size;
     s->tailI = nextTailI;
@@ -52,16 +45,9 @@ k_RingBufferPopNoChecks(k_RingBuffer* pSelf, void* p, ssize_t size)
     K_TYPEOF(pSelf->priv)* s = &pSelf->priv;
     const ssize_t nextHeadI = (s->headI + size) & (s->capMinus1);
 
-    if (s->headI >= s->tailI)
-    {
-        const ssize_t headToEnd = K_MIN(s->capMinus1 + 1 - s->headI, size);
-        memcpy(p, s->pData + s->headI, headToEnd);
-        memcpy((uint8_t*)p + headToEnd, s->pData, size - headToEnd);
-    }
-    else
-    {
-        memcpy(p, s->pData + s->headI, size);
-    }
+    const ssize_t headToEnd = K_MIN(s->capMinus1 + 1 - s->headI, size);
+    memcpy(p, s->pData + s->headI, headToEnd);
+    memcpy((uint8_t*)p + headToEnd, s->pData, size - headToEnd);
 
     s->size -= size;
     s->headI = nextHeadI;

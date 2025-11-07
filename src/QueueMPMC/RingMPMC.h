@@ -6,9 +6,14 @@
 typedef struct k_RingMPMC
 {
     k_atomic_U64 headI;
+    char aPad0[64];
     k_atomic_U64 tailI;
+    char aPad1[64];
+    k_atomic_U64 size;
     uint8_t* pData;
-    ssize_t capMinus1;
+    size_t capMinus1;
 } k_RingMPMC;
 
-bool k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, ssize_t capPo2);
+bool k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, size_t capPo2);
+bool k_RingMPMCPush(k_RingMPMC* s, const void* pData, size_t size);
+bool k_RingMPMCPop(k_RingMPMC* s, void* pDest);

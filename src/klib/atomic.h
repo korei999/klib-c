@@ -73,11 +73,17 @@ K_ALWAYS_INLINE static bool k_atomic_U64CASRelaxed(k_atomic_U64* s, uint64_t* pE
 K_ALWAYS_INLINE static uint64_t k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64AddRelease(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64SubRelaxed(k_atomic_U64* s, uint64_t val);
+K_ALWAYS_INLINE static uint64_t k_atomic_U64SubRelease(k_atomic_U64* s, uint64_t val);
 
 typedef struct k_atomic_U8
 {
-    volatile bool volNum;
+    volatile uint8_t volNum;
 } k_atomic_U8;
+
+K_ALWAYS_INLINE static void k_atomic_U8StoreRelaxed(k_atomic_U8* s, uint8_t val);
+K_ALWAYS_INLINE static void k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val);
+K_ALWAYS_INLINE static uint8_t k_atomic_U8AddRelease(k_atomic_U8* s, uint8_t val);
+K_ALWAYS_INLINE static bool k_atomic_U8CASRelaxed(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired);
 
 #if defined _WIN32
 
@@ -201,6 +207,36 @@ K_ALWAYS_INLINE static uint64_t
 k_atomic_U64SubRelaxed(k_atomic_U64* s, uint64_t val)
 {
     return __atomic_fetch_sub(&s->volNum, val, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static uint64_t
+k_atomic_U64SubRelease(k_atomic_U64* s, uint64_t val)
+{
+    return __atomic_fetch_sub(&s->volNum, val, __ATOMIC_RELEASE);
+}
+
+K_ALWAYS_INLINE static void
+k_atomic_U8StoreRelaxed(k_atomic_U8* s, uint8_t val)
+{
+    __atomic_store_n(&s->volNum, val, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static void
+k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val)
+{
+    __atomic_store_n(&s->volNum, val, __ATOMIC_RELEASE);
+}
+
+K_ALWAYS_INLINE static uint8_t
+k_atomic_U8AddRelease(k_atomic_U8* s, uint8_t val)
+{
+    return __atomic_fetch_add(&s->volNum, val, __ATOMIC_RELEASE);
+}
+
+K_ALWAYS_INLINE static bool
+k_atomic_U8CASRelaxed(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
+{
+    return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
 #endif
