@@ -17,7 +17,6 @@ k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, size_t capPo2)
 
     s->headI.volNum = 0;
     s->tailI.volNum = 0;
-    s->size.volNum = 0;
     s->pData = pNew;
     s->capMinus1 = cap - 1;
 
@@ -43,10 +42,12 @@ popNoChecks(k_RingMPMC* s, uint64_t headI, void* p, size_t size)
 bool
 k_RingMPMCPush(k_RingMPMC* s, const void* pData, size_t size)
 {
+    uint64_t headI;
     uint64_t tailI = k_atomic_U64LoadRelaxed(&s->tailI);
 
 again:
-    if (k_atomic_U64LoadRelaxed(&s->size) + size + sizeof(Header) >= s->capMinus1) return false;
+    headI = k_atomic_U64LoadRelaxed(&s->headI);
+    if (((tailI - headI) + size + sizeof(Header)) >= s->capMinus1) return false;
 
     if (k_atomic_U64CASRelaxed(&s->tailI, &tailI, tailI + size + sizeof(Header)))
     {
@@ -57,7 +58,6 @@ again:
         pushNoChecks(s, (tailI + 1 + sizeof(size)) & s->capMinus1, pData, size);
 
         k_atomic_U8StoreRelease(pHeader, true);
-        k_atomic_U64AddRelease(&s->size, size + sizeof(Header));
     }
     else
     {
@@ -71,22 +71,32 @@ bool
 k_RingMPMCPop(k_RingMPMC* s, void* pDest)
 {
     uint64_t headI;
-again:
     headI = k_atomic_U64LoadRelaxed(&s->headI);
-    if (k_atomic_U64LoadAcquire(&s->tailI) - headI == 0) return false;
+
+again:
+    if (k_atomic_U64LoadAcquire(&s->tailI) == headI) return false;
 
     k_atomic_U8* pHeader = (k_atomic_U8*)(s->pData + (headI & s->capMinus1));
     uint8_t bExpected = true;
-    if (k_atomic_U8CASRelaxed(pHeader, &bExpected, false))
+    if (k_atomic_U8CASAquire(pHeader, &bExpected, false))
     {
         size_t headerSize;
         popNoChecks(s, (headI + 1) & s->capMinus1, &headerSize, sizeof(headerSize));
-        k_atomic_U64AddRelaxed(&s->headI, headerSize + sizeof(Header));
         popNoChecks(s, (headI + 1 + sizeof(size_t)) & s->capMinus1, pDest, headerSize);
-        k_atomic_U64SubRelaxed(&s->size, headerSize + sizeof(Header));
+        k_atomic_U8StoreRelease(pHeader, 3);
+        return true;
     }
     else
     {
+        if (bExpected == 3)
+        {
+            size_t headerSize;
+            popNoChecks(s, (headI + 1) & s->capMinus1, &headerSize, sizeof(headerSize));
+
+            if (k_atomic_U64CASRelaxed(&s->headI, &headI, headI + headerSize + sizeof(Header)))
+                headI = headerSize + sizeof(Header);
+        }
+
         goto again;
     }
 

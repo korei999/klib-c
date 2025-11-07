@@ -4,6 +4,8 @@
 
 #include "QueueMPMC/RingMPMC.h"
 
+#include <unistd.h>
+
 static k_RingMPMC s_r;
 
 typedef struct Payload

@@ -9,7 +9,6 @@ typedef struct k_RingMPMC
     char aPad0[64];
     k_atomic_U64 tailI;
     char aPad1[64];
-    k_atomic_U64 size;
     uint8_t* pData;
     size_t capMinus1;
 } k_RingMPMC;

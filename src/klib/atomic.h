@@ -84,6 +84,7 @@ K_ALWAYS_INLINE static void k_atomic_U8StoreRelaxed(k_atomic_U8* s, uint8_t val)
 K_ALWAYS_INLINE static void k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val);
 K_ALWAYS_INLINE static uint8_t k_atomic_U8AddRelease(k_atomic_U8* s, uint8_t val);
 K_ALWAYS_INLINE static bool k_atomic_U8CASRelaxed(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired);
+K_ALWAYS_INLINE static bool k_atomic_U8CASAquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired);
 
 #if defined _WIN32
 
@@ -237,6 +238,12 @@ K_ALWAYS_INLINE static bool
 k_atomic_U8CASRelaxed(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
 {
     return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+}
+
+K_ALWAYS_INLINE static bool
+k_atomic_U8CASAquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
+{
+    return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE);
 }
 
 #endif
