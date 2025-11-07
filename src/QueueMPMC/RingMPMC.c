@@ -47,7 +47,7 @@ k_RingMPMCPush(k_RingMPMC* s, const void* pData, size_t size)
 
 again:
     headI = k_atomic_U64LoadRelaxed(&s->headI);
-    if (((tailI - headI) + size + sizeof(Header)) >= s->capMinus1) return false;
+    if (((tailI - headI) + size + sizeof(Header)) > s->capMinus1) return false;
 
     if (k_atomic_U64CASRelaxed(&s->tailI, &tailI, tailI + size + sizeof(Header)))
     {
@@ -94,7 +94,7 @@ again:
             popNoChecks(s, (headI + 1) & s->capMinus1, &headerSize, sizeof(headerSize));
 
             if (k_atomic_U64CASRelaxed(&s->headI, &headI, headI + headerSize + sizeof(Header)))
-                headI = headerSize + sizeof(Header);
+                headI += headerSize + sizeof(Header);
         }
 
         goto again;
