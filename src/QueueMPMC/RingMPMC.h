@@ -23,4 +23,4 @@ typedef struct k_RingMPMCPopOpts
 
 bool k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, size_t capPo2);
 bool k_RingMPMCPush(k_RingMPMC* s, const void* pData, size_t size);
-bool k_RingMPMCPop(k_RingMPMC* s, k_RingMPMCPopOpts opts);
+void* k_RingMPMCPop(k_RingMPMC* s, k_RingMPMCPopOpts opts);

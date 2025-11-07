@@ -69,14 +69,13 @@ again:
     return true;
 }
 
-bool
+void*
 k_RingMPMCPop(k_RingMPMC* s, k_RingMPMCPopOpts opts)
 {
-    uint64_t headI;
-    headI = k_atomic_U64LoadRelaxed(&s->headI);
+    uint64_t headI = k_atomic_U64LoadRelaxed(&s->headI);
 
 again:
-    if (k_atomic_U64LoadAcquire(&s->tailI) == headI) return false;
+    if (k_atomic_U64LoadAcquire(&s->tailI) == headI) return NULL;
 
     k_atomic_U8* pHeader = (k_atomic_U8*)(s->pData + (headI & s->capMinus1));
     uint8_t bExpected = true;
@@ -85,21 +84,14 @@ again:
         size_t headerSize;
         popNoChecks(s, (headI + 1) & s->capMinus1, &headerSize, sizeof(headerSize));
 
-        size_t popSize;
-        if (opts.pDestOrNull == NULL)
+        if (opts.pDestOrNull == NULL || opts.destSize < headerSize)
         {
             K_ASSERT(opts.pAlloc != NULL, "");
             opts.pDestOrNull = k_IAllocatorMalloc(opts.pAlloc, headerSize);
-            popSize = headerSize;
-        }
-        else
-        {
-            popSize = K_MIN(headerSize, opts.destSize);
         }
 
-        popNoChecks(s, (headI + 1 + sizeof(size_t)) & s->capMinus1, opts.pDestOrNull, popSize);
+        popNoChecks(s, (headI + 1 + sizeof(size_t)) & s->capMinus1, opts.pDestOrNull, headerSize);
         k_atomic_U8StoreRelease(pHeader, 3);
-        return true;
     }
     else
     {
@@ -110,10 +102,12 @@ again:
 
             if (k_atomic_U64CASRelaxed(&s->headI, &headI, headI + headerSize + sizeof(Header)))
                 headI += headerSize + sizeof(Header);
+            goto again;
         }
 
+        headI = k_atomic_U64LoadRelaxed(&s->headI);
         goto again;
     }
 
-    return true;
+    return opts.pDestOrNull;
 }
