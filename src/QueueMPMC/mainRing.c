@@ -4,9 +4,8 @@
 
 #include "QueueMPMC/RingMPMC.h"
 
-#include <unistd.h>
-
 static k_RingMPMC s_r;
+static k_atomic_Int s_counter;
 
 typedef struct Payload
 {
@@ -29,7 +28,8 @@ PayloadPush(void* pArg)
     (void)pArg;
     Payload p;
     PayloadInit(&p);
-    k_RingMPMCPush(&s_r, &p, sizeof(p));
+    K_ASSERT_ALWAYS(k_RingMPMCPush(&s_r, &p, sizeof(p)), "");
+    k_atomic_IntAddRelaxed(&s_counter, 1);
 }
 
 static void
@@ -42,25 +42,35 @@ PayloadPop(void* pArg)
 static void
 test(void)
 {
-    K_ASSERT_ALWAYS(k_RingMPMCInit(&s_r, &k_GpaInst()->base, K_SIZE_1K*4), "");
+    K_ASSERT_ALWAYS(k_RingMPMCInit(&s_r, &k_GpaInst()->base, 1 << 8), "");
 
     k_ThreadPool* pTp = k_CtxThreadPool();
 
     Payload p0;
     PayloadInit(&p0);
 
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 7; ++i)
         k_ThreadPoolAddP(pTp, PayloadPush, &p0);
 
-    Payload aPayloads[10] = {0};
+    Payload aPayloads[20] = {0};
 
-    for (ssize_t i = 0; i < K_ASIZE(aPayloads); ++i)
+    for (ssize_t i = 0; i < 10; ++i)
+        k_ThreadPoolAddP(pTp, PayloadPop, &aPayloads[i]);
+
+    for (int i = 0; i < 7; ++i)
+        k_ThreadPoolAddP(pTp, PayloadPush, &p0);
+
+    for (ssize_t i = 10; i < 20; ++i)
         k_ThreadPoolAddP(pTp, PayloadPop, &aPayloads[i]);
 
     k_ThreadPoolWait(pTp);
 
     for (ssize_t i = 0; i < K_ASIZE(aPayloads); ++i)
         K_CTX_LOG_DEBUG("p{sz}: '{s}'", i, aPayloads[i].aBuff);
+
+    int counter = k_atomic_IntLoadRelaxed(&s_counter);
+    K_CTX_LOG_DEBUG("counter: {i}", counter);
+    K_ASSERT_ALWAYS(counter == 14, "{i}", counter);
 }
 
 int
