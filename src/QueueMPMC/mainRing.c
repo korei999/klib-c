@@ -36,7 +36,7 @@ static void
 PayloadPop(void* pArg)
 {
     Payload* s = pArg;
-    k_RingMPMCPop(&s_r, s);
+    k_RingMPMCPop(&s_r, (k_RingMPMCPopOpts){.pDestOrNull = s, sizeof(*s)});
 }
 
 static void

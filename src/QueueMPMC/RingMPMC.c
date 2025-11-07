@@ -1,5 +1,7 @@
 #include "RingMPMC.h"
 
+#include "klib/assert.h"
+
 #pragma pack(1)
 typedef struct Header
 {
@@ -68,7 +70,7 @@ again:
 }
 
 bool
-k_RingMPMCPop(k_RingMPMC* s, void* pDest)
+k_RingMPMCPop(k_RingMPMC* s, k_RingMPMCPopOpts opts)
 {
     uint64_t headI;
     headI = k_atomic_U64LoadRelaxed(&s->headI);
@@ -82,7 +84,20 @@ again:
     {
         size_t headerSize;
         popNoChecks(s, (headI + 1) & s->capMinus1, &headerSize, sizeof(headerSize));
-        popNoChecks(s, (headI + 1 + sizeof(size_t)) & s->capMinus1, pDest, headerSize);
+
+        size_t popSize;
+        if (opts.pDestOrNull == NULL)
+        {
+            K_ASSERT(opts.pAlloc != NULL, "");
+            opts.pDestOrNull = k_IAllocatorMalloc(opts.pAlloc, headerSize);
+            popSize = headerSize;
+        }
+        else
+        {
+            popSize = K_MIN(headerSize, opts.destSize);
+        }
+
+        popNoChecks(s, (headI + 1 + sizeof(size_t)) & s->capMinus1, opts.pDestOrNull, popSize);
         k_atomic_U8StoreRelease(pHeader, 3);
         return true;
     }

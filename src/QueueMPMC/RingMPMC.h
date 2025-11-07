@@ -13,6 +13,14 @@ typedef struct k_RingMPMC
     size_t capMinus1;
 } k_RingMPMC;
 
+typedef struct k_RingMPMCPopOpts
+{
+    void* pDestOrNull; /* If null use pAlloc to allocate the buffer. */
+    size_t destSize; /* Ignored if pDest is null. */
+    k_IAllocator* pAlloc;
+} k_RingMPMCPopOpts;
+
+
 bool k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, size_t capPo2);
 bool k_RingMPMCPush(k_RingMPMC* s, const void* pData, size_t size);
-bool k_RingMPMCPop(k_RingMPMC* s, void* pDest);
+bool k_RingMPMCPop(k_RingMPMC* s, k_RingMPMCPopOpts opts);
