@@ -1,8 +1,10 @@
 #include "klib/Ctx.h"
 #include "klib/Gpa.h"
 #include "klib/assert.h"
+#include "klib/time.h"
 
 #include "klib/RingMPMC.h"
+#include "QueueMPMC.h"
 
 static k_RingMPMC s_r;
 static const int EXPECTED = 14;
@@ -45,6 +47,191 @@ again:
     else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED) goto again;
 }
 
+static const int NTASKS = 200000;
+static _Alignas(64) k_atomic_Int s_taskCount;
+
+typedef struct RBTask
+{
+    k_RingBuffer* pRB;
+    int size;
+} RBTask;
+
+static void
+pushRBTask(void* pArg)
+{
+    RBTask* pTask = pArg;
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        void* pBuff = k_ArenaMalloc(pArena, pTask->size);
+        memset(pBuff, 7, pTask->size);
+        while (!k_RingBufferPush(pTask->pRB, pBuff, pTask->size))
+            ;
+    }
+}
+
+static void
+popRBTask(void* pArg)
+{
+    RBTask* pTask = pArg;
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        void* pBuff = k_ArenaMalloc(pArena, pTask->size);
+        while (k_atomic_IntLoadRelaxed(&s_taskCount) < NTASKS)
+            if (k_RingBufferPop(pTask->pRB, pBuff, pTask->size))
+                break;
+        k_atomic_IntAddRelaxed(&s_taskCount, 1);
+    }
+}
+
+typedef struct RingTask
+{
+    k_RingMPMC* pRing;
+    int size;
+} RingTask;
+
+static void
+pushRingTask(void* pArg)
+{
+    RingTask* pTask = pArg;
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        void* pBuff = k_ArenaMalloc(pArena, pTask->size);
+        memset(pBuff, 7, pTask->size);
+        while (!k_RingMPMCPush(pTask->pRing, pBuff, pTask->size))
+            ;
+    }
+}
+
+static void
+popRingTask(void* pArg)
+{
+    RingTask* pTask = pArg;
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        while (k_atomic_IntLoadRelaxed(&s_taskCount) < NTASKS)
+        {
+            void* pBuff = k_ArenaMalloc(pArena, pTask->size);
+            k_Span sp = k_RingMPMCPop(pTask->pRing, (k_RingMPMCPopOpts){.pDestOrNull = pBuff, .destSize = pTask->size});
+            if (sp.pData != NULL) break;
+        }
+        k_atomic_IntAddRelaxed(&s_taskCount, 1);
+    }
+}
+
+typedef struct QueueTask
+{
+    k_QueueMPMC* pQ;
+    int size;
+} QueueTask;
+
+static void
+pushQTask(void* pArg)
+{
+    QueueTask* pTask = pArg;
+    void* pBuff = malloc(pTask->size);
+    memset(pBuff, 7, pTask->size);
+    while (!k_QueueMPMCPush(pTask->pQ, &pBuff, sizeof(pBuff)))
+        ;
+}
+
+static void
+popQTask(void* pArg)
+{
+    QueueTask* pTask = pArg;
+    void* pBuff;
+    while (k_atomic_IntLoadRelaxed(&s_taskCount) < NTASKS)
+    {
+        if (k_QueueMPMCPop(pTask->pQ, &pBuff, sizeof(pBuff)))
+            break;
+    }
+    k_atomic_IntAddRelaxed(&s_taskCount, 1);
+    free(pBuff);
+}
+
+static void
+bench(void)
+{
+    k_Gpa* pGpa = k_GpaInst();
+    k_ThreadPool* pTp = k_CtxThreadPool();
+
+    {
+        k_RingMPMC r;
+        k_RingMPMCInit(&r, &pGpa->base, K_SIZE_1M*4);
+
+        k_time_Type t0 = k_time_now();
+        for (int i = 0; i < NTASKS; ++i)
+        {
+            RingTask task = {.pRing = &r, .size = 128};
+            k_ThreadPoolAdd(pTp, pushRingTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popRingTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
+        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
+
+        double elapsed = k_time_diffMSec(k_time_now(), t0);
+        K_CTX_LOG_DEBUG("(RingMPMC) elapsed: {:.3:d} ms", elapsed);
+
+        k_RingMPMCDestroy(&r, &pGpa->base);
+    }
+
+    s_taskCount.volNum = 0;
+
+    {
+        k_RingBuffer rb;
+        k_RingBufferInit(&rb, &pGpa->base, K_SIZE_1M*4);
+
+        k_time_Type t0 = k_time_now();
+        for (int i = 0; i < NTASKS; ++i)
+        {
+            RBTask task = {.pRB = &rb, .size = 128};
+            k_ThreadPoolAdd(pTp, pushRBTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popRBTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
+        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
+
+        double elapsed = k_time_diffMSec(k_time_now(), t0);
+        K_CTX_LOG_DEBUG("(ringBuffer) elapsed: {:.3:d} ms", elapsed);
+
+        k_RingBufferDestroy(&rb, &pGpa->base);
+    }
+
+    s_taskCount.volNum = 0;
+
+    {
+        k_QueueMPMC q;
+        k_QueueMPMCInit(&q, &pGpa->base, (k_QueueMPMCInitOpts){.maxMemberSize = 8, .capPo2 = K_SIZE_1M*4});
+
+        k_time_Type t0 = k_time_now();
+        for (int i = 0; i < NTASKS; ++i)
+        {
+            QueueTask task = {.pQ = &q, .size = 128};
+            k_ThreadPoolAdd(pTp, pushQTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popQTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
+        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
+
+        double elapsed = k_time_diffMSec(k_time_now(), t0);
+        K_CTX_LOG_DEBUG("(QueueMPMC) elapsed: {:.3:d} ms", elapsed);
+
+        k_QueueMPMCDestroy(&q, &pGpa->base);
+    }
+}
+
 static void
 test(void)
 {
@@ -78,6 +265,8 @@ test(void)
     int popCounter = k_atomic_IntLoadRelaxed(&s_popCounter);
     K_CTX_LOG_DEBUG("counter: {i}, popCounter: {i}", counter, popCounter);
     K_ASSERT_ALWAYS(counter == EXPECTED && popCounter == EXPECTED, "counter: {i}, popCounter: {i}", counter, popCounter);
+
+    bench();
 }
 
 int
