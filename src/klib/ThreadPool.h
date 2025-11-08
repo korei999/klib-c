@@ -28,8 +28,10 @@ void k_FutureReset(k_Future* s);
 
 typedef struct k_ThreadPool
 {
+    k_RingBuffer rbTasks;
     k_Thread* pThreads;
     ssize_t nThreads;
+    ssize_t arenaReserve;
     k_Mutex mtxRb;
     k_CndVar cndRb;
     k_CndVar cndWait;
@@ -37,12 +39,12 @@ typedef struct k_ThreadPool
     void* pLoopStartArg;
     void (*pfnLoopEnd)(void*);
     void* pLoopEndArg;
-    k_atomic_Int atomNActiveTasks;
-    k_atomic_Int atomBDone;
-    k_atomic_Int atomIdCounter;
     bool bStarted;
-    k_RingBuffer rbTasks;
-    ssize_t arenaReserve;
+    k_atomic_Int atomNActiveTasks;
+    char aPad0[64];
+    k_atomic_Int atomIdCounter;
+    char aPad1[64];
+    k_atomic_Int atomBDone;
 } k_ThreadPool;
 
 typedef struct k_ThreadPoolInitArgs

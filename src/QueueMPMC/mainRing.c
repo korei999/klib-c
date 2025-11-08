@@ -47,7 +47,7 @@ again:
     else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED) goto again;
 }
 
-static const int NTASKS = 10000;
+static const int NTASKS = 99999;
 static _Alignas(64) k_atomic_Int s_taskCount;
 
 typedef struct RBTask

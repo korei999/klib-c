@@ -8,6 +8,7 @@ add_library(klib-static STATIC
     IAllocator.c
     RingBuffer.c
     ThreadPool.c
+    ThreadPool2.c
     Logger.c
     Ctx.c
     file.c
