@@ -53,7 +53,7 @@ loop(void* pArg)
         else
         {
             if (k_atomic_U8LoadRelaxed(&s->bDone) && nPosts <= 0) break;
-            k_SemaphoreWait(&s->sem);
+            k_SemaphoreDec(&s->sem);
         }
     }
 

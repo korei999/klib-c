@@ -14,16 +14,17 @@ typedef struct Field
 #define K_TYPE Field
 #include "klib/VecGen-inl.h"
 
-#define TOKEN_TYPE_EOF 0
-#define TOKEN_TYPE_WORD 1
-#define TOKEN_TYPE_SEMICOLON 2
-#define TOKEN_TYPE_L_BRACE 3
-#define TOKEN_TYPE_R_BRACE 4
+typedef uint8_t TOKEN_T;
+#define TOKEN_T_EOF 0
+#define TOKEN_T_WORD 1
+#define TOKEN_T_SEMICOLON 2
+#define TOKEN_T_L_BRACE 3
+#define TOKEN_T_R_BRACE 4
 
 typedef struct Token
 {
     k_StringView sv;
-    TOKEN_TYPE eType;
+    TOKEN_T eType;
 } Token;
 
 typedef struct Lexer
@@ -52,7 +53,7 @@ ParserCreate(const k_StringView sv, k_IAllocator* pAlloc)
 }
 
 static bool
-ParserExpect(Parser* s, const TOKEN_TYPE* pTypes, ssize_t typesSize)
+ParserExpect(Parser* s, const TOKEN_T* pTypes, ssize_t typesSize)
 {
     assert(typesSize > 0);
 
@@ -65,11 +66,11 @@ ParserExpect(Parser* s, const TOKEN_TYPE* pTypes, ssize_t typesSize)
     {
         k_print_Builder pb;
         k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base, .preallocOrBufferSize = 128});
-        k_print_BuilderPrint(&pb, "{TOKEN_TYPE}", pTypes[0]);
+        k_print_BuilderPrint(&pb, "{TOKEN_T}", pTypes[0]);
         for (ssize_t i = 1; i < typesSize; ++i)
-            k_print_BuilderPrint(&pb, ", {TOKEN_TYPE}", pTypes[i]);
+            k_print_BuilderPrint(&pb, ", {TOKEN_T}", pTypes[i]);
         k_StringView svPrinted = k_print_BuilderToSv(&pb);
-        K_CTX_LOG_ERROR("Unexpected token type {TOKEN_TYPE}, expected: {PSv} <{sz}, {sz}>",
+        K_CTX_LOG_ERROR("Unexpected token type {TOKEN_T}, expected: {PSv} <{sz}, {sz}>",
             s->l.tok.eType, &svPrinted, s->l.line + 1, s->l.col
         );
     }
@@ -91,23 +92,23 @@ ParserParseStruct(Parser* s)
         s->svStructName = s->l.tok.sv;
         LexerAdvance(&s->l);
 
-        const TOKEN_TYPE aExpectBrace[] = {TOKEN_TYPE_L_BRACE};
+        const TOKEN_T aExpectBrace[] = {TOKEN_T_L_BRACE};
         if (!ParserExpect(s, aExpectBrace, K_ASIZE(aExpectBrace)))
             return false;
 
         while (true)
         {
             LexerAdvance(&s->l);
-            if (s->l.tok.eType == TOKEN_TYPE_EOF)
+            if (s->l.tok.eType == TOKEN_T_EOF)
             {
                 K_CTX_LOG_ERROR("Unexpected end of file <{sz}, {sz}>", s->l.line + 1, s->l.col);
             }
-            else if (s->l.tok.eType == TOKEN_TYPE_R_BRACE)
+            else if (s->l.tok.eType == TOKEN_T_R_BRACE)
             {
                 break;
             }
 
-            const TOKEN_TYPE aExpectWord[] = {TOKEN_TYPE_WORD};
+            const TOKEN_T aExpectWord[] = {TOKEN_T_WORD};
             if (!ParserExpect(s, aExpectWord, K_ASIZE(aExpectWord)))
                 return false;
 
@@ -120,7 +121,7 @@ ParserParseStruct(Parser* s)
             k_StringView svName = s->l.tok.sv;
 
             LexerAdvance(&s->l);
-            const TOKEN_TYPE aExpectSemicolon[] = {TOKEN_TYPE_SEMICOLON};
+            const TOKEN_T aExpectSemicolon[] = {TOKEN_T_SEMICOLON};
             if (!ParserExpect(s, aExpectSemicolon, K_ASIZE(aExpectSemicolon)))
                 return false;
 
@@ -153,20 +154,20 @@ ParserParse(Parser* s)
     {
         switch (s->l.tok.eType)
         {
-            case TOKEN_TYPE_WORD:
+            case TOKEN_T_WORD:
             return ParserParseWord(s);
             break;
 
-            case TOKEN_TYPE_SEMICOLON:
+            case TOKEN_T_SEMICOLON:
             break;
 
-            case TOKEN_TYPE_L_BRACE:
+            case TOKEN_T_L_BRACE:
             break;
 
-            case TOKEN_TYPE_R_BRACE:
+            case TOKEN_T_R_BRACE:
             break;
 
-            case TOKEN_TYPE_EOF:
+            case TOKEN_T_EOF:
             break;
         }
     }
@@ -219,13 +220,13 @@ static ssize_t
 formatTokenType(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 {
     static const char* map[] = {
-        "TOKEN_TYPE_EOF",
-        "TOKEN_TYPE_WORD",
-        "TOKEN_TYPE_SEMICOLON",
-        "TOKEN_TYPE_L_BRACE",
-        "TOKEN_TYPE_R_BRACE",
+        "TOKEN_T_EOF",
+        "TOKEN_T_WORD",
+        "TOKEN_T_SEMICOLON",
+        "TOKEN_T_L_BRACE",
+        "TOKEN_T_R_BRACE",
     };
-    TOKEN_TYPE eType = (TOKEN_TYPE)(size_t)arg;
+    TOKEN_T eType = (TOKEN_T)(size_t)arg;
     return k_print_formatNts(pCtx, pFmtArgs, (void*)map[eType]);
 }
 
@@ -266,7 +267,7 @@ LexerWord(Lexer* s)
     }
 
     s->tok.sv = (k_StringView){&s->sv.pData[startI], s->i - startI};
-    s->tok.eType = TOKEN_TYPE_WORD;
+    s->tok.eType = TOKEN_T_WORD;
 }
 
 static bool
@@ -278,21 +279,21 @@ LexerAdvance(Lexer* s)
     if (s->sv.pData[s->i] == '{')
     {
         s->tok.sv = (k_StringView){s->sv.pData + s->i, 1};
-        s->tok.eType = TOKEN_TYPE_L_BRACE;
+        s->tok.eType = TOKEN_T_L_BRACE;
         ++s->i;
         ++s->col;
     }
     else if (s->sv.pData[s->i] == '}')
     {
         s->tok.sv = (k_StringView){s->sv.pData + s->i, 1};
-        s->tok.eType = TOKEN_TYPE_R_BRACE;
+        s->tok.eType = TOKEN_T_R_BRACE;
         ++s->i;
         ++s->col;
     }
     else if (s->sv.pData[s->i] == ';')
     {
         s->tok.sv = (k_StringView){s->sv.pData + s->i, 1};
-        s->tok.eType = TOKEN_TYPE_SEMICOLON;
+        s->tok.eType = TOKEN_T_SEMICOLON;
         ++s->i;
         ++s->col;
     }
@@ -303,7 +304,7 @@ LexerAdvance(Lexer* s)
     else
     {
         s->tok.sv.size = 0;
-        s->tok.eType = TOKEN_TYPE_EOF;
+        s->tok.eType = TOKEN_T_EOF;
         ++s->i;
         return false;
     }
@@ -328,7 +329,7 @@ main(int argc, char** argv)
             .arenaReserve = K_SIZE_1M*60,
         }
     );
-    k_print_MapAddFormatter(k_CtxPrintMap(), "TOKEN_TYPE", formatTokenType);
+    k_print_MapAddFormatter(k_CtxPrintMap(), "TOKEN_T", formatTokenType);
 
     if (argc < 2)
     {

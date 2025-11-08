@@ -30,6 +30,7 @@
     #define K_THREAD_UNIX
     #define K_THREAD_LOCAL _Thread_local
     #include <pthread.h>
+    #include <semaphore.h>
     #include <errno.h>
     typedef uint32_t K_THREAD_RESULT;
 
@@ -403,6 +404,8 @@ typedef struct k_Semaphore
 
 #elif defined K_THREAD_UNIX
 
+        sem_t sem;
+
 #endif
     } priv;
 } k_Semaphore;
@@ -410,11 +413,14 @@ typedef struct k_Semaphore
 static inline bool k_SemaphoreInit(k_Semaphore* s, int initialCount);
 static inline void k_SemaphoreDestroy(k_Semaphore* s);
 static inline void k_SemaphoreInc(k_Semaphore* s);
-static inline void k_SemaphoreWait(k_Semaphore* s);
+static inline void k_SemaphoreDec(k_Semaphore* s);
 
 static inline bool
 k_SemaphoreInit(k_Semaphore* s, int initialCount)
 {
+    if (sem_init(&s->priv.sem, 0, initialCount) != 0)
+        return false;
+
 #if defined K_THREAD_WIN32
 
     s->priv.sem = CreateSemaphoreA(NULL, initialCount, INT16_MAX, NULL);
@@ -430,6 +436,8 @@ k_SemaphoreInit(k_Semaphore* s, int initialCount)
 static inline void
 k_SemaphoreDestroy(k_Semaphore* s)
 {
+    sem_destroy(&s->priv.sem);
+
 #if defined K_THREAD_WIN32
 
     bool b = CloseHandle(s->priv.sem);
@@ -452,17 +460,21 @@ k_SemaphoreInc(k_Semaphore* s)
 
 #elif defined K_THREAD_UNIX
 
+    sem_post(&s->priv.sem);
+
 #endif
 }
 
 static inline void
-k_SemaphoreWait(k_Semaphore* s)
+k_SemaphoreDec(k_Semaphore* s)
 {
 #if defined K_THREAD_WIN32
 
     WaitForSingleObject(s->priv.sem, K_THREAD_WAIT_INFINITE);
 
 #elif defined K_THREAD_UNIX
+
+    sem_wait(&s->priv.sem);
 
 #endif
 }

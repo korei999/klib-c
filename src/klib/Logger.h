@@ -5,6 +5,8 @@
 #include "RingMPMC.h"
 #include "StringView.h"
 
+#include <stdio.h>
+
 #define K_LOGGER_ANSI_COLOR_NORM  "\x1b[0m"
 #define K_LOGGER_ANSI_COLOR_BOLD "\x1b[1m"
 #define K_LOGGER_ANSI_COLOR_DIM "\x1b[2m"
