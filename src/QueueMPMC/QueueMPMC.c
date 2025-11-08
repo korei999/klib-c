@@ -20,29 +20,29 @@
 
 #include "klib/assert.h"
 
-typedef struct Cell
+typedef struct Slot
 {
     k_atomic_U64 seq;
     uint8_t aMem[];
-} Cell;
+} Slot;
 
 bool
 k_QueueMPMCInit(k_QueueMPMC* s, k_IAllocator* pAlloc, k_QueueMPMCInitOpts opts)
 {
     const int cap = k_nextPowerofTwo64(opts.capPo2);
-    void* pNew = k_IAllocatorZalloc(pAlloc, cap * (sizeof(Cell) + opts.maxMemberSize));
+    void* pNew = k_IAllocatorZalloc(pAlloc, cap * (sizeof(Slot) + opts.maxMemberSize));
     if (!pNew) return false;
 
     s->tailI.volNum = 0;
     s->headI.volNum = 0;
     s->capMinus1 = cap - 1;
     s->pData = pNew;
-    s->memberSize = opts.maxMemberSize + sizeof(Cell);
+    s->memberSize = opts.maxMemberSize + sizeof(Slot);
 
     for (int i = 0; i < cap; ++i)
     {
-        Cell* pCell = (Cell*)(s->pData + i*s->memberSize);
-        pCell->seq.volNum = i;
+        Slot* pSlot = (Slot*)(s->pData + i*s->memberSize);
+        pSlot->seq.volNum = i;
     }
 
     return true;
@@ -60,12 +60,12 @@ k_QueueMPMCPush(k_QueueMPMC* s, const void* pData, ssize_t dataSize)
 {
     K_ASSERT(dataSize <= s->memberSize, "dataSize: {sz}, memberSize: {i}", dataSize, s->memberSize);
 
-    Cell* pCell;
+    Slot* pSlot;
     uint64_t pos = k_atomic_U64LoadRelaxed(&s->tailI);
     while (true)
     {
-        pCell = (Cell*)(s->pData + (pos & s->capMinus1)*s->memberSize);
-        uint64_t seq = k_atomic_U64LoadAcquire(&pCell->seq);
+        pSlot = (Slot*)(s->pData + (pos & s->capMinus1)*s->memberSize);
+        uint64_t seq = k_atomic_U64LoadAcquire(&pSlot->seq);
         intptr_t diff = (intptr_t)seq - (intptr_t)pos;
         if (diff == 0)
         {
@@ -82,20 +82,20 @@ k_QueueMPMCPush(k_QueueMPMC* s, const void* pData, ssize_t dataSize)
         }
     }
 
-    memcpy(pCell->aMem, pData, dataSize);
-    k_atomic_U64StoreRelease(&pCell->seq, pos + 1);
+    memcpy(pSlot->aMem, pData, dataSize);
+    k_atomic_U64StoreRelease(&pSlot->seq, pos + 1);
     return true;
 }
 
 bool
 k_QueueMPMCPop(k_QueueMPMC* s, void* pDest, ssize_t destSize)
 {
-    Cell* pCell;
+    Slot* pSlot;
     uint64_t pos = k_atomic_U64LoadRelaxed(&s->headI);
     while (true)
     {
-        pCell = (Cell*)(s->pData + (pos & s->capMinus1)*s->memberSize);
-        uint64_t seq = k_atomic_U64LoadAcquire(&pCell->seq);
+        pSlot = (Slot*)(s->pData + (pos & s->capMinus1)*s->memberSize);
+        uint64_t seq = k_atomic_U64LoadAcquire(&pSlot->seq);
         intptr_t diff = (intptr_t)seq - (intptr_t)(pos + 1);
         if (diff == 0)
         {
@@ -112,7 +112,7 @@ k_QueueMPMCPop(k_QueueMPMC* s, void* pDest, ssize_t destSize)
         }
     }
 
-    memcpy(pDest, pCell->aMem, destSize);
-    k_atomic_U64StoreRelease(&pCell->seq, pos + s->capMinus1 + 1);
+    memcpy(pDest, pSlot->aMem, destSize);
+    k_atomic_U64StoreRelease(&pSlot->seq, pos + s->capMinus1 + 1);
     return true;
 }

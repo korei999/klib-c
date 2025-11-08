@@ -15,7 +15,7 @@ main(void)
         (k_LoggerInitOpts){
             .fd = 2 /* stderr */,
             .eLogLevel = K_LOGGER_LEVEL_DEBUG,
-            .ringBufferSize = K_SIZE_1K*4,
+            .ringBufferSize = K_SIZE_1K,
             .eFlags = K_LOGGER_FLAG_TIME | K_LOGGER_FLAG_SOURCE,
         },
         (k_ThreadPoolInitOpts){
@@ -26,11 +26,11 @@ main(void)
     );
 
     k_ThreadPool* pThreadPool = k_CtxThreadPool();
-    for (ssize_t i = 0; i < 40; ++i)
+    for (ssize_t i = 0; i < 10; ++i)
         k_ThreadPoolAdd(pThreadPool, func, &i, sizeof(i));
     k_ThreadPoolWait(pThreadPool);
 
-    for (ssize_t i = 0; i < 20; ++i)
+    for (ssize_t i = 0; i < 10; ++i)
         K_CTX_LOG_INFO("i: {d}", (double)i);
 
     k_CtxDestroyGlobal();

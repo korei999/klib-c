@@ -2,10 +2,12 @@
 #include "klib/Gpa.h"
 #include "klib/assert.h"
 
-#include "QueueMPMC/RingMPMC.h"
+#include "klib/RingMPMC.h"
 
 static k_RingMPMC s_r;
-static k_atomic_Int s_counter;
+static const int EXPECTED = 14;
+static _Alignas(64) k_atomic_Int s_counter;
+static _Alignas(64) k_atomic_Int s_popCounter;
 
 typedef struct Payload
 {
@@ -36,7 +38,11 @@ static void
 PayloadPop(void* pArg)
 {
     Payload* s = pArg;
-    k_RingMPMCPop(&s_r, (k_RingMPMCPopOpts){.pDestOrNull = s, .destSize = sizeof(*s)});
+    k_Span sp;
+again:
+    sp = k_RingMPMCPop(&s_r, (k_RingMPMCPopOpts){.pDestOrNull = s, .destSize = sizeof(*s)});
+    if (sp.pData) k_atomic_IntAddRelaxed(&s_popCounter, 1);
+    else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED) goto again;
 }
 
 static void
@@ -49,7 +55,7 @@ test(void)
     Payload p0;
     PayloadInit(&p0);
 
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < EXPECTED/2; ++i)
         k_ThreadPoolAddP(pTp, PayloadPush, &p0);
 
     Payload aPayloads[20] = {0};
@@ -57,7 +63,7 @@ test(void)
     for (ssize_t i = 0; i < 10; ++i)
         k_ThreadPoolAddP(pTp, PayloadPop, &aPayloads[i]);
 
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < EXPECTED/2; ++i)
         k_ThreadPoolAddP(pTp, PayloadPush, &p0);
 
     for (ssize_t i = 10; i < 20; ++i)
@@ -66,11 +72,12 @@ test(void)
     k_ThreadPoolWait(pTp);
 
     for (ssize_t i = 0; i < K_ASIZE(aPayloads); ++i)
-        K_CTX_LOG_DEBUG("p{sz}: '{s}'", i, aPayloads[i].aBuff);
+        K_CTX_LOG_DEBUG("p{sz}: '{s}'", i + 1, aPayloads[i].aBuff);
 
     int counter = k_atomic_IntLoadRelaxed(&s_counter);
-    K_CTX_LOG_DEBUG("counter: {i}", counter);
-    K_ASSERT_ALWAYS(counter == 14, "{i}", counter);
+    int popCounter = k_atomic_IntLoadRelaxed(&s_popCounter);
+    K_CTX_LOG_DEBUG("counter: {i}, popCounter: {i}", counter, popCounter);
+    K_ASSERT_ALWAYS(counter == EXPECTED && popCounter == EXPECTED, "counter: {i}, popCounter: {i}", counter, popCounter);
 }
 
 int
@@ -79,7 +86,7 @@ main(void)
     k_CtxAllocGlobal(
         (k_LoggerInitOpts){
             .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_TIME,
-            .ringBufferSize = K_SIZE_1K*4,
+            .ringBufferSize = K_SIZE_1K,
             .fd = 2,
             .eLogLevel = K_LOGGER_LEVEL_DEBUG,
         },

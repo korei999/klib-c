@@ -93,9 +93,9 @@ void k_ArenaStateRestore(k_ArenaState* s);
          K_GLUE(_pState, name) = (k_ArenaStateRestore(&name), (k_ArenaState*)K_NPOS64))
 
 #define K_ARENA_SCOPE_AUTO_VAR(pArena, name)                                                                           \
-    for (k_ArenaState K_GLUE(_aState, name),                                                                           \
-         *K_GLUE(_pState, name) = (k_ArenaStatePush(&K_GLUE(_aState, name), pArena), NULL);                            \
-         !K_GLUE(_pState, name);                                                                                       \
-         K_GLUE(_pState, name) = (k_ArenaStateRestore(&K_GLUE(_aState, name)), (k_ArenaState*)K_NPOS64))
+    for (k_ArenaState K_GLUE(_state__, name),                                                                          \
+         *K_GLUE(_pState__, name) = (k_ArenaStatePush(&K_GLUE(_state__, name), pArena), NULL);                         \
+         !K_GLUE(_pState__, name);                                                                                     \
+         K_GLUE(_pState__, name) = (k_ArenaStateRestore(&K_GLUE(_state__, name)), (k_ArenaState*)K_NPOS64))
 
 #define K_ARENA_SCOPE(pArena) K_ARENA_SCOPE_AUTO_VAR(pArena, __COUNTER__)

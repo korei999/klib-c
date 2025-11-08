@@ -13,8 +13,8 @@ typedef struct LogHeader
 {
     const char* ntsFile;
     const char* ntsFunc;
-    ssize_t line;
-    ssize_t logSizeAndLevel; /* Most significant (leftmost) byte is log level. */
+    size_t lineAndLevel; /* Most significant (leftmost) byte is log level. */
+    uint8_t pMem[];
 } LogHeader;
 
 static K_THREAD_RESULT
@@ -24,32 +24,37 @@ loop(void* pArg)
 
     while (true)
     {
-        LogHeader lh = {0};
+        ssize_t line = 0;
         K_LOGGER_LEVEL eLevel = 0;
-        ssize_t logSize = 0;
+        LogHeader* pHeader = (LogHeader*)s->pDrainBuff;
 
-        k_MutexLock(&s->mtx);
+        int nPosts = k_atomic_IntLoadRelaxed(&s->nPosts);
+
+        if (nPosts > 0)
         {
-            while (k_RingBufferEmpty(&s->rb) && !s->bDone)
-                k_CndVarWait(&s->cnd, &s->mtx);
+            k_Span sp = k_RingMPMCPop(&s->rb, (k_RingMPMCPopOpts){
+                .pDestOrNull = pHeader,
+                .destSize = s->buffSize}
+            );
+            if (sp.pData == NULL) continue;
 
-            if (k_RingBufferEmpty(&s->rb) && s->bDone)
-            {
-                k_MutexUnlock(&s->mtx);
-                return 0;
-            }
+            eLevel = pHeader->lineAndLevel >> 56;
+            line = pHeader->lineAndLevel & ~(255ull << 56ull);
 
-            assert(k_RingBufferSize(&s->rb) >= (ssize_t)sizeof(lh));
-            k_RingBufferPop(&s->rb, &lh, sizeof(lh));
-            eLevel = lh.logSizeAndLevel >> 56;
-            logSize = lh.logSizeAndLevel & ~(ssize_t)(255ull << 56ull);
-            const ssize_t nn = s->pfnFormatHeader(s, s->pFormatHeaderArg, eLevel, lh.ntsFile, lh.ntsFunc, lh.line, s->spDrainBuffer);
-            k_RingBufferPopNoChecks(&s->rb, (uint8_t*)s->spDrainBuffer.pData + nn, K_MIN(s->spDrainBuffer.size - nn, logSize));
-            logSize += nn;
+            const ssize_t nn = s->pfnFormatHeader(
+                s, s->pFormatHeaderArg, eLevel, pHeader->ntsFile, pHeader->ntsFunc, line,
+                (k_Span){.pData = s->pSecondaryBuff, .size = s->buffSize}
+            );
+            memcpy(s->pSecondaryBuff + nn, (uint8_t*)sp.pData + sizeof(LogHeader), sp.size - sizeof(LogHeader));
+            s->pfnSink(s, s->pSinkArg, (k_Span){s->pSecondaryBuff, nn + sp.size - sizeof(LogHeader)});
+
+            k_atomic_IntSubRelaxed(&s->nPosts, 1);
         }
-        k_MutexUnlock(&s->mtx);
-
-        s->pfnSink(s, s->pSinkArg, (k_Span){s->spDrainBuffer.pData, K_MIN(s->spDrainBuffer.size, logSize)});
+        else
+        {
+            if (k_atomic_U8LoadRelaxed(&s->bDone) && nPosts <= 0) break;
+            sem_wait(&s->sem);
+        }
     }
 
     return 0;
@@ -60,17 +65,23 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
 {
     if (opts.ringBufferSize <= 0) return true;
 
-    k_MutexInitPlain(&s->mtx);
-    k_CndVarInit(&s->cnd);
+    sem_init(&s->sem, 0, 0);
+
     s->pAlloc = pAlloc;
-    if (!k_RingBufferInit(&s->rb, pAlloc, opts.ringBufferSize)) return false;
-    s->spDrainBuffer.pData = k_IAllocatorMalloc(pAlloc, opts.ringBufferSize);
-    if (!s->spDrainBuffer.pData)
+
+    if (!k_RingMPMCInit(&s->rb, pAlloc, opts.ringBufferSize)) return false;
+
+    s->buffSize = s->rb.capMinus1 + 1;
+
+    s->pDrainBuff = k_IAllocatorZalloc(pAlloc, s->buffSize * 2);
+    if (!s->pDrainBuff)
     {
-        k_RingBufferDestroy(&s->rb, pAlloc);
+        k_RingMPMCDestroy(&s->rb, pAlloc);
         return false;
     }
-    s->spDrainBuffer.size = opts.ringBufferSize;
+    s->pSecondaryBuff = s->pDrainBuff + s->buffSize;
+
+    s->nPosts.volNum = 0;
 
     if (opts.pfnFormat) s->pfnFormatHeader = opts.pfnFormat;
     else s->pfnFormatHeader = k_LoggerDefaultFormatter;
@@ -82,7 +93,7 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
     else s->fd = 2;
 
     s->eLogLevel = opts.eLogLevel;
-    s->bDone = false;
+    s->bDone.volNum = false;
 
     s->eFlags = opts.eFlags;
 
@@ -102,27 +113,25 @@ k_LoggerDestroy(k_Logger* s)
 {
     if (!s->bStarted) return;
 
-    k_MutexLock(&s->mtx);
-    s->bDone = true;
-    k_MutexUnlock(&s->mtx);
-    k_CndVarSignal(&s->cnd);
+    k_atomic_U8StoreRelaxed(&s->bDone, true);
+    sem_post(&s->sem);
 
     k_ThreadJoin(&s->thread);
 
-    k_RingBufferDestroy(&s->rb, s->pAlloc);
-    k_IAllocatorFree(s->pAlloc, s->spDrainBuffer.pData);
+    sem_destroy(&s->sem);
+    k_RingMPMCDestroy(&s->rb, s->pAlloc);
+    k_IAllocatorFree(s->pAlloc, s->pDrainBuff);
 }
 
 static bool
 pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
 {
-    if (svMsg.size + (ssize_t)sizeof(LogHeader) > k_RingBufferCap(&s->rb)) return false;
+    if (svMsg.size + (ssize_t)sizeof(LogHeader) + k_RingMPMCHeaderSize() > k_RingMPMCCap(&s->rb)) return false;
 
     LogHeader lh = {
         .ntsFile = ntsFile,
         .ntsFunc = ntsFunc,
-        .line = line,
-        .logSizeAndLevel = svMsg.size | ((ssize_t)eLevel << 56ll),
+        .lineAndLevel = (size_t)line | ((size_t)eLevel << 56ull),
     };
 
     k_Span aSps[] = {
@@ -132,23 +141,16 @@ pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* nts
 
     while (true)
     {
-        k_MutexLock(&s->mtx);
-        if (s->bDone)
-        {
-            k_MutexUnlock(&s->mtx);
-            return false;
-        }
+        if (k_atomic_U8LoadRelaxed(&s->bDone)) return false;
 
-        if (k_RingBufferPushV(&s->rb, aSps, K_ASIZE(aSps)))
-        {
-            k_MutexUnlock(&s->mtx);
+        if (k_RingMPMCPushV(&s->rb, aSps, K_ASIZE(aSps)))
             break;
-        }
-        k_MutexUnlock(&s->mtx);
+
         k_ThreadYield();
     }
 
-    k_CndVarSignal(&s->cnd);
+    k_atomic_IntAddRelaxed(&s->nPosts, 1);
+    sem_post(&s->sem);
     return true;
 }
 

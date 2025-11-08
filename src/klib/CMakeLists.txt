@@ -14,6 +14,7 @@ add_library(klib-static STATIC
     time.c
     CmdLine.c
     assert.c
+    RingMPMC.c
 )
 
 target_link_libraries(klib-static PRIVATE ryu-static)

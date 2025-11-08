@@ -2,7 +2,7 @@
 
 #include "Ctx.h"
 
-void
+_Noreturn void
 k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...)
 {
     k_Arena* pArena = k_CtxArena();
@@ -37,7 +37,13 @@ k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char*
         MB_ICONWARNING | MB_OK | MB_DEFBUTTON2
     );
 
-#endif
-
     *(volatile int*)0 = 0;
+    exit(0);
+
+    /* TODO: */
+    // _set_abort_behavior(0, _WRITE_ABORT_MSG);
+    // abort();
+#else
+    abort();
+#endif
 }

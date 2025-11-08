@@ -1,8 +1,8 @@
 #pragma once
 
-#include "common.h"
+#include "common.h" /* IWYU pragma: keep */
 
-void k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...);
+_Noreturn void k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...);
 
 #define K_ASSERT_ALWAYS(cnd, ...)                                                                                      \
     ((cnd) ? (void)0 : k_assert_die(__FILE__, __func__, __LINE__, "[assertion( '" #cnd "' ) failed]: " __VA_ARGS__))
