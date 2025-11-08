@@ -47,12 +47,13 @@ again:
     else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED) goto again;
 }
 
-static const int NTASKS = 99999;
+static const int NTASKS = 100000;
 static _Alignas(64) k_atomic_Int s_taskCount;
 
 typedef struct RBTask
 {
     k_RingBuffer* pRB;
+    k_Mutex* pMtx;
     int size;
 } RBTask;
 
@@ -65,8 +66,17 @@ pushRBTask(void* pArg)
     {
         void* pBuff = k_ArenaMalloc(pArena, pTask->size);
         memset(pBuff, 7, pTask->size);
-        while (!k_RingBufferPush(pTask->pRB, pBuff, pTask->size))
-            ;
+
+        while (true)
+        {
+            k_MutexLock(pTask->pMtx);
+            if (k_RingBufferPush(pTask->pRB, pBuff, pTask->size))
+            {
+                k_MutexUnlock(pTask->pMtx);
+                break;
+            }
+            k_MutexUnlock(pTask->pMtx);
+        }
     }
 }
 
@@ -78,9 +88,17 @@ popRBTask(void* pArg)
     K_ARENA_SCOPE(pArena)
     {
         void* pBuff = k_ArenaMalloc(pArena, pTask->size);
+
         while (k_atomic_IntLoadRelaxed(&s_taskCount) < NTASKS)
+        {
+            k_MutexLock(pTask->pMtx);
             if (k_RingBufferPop(pTask->pRB, pBuff, pTask->size))
+            {
+                k_MutexUnlock(pTask->pMtx);
                 break;
+            }
+            k_MutexUnlock(pTask->pMtx);
+        }
         k_atomic_IntAddRelaxed(&s_taskCount, 1);
     }
 }
@@ -157,6 +175,8 @@ bench(void)
 {
     k_Gpa* pGpa = k_GpaInst();
     k_ThreadPool* pTp = k_CtxThreadPool();
+    k_Mutex mtx;
+    k_MutexInitPlain(&mtx);
     static const int TASK_SIZE = 32;
     static const int RING_SIZE = K_SIZE_1M;
 
@@ -165,7 +185,7 @@ bench(void)
         k_RingBufferInit(&rb, &pGpa->base, RING_SIZE);
 
         k_time_Type t0 = k_time_now();
-        RBTask task = {.pRB = &rb, .size = TASK_SIZE};
+        RBTask task = {.pRB = &rb, .pMtx = &mtx, .size = TASK_SIZE};
         for (int i = 0; i < NTASKS; ++i)
         {
             k_ThreadPoolAdd(pTp, pushRBTask, &task, sizeof(task));
@@ -283,7 +303,7 @@ main(void)
         },
         (k_ThreadPoolInitOpts){
             .arenaReserve = K_SIZE_1M*60,
-            .nThreads = 12,
+            .nThreads = k_optimalThreadCount(),
             .ringBufferSize = K_SIZE_1K*4,
         }
     );
