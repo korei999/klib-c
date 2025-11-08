@@ -393,6 +393,18 @@ k_CndVarBroadcast(k_CndVar* s)
 #endif
 }
 
+typedef struct k_Semaphore
+{
+    struct
+    {
+#if defined K_THREAD_WIN32
+
+#elif defined K_THREAD_UNIX
+
+#endif
+    } priv;
+} k_Semaphore;
+
 typedef struct k_TicketMutex
 {
     k_atomic_U64 ticketId;
