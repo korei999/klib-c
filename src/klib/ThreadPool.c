@@ -28,7 +28,7 @@ typedef struct TaskBuffer
 } TaskBuffer;
 
 ssize_t
-k_nLogicalCores(void)
+k_logicalCoreCount(void)
 {
     static ssize_t s_count;
     static bool s_bInit = false;
@@ -59,8 +59,8 @@ k_nLogicalCores(void)
 ssize_t
 k_optimalThreadCount(void)
 {
-    ssize_t n = k_nLogicalCores() - 1;
-    n = K_MAX(1, n);
+    ssize_t n = k_logicalCoreCount() - 1;
+    n = K_MAX(2, n);
     return  n;
 }
 

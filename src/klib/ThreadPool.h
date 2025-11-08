@@ -5,7 +5,7 @@
 #include "RingBuffer.h"
 #include "atomic.h"
 
-ssize_t k_nLogicalCores(void);
+ssize_t k_logicalCoreCount(void);
 ssize_t k_optimalThreadCount(void);
 
 typedef void (*k_ThreadPoolTaskPfn)(void*);
