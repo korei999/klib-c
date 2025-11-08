@@ -47,7 +47,7 @@ again:
     else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED) goto again;
 }
 
-static const int NTASKS = 200000;
+static const int NTASKS = 10000;
 static _Alignas(64) k_atomic_Int s_taskCount;
 
 typedef struct RBTask
@@ -157,40 +157,17 @@ bench(void)
 {
     k_Gpa* pGpa = k_GpaInst();
     k_ThreadPool* pTp = k_CtxThreadPool();
-
-    {
-        k_RingMPMC r;
-        k_RingMPMCInit(&r, &pGpa->base, K_SIZE_1M*4);
-
-        k_time_Type t0 = k_time_now();
-        for (int i = 0; i < NTASKS; ++i)
-        {
-            RingTask task = {.pRing = &r, .size = 128};
-            k_ThreadPoolAdd(pTp, pushRingTask, &task, sizeof(task));
-            k_ThreadPoolAdd(pTp, popRingTask, &task, sizeof(task));
-        }
-
-        k_ThreadPoolWait(pTp);
-
-        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
-        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
-
-        double elapsed = k_time_diffMSec(k_time_now(), t0);
-        K_CTX_LOG_DEBUG("(RingMPMC) elapsed: {:.3:d} ms", elapsed);
-
-        k_RingMPMCDestroy(&r, &pGpa->base);
-    }
-
-    s_taskCount.volNum = 0;
+    static const int TASK_SIZE = 32;
+    static const int RING_SIZE = K_SIZE_1M;
 
     {
         k_RingBuffer rb;
-        k_RingBufferInit(&rb, &pGpa->base, K_SIZE_1M*4);
+        k_RingBufferInit(&rb, &pGpa->base, RING_SIZE);
 
         k_time_Type t0 = k_time_now();
+        RBTask task = {.pRB = &rb, .size = TASK_SIZE};
         for (int i = 0; i < NTASKS; ++i)
         {
-            RBTask task = {.pRB = &rb, .size = 128};
             k_ThreadPoolAdd(pTp, pushRBTask, &task, sizeof(task));
             k_ThreadPoolAdd(pTp, popRBTask, &task, sizeof(task));
         }
@@ -209,13 +186,38 @@ bench(void)
     s_taskCount.volNum = 0;
 
     {
-        k_QueueMPMC q;
-        k_QueueMPMCInit(&q, &pGpa->base, (k_QueueMPMCInitOpts){.maxMemberSize = 8, .capPo2 = K_SIZE_1M*4});
+        k_RingMPMC r;
+        k_RingMPMCInit(&r, &pGpa->base, RING_SIZE);
 
         k_time_Type t0 = k_time_now();
+        RingTask task = {.pRing = &r, .size = TASK_SIZE};
         for (int i = 0; i < NTASKS; ++i)
         {
-            QueueTask task = {.pQ = &q, .size = 128};
+            k_ThreadPoolAdd(pTp, pushRingTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popRingTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
+        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
+
+        double elapsed = k_time_diffMSec(k_time_now(), t0);
+        K_CTX_LOG_DEBUG("(RingMPMC) elapsed: {:.3:d} ms", elapsed);
+
+        k_RingMPMCDestroy(&r, &pGpa->base);
+    }
+
+    s_taskCount.volNum = 0;
+
+    {
+        k_QueueMPMC q;
+        k_QueueMPMCInit(&q, &pGpa->base, (k_QueueMPMCInitOpts){.maxMemberSize = 8, .capPo2 = RING_SIZE});
+
+        k_time_Type t0 = k_time_now();
+        QueueTask task = {.pQ = &q, .size = TASK_SIZE};
+        for (int i = 0; i < NTASKS; ++i)
+        {
             k_ThreadPoolAdd(pTp, pushQTask, &task, sizeof(task));
             k_ThreadPoolAdd(pTp, popQTask, &task, sizeof(task));
         }
@@ -226,7 +228,7 @@ bench(void)
         K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
 
         double elapsed = k_time_diffMSec(k_time_now(), t0);
-        K_CTX_LOG_DEBUG("(QueueMPMC) elapsed: {:.3:d} ms", elapsed);
+        K_CTX_LOG_DEBUG("(QueueMPMC+malloc) elapsed: {:.3:d} ms", elapsed);
 
         k_QueueMPMCDestroy(&q, &pGpa->base);
     }
