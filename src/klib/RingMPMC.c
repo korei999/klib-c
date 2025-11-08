@@ -10,7 +10,7 @@ typedef struct Header
     k_atomic_U8 lock;
     K_RING_MPMC_SIZE_T size;
 } Header;
-#pragma pack(0)
+#pragma pack()
 
 static const uint8_t LOCK_NOT_READY = 0;
 static const uint8_t LOCK_READY = 1;

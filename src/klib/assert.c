@@ -29,7 +29,6 @@ k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char*
     k_LoggerDestroy(k_CtxLogger());
 
 #ifdef _WIN32
-
     MessageBoxA(
         NULL,
         svPrinted.pData,
@@ -37,13 +36,8 @@ k_assert_die(const char* ntsFile, const char* ntsFunc, ssize_t line, const char*
         MB_ICONWARNING | MB_OK | MB_DEFBUTTON2
     );
 
-    *(volatile int*)0 = 0;
-    exit(0);
-
-    /* TODO: */
-    // _set_abort_behavior(0, _WRITE_ABORT_MSG);
-    // abort();
-#else
-    abort();
+    _set_abort_behavior(0, _WRITE_ABORT_MSG);
 #endif
+
+    abort();
 }

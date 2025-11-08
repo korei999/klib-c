@@ -399,11 +399,73 @@ typedef struct k_Semaphore
     {
 #if defined K_THREAD_WIN32
 
+        HANDLE sem;
+
 #elif defined K_THREAD_UNIX
 
 #endif
     } priv;
 } k_Semaphore;
+
+static inline bool k_SemaphoreInit(k_Semaphore* s, int initialCount);
+static inline void k_SemaphoreDestroy(k_Semaphore* s);
+static inline void k_SemaphoreInc(k_Semaphore* s);
+static inline void k_SemaphoreWait(k_Semaphore* s);
+
+static inline bool
+k_SemaphoreInit(k_Semaphore* s, int initialCount)
+{
+#if defined K_THREAD_WIN32
+
+    s->priv.sem = CreateSemaphoreA(NULL, initialCount, INT16_MAX, NULL);
+    if (s->priv.sem == NULL) return false;
+
+#elif defined K_THREAD_UNIX
+
+#endif
+
+    return true;
+}
+
+static inline void
+k_SemaphoreDestroy(k_Semaphore* s)
+{
+#if defined K_THREAD_WIN32
+
+    bool b = CloseHandle(s->priv.sem);
+    (void)b;
+    assert(b);
+
+#elif defined K_THREAD_UNIX
+
+#endif
+}
+
+static inline void
+k_SemaphoreInc(k_Semaphore* s)
+{
+#if defined K_THREAD_WIN32
+
+    bool b = ReleaseSemaphore(s->priv.sem, 1, NULL);
+    (void)b;
+    assert(b);
+
+#elif defined K_THREAD_UNIX
+
+#endif
+}
+
+static inline void
+k_SemaphoreWait(k_Semaphore* s)
+{
+#if defined K_THREAD_WIN32
+
+    WaitForSingleObject(s->priv.sem, K_THREAD_WAIT_INFINITE);
+
+#elif defined K_THREAD_UNIX
+
+#endif
+}
 
 typedef struct k_TicketMutex
 {
@@ -411,6 +473,9 @@ typedef struct k_TicketMutex
     char aPad[64];
     k_atomic_U64 servingId;
 } k_TicketMutex;
+
+static inline void k_TicketMutexLock(k_TicketMutex* s);
+static inline void k_TicketMutexUnlock(k_TicketMutex* s);
 
 static inline void
 k_TicketMutexLock(k_TicketMutex* s)

@@ -14,14 +14,11 @@ typedef struct Field
 #define K_TYPE Field
 #include "klib/VecGen-inl.h"
 
-typedef enum TOKEN_TYPE
-{
-    TOKEN_TYPE_EOF,
-    TOKEN_TYPE_WORD,
-    TOKEN_TYPE_SEMICOLON,
-    TOKEN_TYPE_L_BRACE,
-    TOKEN_TYPE_R_BRACE,
-} TOKEN_TYPE;
+#define TOKEN_TYPE_EOF 0
+#define TOKEN_TYPE_WORD 1
+#define TOKEN_TYPE_SEMICOLON 2
+#define TOKEN_TYPE_L_BRACE 3
+#define TOKEN_TYPE_R_BRACE 4
 
 typedef struct Token
 {

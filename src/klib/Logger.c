@@ -53,7 +53,7 @@ loop(void* pArg)
         else
         {
             if (k_atomic_U8LoadRelaxed(&s->bDone) && nPosts <= 0) break;
-            sem_wait(&s->sem);
+            k_SemaphoreWait(&s->sem);
         }
     }
 
@@ -65,7 +65,8 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
 {
     if (opts.ringBufferSize <= 0) return true;
 
-    sem_init(&s->sem, 0, 0);
+    s->sem = (k_Semaphore){0};
+    if (!k_SemaphoreInit(&s->sem, 0)) return false;
 
     s->pAlloc = pAlloc;
 
@@ -114,11 +115,11 @@ k_LoggerDestroy(k_Logger* s)
     if (!s->bStarted) return;
 
     k_atomic_U8StoreRelaxed(&s->bDone, true);
-    sem_post(&s->sem);
+    k_SemaphoreInc(&s->sem);
 
     k_ThreadJoin(&s->thread);
 
-    sem_destroy(&s->sem);
+    k_SemaphoreDestroy(&s->sem);
     k_RingMPMCDestroy(&s->rb, s->pAlloc);
     k_IAllocatorFree(s->pAlloc, s->pDrainBuff);
 }
@@ -150,7 +151,7 @@ pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* nts
     }
 
     k_atomic_IntAddRelaxed(&s->nPosts, 1);
-    sem_post(&s->sem);
+    k_SemaphoreInc(&s->sem);
     return true;
 }
 

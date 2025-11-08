@@ -2,12 +2,8 @@
 
 #include "Arena.h"
 #include "Thread.h"
-#include "RingBuffer.h"
 #include "RingMPMC.h"
-
-#include <stdio.h>
-
-#include <semaphore.h>
+#include "StringView.h"
 
 #define K_LOGGER_ANSI_COLOR_NORM  "\x1b[0m"
 #define K_LOGGER_ANSI_COLOR_BOLD "\x1b[1m"
@@ -60,16 +56,12 @@ typedef struct k_Logger
     void* pFormatHeaderArg;
     k_LoggerSinkPfn pfnSink;
     void* pSinkArg;
-    // k_RingBuffer rb;
     k_RingMPMC rb;
     k_atomic_Int nPosts;
-    // k_Span spDrainBuffer;
     ssize_t buffSize;
     uint8_t* pDrainBuff;
     uint8_t* pSecondaryBuff;
-    // k_Mutex mtx;
-    // k_CndVar cnd;
-    sem_t sem;
+    k_Semaphore sem;
     k_Thread thread;
     int fd;
     K_LOGGER_LEVEL eLogLevel;

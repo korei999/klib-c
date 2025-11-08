@@ -96,6 +96,7 @@ endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
     add_definitions("-D_CRT_SECURE_NO_WARNINGS")
+    # add_compile_options(/experimental:c11atomics)
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "Release")
