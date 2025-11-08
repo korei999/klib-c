@@ -14,7 +14,6 @@ typedef struct k_RingMPMC
     char aPad1[64];
     uint8_t* pData;
     size_t capMinus1;
-    size_t maxPushSize;
 } k_RingMPMC;
 
 typedef struct k_RingMPMCPopOpts

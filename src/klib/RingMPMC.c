@@ -2,7 +2,7 @@
 
 #include "assert.h"
 
-static const K_RING_MPMC_SIZE_T MAX_SIZE_TYPE = (K_RING_MPMC_SIZE_T)0 - 1;
+static const K_RING_MPMC_SIZE_T MAX_PUSH_SIZE = (K_RING_MPMC_SIZE_T)0 - 1;
 
 #pragma pack(1)
 typedef struct Header
@@ -28,7 +28,6 @@ k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, size_t capPo2)
     s->tailI.volNum = 0;
     s->pData = pNew;
     s->capMinus1 = cap - 1;
-    s->maxPushSize = K_MIN(MAX_SIZE_TYPE, s->capMinus1);
 
     return true;
 }
@@ -61,13 +60,14 @@ k_RingMPMCPushV(k_RingMPMC* s, const k_Span* pSps, ssize_t nSpans)
 {
     uint64_t totalSize = 0;
     for (ssize_t i = 0; i < nSpans; ++i) totalSize += pSps[i].size;
+    if (totalSize > MAX_PUSH_SIZE) return false;
 
     uint64_t headI;
     uint64_t tailI = k_atomic_U64LoadRelaxed(&s->tailI);
 
 again:
     headI = k_atomic_U64LoadRelaxed(&s->headI);
-    if (((tailI - headI) + totalSize + sizeof(Header)) > s->maxPushSize) return false;
+    if (((tailI - headI) + totalSize + sizeof(Header)) > s->capMinus1) return false;
 
     if (k_atomic_U64CASRelaxed(&s->tailI, &tailI, tailI + totalSize + sizeof(Header)))
     {
