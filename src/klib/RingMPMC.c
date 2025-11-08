@@ -114,8 +114,17 @@ again:
             opts.pDestOrNull = k_IAllocatorMalloc(opts.pAlloc, headerSize);
         }
 
-        popUnsafe(s, (headI + 1 + sizeof(K_RING_MPMC_SIZE_T)) & s->capMinus1, opts.pDestOrNull, headerSize);
-        k_Span spRet = {.pData = opts.pDestOrNull, .size = headerSize};
+        k_Span spRet;
+        if (opts.pDestOrNull)
+        {
+            popUnsafe(s, (headI + 1 + sizeof(K_RING_MPMC_SIZE_T)) & s->capMinus1, opts.pDestOrNull, headerSize);
+            spRet = (k_Span){.pData = opts.pDestOrNull, .size = headerSize};
+        }
+        else
+        {
+            spRet = (k_Span){0};
+        }
+
         k_atomic_U8StoreRelease(pHeader, LOCK_FREED);
         return spRet;
     }
