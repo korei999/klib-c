@@ -69,7 +69,8 @@ main(void)
     if (!k_ThreadPoolInit(&tp, (k_ThreadPoolInitOpts){
         .nThreads = k_optimalThreadCount(),
         .arenaReserve = K_SIZE_1K*60,
-        .ringBufferSize = 128,
+        .queueSlotSize = 64,
+        .queueCap = 256
     }))
     {
         k_print(&gpa.base, stdout, "FAILED\n");

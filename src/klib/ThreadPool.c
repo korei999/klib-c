@@ -8,24 +8,19 @@
 
 #include "Gpa.h"
 
-#define SMALL_BUFFER_SIZE 128 /* Use stack allocated buffer for small payloads instead of arena. */
+#ifdef __GNUC__
+    #pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
+#define SMALL_BUFFER_SIZE 256
 
 static K_THREAD_LOCAL k_Arena stl_arena = {0};
 static K_THREAD_LOCAL int stl_threadI = 0;
 
-typedef struct TaskHeader
+typedef struct Header
 {
-    k_ThreadPoolTaskPfn pfn;
-    ssize_t payloadSizeOrPtr; /* Negative size is the size of the next ring buffer pop, positive is a pointer stored in this variable. */
-} TaskHeader;
-
-typedef struct TaskBuffer
-{
-    k_ArenaState arenaState;
-    TaskHeader task;
-    void* pPayload;
-    uint8_t aSmallBuffer[SMALL_BUFFER_SIZE];
-} TaskBuffer;
+    uint64_t pfnPlusBPtr;
+} Header;
 
 ssize_t
 k_logicalCoreCount(void)
@@ -76,59 +71,29 @@ k_FutureInit(k_Future* s, struct k_ThreadPool* pThreadPool)
 }
 
 static void
-popTask(TaskBuffer* s, k_ThreadPool* pThreadPool)
+execTask(void* p)
 {
-    assert(k_RingBufferSize(&pThreadPool->rbTasks) >= 16);
-    k_RingBufferPop(&pThreadPool->rbTasks, &s->task, sizeof(s->task));
+    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)((*(uint64_t*)p) >> 1);
+    bool bPtr = (*(uint64_t*)p) & 1;
+    void** pArg = (void**)((uint8_t*)p + sizeof(pfn));
 
-    if (s->task.payloadSizeOrPtr < 0)
-    {
-        if (-s->task.payloadSizeOrPtr <= SMALL_BUFFER_SIZE)
-        {
-            k_RingBufferPopNoChecks(&pThreadPool->rbTasks, s->aSmallBuffer, -s->task.payloadSizeOrPtr);
-            s->pPayload = s->aSmallBuffer;
-        }
-        else
-        {
-            k_ArenaStatePush(&s->arenaState, &stl_arena);
-            s->pPayload = k_ArenaMalloc(&stl_arena, -s->task.payloadSizeOrPtr);
-            assert(s->pPayload && "should probably execute the task on this thread if it ever fails");
-            k_RingBufferPopNoChecks(&pThreadPool->rbTasks, s->pPayload, -s->task.payloadSizeOrPtr);
-        }
-    }
-    else
-    {
-        s->pPayload = (void*)s->task.payloadSizeOrPtr;
-    }
-}
-
-static void
-execTask(TaskBuffer* s)
-{
-    assert(s->task.pfn);
-    s->task.pfn(s->pPayload);
-    if (s->task.payloadSizeOrPtr < 0 && -s->task.payloadSizeOrPtr > SMALL_BUFFER_SIZE)
-        k_ArenaStateRestore(&s->arenaState);
+    if (bPtr) pfn(*pArg);
+    else pfn(pArg);
 }
 
 static void
 stealTasks(k_ThreadPool* s)
 {
-tryAgain:
-    k_MutexLock(&s->mtxRb);
-    if (k_RingBufferSize(&s->rbTasks) > 0)
-    {
-        TaskBuffer tb;
+    uint8_t aSmallBuffer[SMALL_BUFFER_SIZE];
 
-        popTask(&tb, s);
-        k_MutexUnlock(&s->mtxRb);
-        execTask(&tb);
-
-        goto tryAgain;
-    }
-    else
+    while (k_atomic_IntLoadAcquire(&s->nTasks) > 0)
     {
-        k_MutexUnlock(&s->mtxRb);
+        if (!k_QueueMPMCPop(&s->qTasks, aSmallBuffer, s->qTasks.memberSize))
+            continue;
+
+        execTask(aSmallBuffer);
+
+        k_atomic_IntSubRelaxed(&s->nTasks, 1);
     }
 }
 
@@ -173,38 +138,29 @@ loop(void* pUser)
     assert(s->arenaReserve > 0);
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4)) goto fail;
     if (s->pfnLoopStart) s->pfnLoopStart(s->pLoopStartArg);
-    stl_threadI = k_atomic_IntAddRelaxed(&s->atomIdCounter, 1);
+    stl_threadI = k_atomic_IntAddRelaxed(&s->idCounter, 1);
+
+    uint8_t aSmallBuffer[SMALL_BUFFER_SIZE];
 
     while (true)
     {
-        TaskBuffer tb;
-
-        k_MutexLock(&s->mtxRb);
+        const int nTasks = k_atomic_IntLoadAcquire(&s->nTasks);
+        if (nTasks > 0)
         {
-            while (k_RingBufferEmpty(&s->rbTasks) && !k_atomic_IntLoadAcquire(&s->atomBDone))
-                k_CndVarWait(&s->cndRb, &s->mtxRb);
+            if (!k_QueueMPMCPop(&s->qTasks, aSmallBuffer, s->qTasks.memberSize))
+                continue;
 
-            if (k_atomic_IntLoadAcquire(&s->atomBDone))
-            {
-                k_MutexUnlock(&s->mtxRb);
-                goto done;
-            }
+            execTask(aSmallBuffer);
 
-            k_atomic_IntAddRelaxed(&s->atomNActiveTasks, 1);
-            popTask(&tb, s);
+            k_atomic_IntSubRelease(&s->nTasks, 1);
         }
-        k_MutexUnlock(&s->mtxRb);
-
-        execTask(&tb);
-        k_atomic_IntSubRelease(&s->atomNActiveTasks, 1);
-
-        k_MutexLock(&s->mtxRb);
-        if (k_RingBufferEmpty(&s->rbTasks) && k_atomic_IntLoadAcquire(&s->atomNActiveTasks) <= 0)
-            k_CndVarSignal(&s->cndWait);
-        k_MutexUnlock(&s->mtxRb);
+        else
+        {
+            if (nTasks <= 0 && k_atomic_IntLoadRelaxed(&s->bDone)) break;
+            k_SemaphoreDec(&s->sem);
+        }
     }
 
-done:
     if (s->pfnLoopEnd) s->pfnLoopEnd(s->pLoopEndArg);
     k_ArenaDestroy(&stl_arena);
     return 0;
@@ -217,7 +173,7 @@ fail:
 static bool
 start(k_ThreadPool* s)
 {
-    k_atomic_IntAddRelaxed(&s->atomIdCounter, 1);
+    k_atomic_IntAddRelaxed(&s->idCounter, 1);
     for (ssize_t i = 0; i < s->nThreads; ++i)
         if (!k_ThreadInit(&s->pThreads[i], loop, s)) goto fail;
 
@@ -225,7 +181,7 @@ start(k_ThreadPool* s)
 
     s->bStarted = true;
 
-    while (k_atomic_IntLoadRelaxed(&s->atomIdCounter) <= s->nThreads)
+    while (k_atomic_IntLoadRelaxed(&s->idCounter) <= s->nThreads)
         k_ThreadYield();
 
     return true;
@@ -243,11 +199,11 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args)
     {
         pNewThreads = K_IZALLOC_T(&gpa.base, k_Thread, args.nThreads);
         if (!pNewThreads) return false;
-
-        if (!k_RingBufferInit(&s->rbTasks, &gpa.base, args.ringBufferSize)) goto fail;
-        if (!k_MutexInitPlain(&s->mtxRb)) goto fail;
-        if (!k_CndVarInit(&s->cndRb)) goto fail;
-        if (!k_CndVarInit(&s->cndWait)) goto fail;
+        if (!k_QueueMPMCInit(&s->qTasks, &gpa.base, (k_QueueMPMCInitOpts){
+            .maxMemberSize = args.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE : args.queueSlotSize + (int)sizeof(Header),
+            .capPo2 = args.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : args.queueCap,
+        })) goto fail2;
+        if (!k_SemaphoreInit(&s->sem, 0)) goto fail1;
     }
 
     s->pThreads = pNewThreads;
@@ -256,16 +212,20 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args)
     s->pLoopStartArg = args.pLoopStartArg;
     s->pfnLoopEnd = args.pfnLoopEnd;
     s->pLoopEndArg = args.pLoopEndArg;
-    s->atomNActiveTasks.volNum = 0;
-    s->atomBDone.volNum = false;
-    s->atomIdCounter.volNum = 0;
+    s->nTasks.volNum = 0;
+    s->bDone.volNum = false;
+    s->idCounter.volNum = 0;
     s->bStarted = false;
     s->arenaReserve = args.arenaReserve;
 
-    if (!start(s)) goto fail;
+    if (!start(s)) goto fail0;
     return true;
 
-fail:
+fail0:
+    k_SemaphoreDestroy(&s->sem);
+fail1:
+    k_QueueMPMCDestroy(&s->qTasks, &gpa.base);
+fail2:
     k_IAllocatorFree(&gpa.base, pNewThreads);
     return false;
 }
@@ -279,42 +239,34 @@ k_ThreadPoolDestroy(k_ThreadPool* s)
     {
         k_ThreadPoolWait(s);
 
-        k_MutexLock(&s->mtxRb);
-        k_atomic_IntStoreRelease(&s->atomBDone, true);
-        k_MutexUnlock(&s->mtxRb);
-
-        k_CndVarBroadcast(&s->cndRb);
+        k_atomic_IntStoreRelease(&s->bDone, true);
+        for (int i = 0; i < s->nThreads; ++i)
+            k_SemaphoreInc(&s->sem);
 
         for (ssize_t i = 0; i < s->nThreads; ++i)
             k_ThreadJoin(&s->pThreads[i]);
 
-        assert(k_atomic_IntLoadAcquire(&s->atomNActiveTasks) == 0);
+        assert(k_atomic_IntLoadAcquire(&s->nTasks) == 0);
 
         k_IAllocatorFree(&gpa.base, s->pThreads);
-        k_RingBufferDestroy(&s->rbTasks, &gpa.base);
-        k_MutexDestroy(&s->mtxRb);
-        k_CndVarDestroy(&s->cndRb);
-        k_CndVarDestroy(&s->cndWait);
+        k_QueueMPMCDestroy(&s->qTasks, &gpa.base);
+        k_SemaphoreDestroy(&s->sem);
     }
 
     k_ArenaDestroy(&stl_arena);
+}
+
+int
+k_ThreadPoolThreadId(void)
+{
+    return stl_threadI;
 }
 
 void
 k_ThreadPoolWait(k_ThreadPool* s)
 {
     if (s->nThreads <= 0) return;
-
     stealTasks(s);
-
-    k_MutexLock(&s->mtxRb);
-    int n = k_atomic_IntLoadRelaxed(&s->atomNActiveTasks);
-    while (k_RingBufferSize(&s->rbTasks) > 0 || n > 0)
-    {
-        k_CndVarWait(&s->cndWait, &s->mtxRb);
-        n = k_atomic_IntLoadRelaxed(&s->atomNActiveTasks);
-    }
-    k_MutexUnlock(&s->mtxRb);
 }
 
 k_Arena*
@@ -326,46 +278,28 @@ k_ThreadPoolArena(k_ThreadPool* s)
 }
 
 void
-k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArgs, ssize_t argsSize)
+k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize)
 {
-    bool bSucces = false;
-    TaskHeader task = {.pfn = pfn, .payloadSizeOrPtr = -argsSize};
-    while (true)
-    {
-        k_MutexLock(&s->mtxRb);
-        if ((k_RingBufferSize(&s->rbTasks) + argsSize + (ssize_t)sizeof(task)) < k_RingBufferCap(&s->rbTasks))
-        {
-            const k_Span aSps[] = {
-                {&task, (ssize_t)sizeof(task)},
-                {pArgs, argsSize},
-            };
-            k_RingBufferPushV(&s->rbTasks, aSps, K_ASIZE(aSps));
-            k_MutexUnlock(&s->mtxRb);
-            bSucces = true;
-            break;
-        }
-        k_MutexUnlock(&s->mtxRb);
-    }
+    Header header = {(uint64_t)pfn << 1ull};
 
-    if (bSucces) k_CndVarSignal(&s->cndRb);
+    const k_Span aSps[] = {
+        {&header, sizeof(header)},
+        {pArg, argSize},
+    };
+    while (!k_QueueMPMCPushV(&s->qTasks, aSps, K_ASIZE(aSps)))
+        ;
+    k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_SemaphoreInc(&s->sem);
 }
 
 void
-k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* p)
+k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
 {
-    bool bSucces = false;
-    TaskHeader task = {.pfn = pfn, .payloadSizeOrPtr = (ssize_t)p};
-    while (true)
-    {
-        k_MutexLock(&s->mtxRb);
-        if (k_RingBufferPush(&s->rbTasks, &task, sizeof(task)))
-        {
-            k_MutexUnlock(&s->mtxRb);
-            bSucces = true;
-            break;
-        }
-        k_MutexUnlock(&s->mtxRb);
-    }
+    Header header = {(uint64_t)pfn << 1ull | 1ull };
+    void* aPayload[2] = {(void*)header.pfnPlusBPtr, pArg};
 
-    if (bSucces) k_CndVarSignal(&s->cndRb);
+    while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
+        ;
+    k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_SemaphoreInc(&s->sem);
 }

@@ -305,3 +305,19 @@ k_ArenaStateRestore(k_ArenaState* s)
     s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
     s->state.pArena->priv.pLCurrentDeleters = s->state.pLCurrentDeleters;
 }
+
+void
+k_ArenaStatePushIgnoreDeleters(k_ArenaState* s, k_Arena* pArena)
+{
+    s->state.pArena = pArena;
+    s->state.pos = pArena->priv.pos;
+    s->state.pLastAlloc = pArena->priv.pLastAlloc;
+}
+
+void
+k_ArenaStateRestoreIgnoreDeleters(k_ArenaState* s)
+{
+    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
+    s->state.pArena->priv.pos = s->state.pos;
+    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
+}

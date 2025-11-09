@@ -2,8 +2,10 @@
 
 #include "Arena.h"
 #include "Thread.h"
-#include "RingBuffer.h"
-#include "atomic.h"
+#include "QueueMPMC.h"
+
+static const int K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE = 56;
+static const int K_THREAD_POOL_DEFAULT_QUEUE_CAP = 256;
 
 ssize_t k_logicalCoreCount(void);
 ssize_t k_optimalThreadCount(void);
@@ -28,29 +30,27 @@ void k_FutureReset(k_Future* s);
 
 typedef struct k_ThreadPool
 {
-    k_RingBuffer rbTasks;
+    k_QueueMPMC qTasks;
     k_Thread* pThreads;
     ssize_t nThreads;
     ssize_t arenaReserve;
-    k_Mutex mtxRb;
-    k_CndVar cndRb;
-    k_CndVar cndWait;
+    k_atomic_Int bDone;
+    k_Semaphore sem;
     void (*pfnLoopStart)(void*);
     void* pLoopStartArg;
     void (*pfnLoopEnd)(void*);
     void* pLoopEndArg;
-    bool bStarted;
-    k_atomic_Int atomNActiveTasks;
+    k_atomic_Int nTasks;
     char aPad0[64];
-    k_atomic_Int atomIdCounter;
-    char aPad1[64];
-    k_atomic_Int atomBDone;
+    k_atomic_Int idCounter;
+    bool bStarted;
 } k_ThreadPool;
 
 typedef struct k_ThreadPoolInitArgs
 {
     ssize_t nThreads; /* 0 for 1 main thread arena. */
-    ssize_t ringBufferSize; /* Amount of memory to store payloads. Ignored if nThreads is 0. */
+    int queueSlotSize; /* Maximum payload size. K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE by default. */
+    int queueCap; /* K_THREAD_POOL_DEFAULT_QUEUE_CAP by default. */
     ssize_t arenaReserve; /* NOTE: Reserve virtual address space when using k_Arena, or malloc if k_ArenaList is used. */
     void (*pfnLoopStart)(void*);
     void* pLoopStartArg;
@@ -60,7 +60,8 @@ typedef struct k_ThreadPoolInitArgs
 
 bool k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args);
 void k_ThreadPoolDestroy(k_ThreadPool* s);
+int k_ThreadPoolThreadId(void);
 void k_ThreadPoolWait(k_ThreadPool* s);
 k_Arena* k_ThreadPoolArena(k_ThreadPool* s); /* Get thread local arena. */
-void k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArgs, ssize_t argsSize);
-void k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* p);
+void k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize);
+void k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg);

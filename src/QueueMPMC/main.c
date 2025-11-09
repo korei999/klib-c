@@ -2,7 +2,7 @@
 #include "klib/Gpa.h"
 #include "klib/assert.h"
 
-#include "QueueMPMC.h"
+#include "klib/QueueMPMC.h"
 
 #define TARGET 10000
 static k_QueueMPMC s_q;
@@ -66,7 +66,6 @@ main(void)
         (k_ThreadPoolInitOpts){
             .arenaReserve = K_SIZE_1M*60,
             .nThreads = 12,
-            .ringBufferSize = K_SIZE_1K*4,
         }
     );
 

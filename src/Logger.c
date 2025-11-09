@@ -5,7 +5,7 @@ static void
 func(void* pArg)
 {
     ssize_t i = *(ssize_t*)pArg;
-    K_CTX_LOG_DEBUG("i: {sz}", i);
+    K_CTX_LOG_DEBUG("i: {sz}, threadId: {i}", i, k_ThreadPoolThreadId());
 }
 
 int
@@ -20,10 +20,11 @@ main(void)
         },
         (k_ThreadPoolInitOpts){
             .nThreads = k_optimalThreadCount(),
-            .ringBufferSize = K_SIZE_1K*4,
             .arenaReserve = K_SIZE_1M*60,
         }
     );
+
+    K_CTX_LOG_DEBUG("func: {:#x:u64}", func);
 
     k_ThreadPool* pThreadPool = k_CtxThreadPool();
     for (ssize_t i = 0; i < 10; ++i)

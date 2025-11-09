@@ -63,22 +63,22 @@ k_RingMPMCPushV(k_RingMPMC* s, const k_Span* pSps, ssize_t nSpans)
     if (totalSize > MAX_PUSH_SIZE) return false;
 
     uint64_t headI;
-    uint64_t tailI = k_atomic_U64LoadRelaxed(&s->tailI);
+    uint64_t pushTailI = k_atomic_U64LoadRelaxed(&s->pushTailI);
 
 again:
     headI = k_atomic_U64LoadRelaxed(&s->headI);
-    if (((tailI - headI) + totalSize + sizeof(Header)) > s->capMinus1) return false;
+    if (((pushTailI - headI) + totalSize + sizeof(Header)) > s->capMinus1) return false;
 
-    if (k_atomic_U64CASRelaxed(&s->tailI, &tailI, tailI + totalSize + sizeof(Header)))
+    k_atomic_U8* pHeader = (k_atomic_U8*)(s->pData + (pushTailI & s->capMinus1));
+    if (k_atomic_U64CASRelaxed(&s->pushTailI, &pushTailI, pushTailI + totalSize + sizeof(Header)))
     {
-        k_atomic_U8* pHeader = (k_atomic_U8*)(s->pData + (tailI & s->capMinus1));
         k_atomic_U8StoreRelease(pHeader, LOCK_NOT_READY);
 
-        pushUnsafe(s, (tailI + 1) & s->capMinus1, &totalSize, sizeof(K_RING_MPMC_SIZE_T));
+        pushUnsafe(s, (pushTailI + 1) & s->capMinus1, &totalSize, sizeof(K_RING_MPMC_SIZE_T));
 
         for (ssize_t off = 0, i = 0; i < nSpans; off += pSps[i].size, ++i)
         {
-            pushUnsafe(s, (tailI + 1 + sizeof(K_RING_MPMC_SIZE_T) + off) & s->capMinus1,
+            pushUnsafe(s, (pushTailI + 1 + sizeof(K_RING_MPMC_SIZE_T) + off) & s->capMinus1,
                 pSps[i].pData, pSps[i].size
             );
         }
@@ -88,6 +88,12 @@ again:
     else
     {
         goto again;
+    }
+
+    while (true)
+    {
+        if (k_atomic_U64CASRelaxed(&s->tailI, &pushTailI, pushTailI + totalSize + sizeof(Header)))
+            break;
     }
 
     return true;

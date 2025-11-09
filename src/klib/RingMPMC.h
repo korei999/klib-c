@@ -6,13 +6,15 @@
 
 typedef uint16_t K_RING_MPMC_SIZE_T;
 
-/* Lockfree on pushes, not lockfree on pops. */
+/* Almost lock free. Small spinlock in pop()s. */
 typedef struct k_RingMPMC
 {
     k_atomic_U64 headI;
     char aPad0[64];
     k_atomic_U64 tailI;
     char aPad1[64];
+    k_atomic_U64 pushTailI;
+    char aPad2[64];
     uint8_t* pData;
     size_t capMinus1;
 } k_RingMPMC;

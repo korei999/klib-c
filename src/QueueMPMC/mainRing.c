@@ -2,9 +2,9 @@
 #include "klib/Gpa.h"
 #include "klib/assert.h"
 #include "klib/time.h"
+#include "klib/RingBuffer.h"
 
-#include "klib/RingMPMC.h"
-#include "QueueMPMC.h"
+#include "klib/QueueMPMC.h"
 
 static k_RingMPMC s_r;
 static const int EXPECTED = 14;
@@ -19,11 +19,10 @@ typedef struct Payload
 static void
 PayloadInit(Payload* s)
 {
-    char aBuff[16];
+    char aBuff[16] = {0};
     static k_atomic_Int s_i = {0};
     k_print_toBuffer(aBuff, sizeof(aBuff), "payload: {i}", k_atomic_IntAddRelaxed(&s_i, 1));
     memcpy(s->aBuff, aBuff, sizeof(aBuff));
-    s->aBuff[15] = 0;
 }
 
 static void
@@ -43,8 +42,14 @@ PayloadPop(void* pArg)
     k_Span sp;
 again:
     sp = k_RingMPMCPop(&s_r, (k_RingMPMCPopOpts){.pDestOrNull = s, .destSize = sizeof(*s)});
-    if (sp.pData) k_atomic_IntAddRelaxed(&s_popCounter, 1);
-    else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED) goto again;
+    if (sp.pData)
+    {
+        k_atomic_IntAddRelaxed(&s_popCounter, 1);
+    }
+    else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED)
+    {
+        goto again;
+    }
 }
 
 static const int NTASKS = 100000;
@@ -189,30 +194,6 @@ bench(void)
     static const int RING_SIZE = K_SIZE_1M;
 
     {
-        k_RingBuffer rb;
-        k_RingBufferInit(&rb, &pGpa->base, RING_SIZE);
-
-        k_time_Type t0 = k_time_now();
-        RBTask task = {.pRB = &rb, .pMtx = &mtx, .size = TASK_SIZE};
-        for (int i = 0; i < NTASKS; ++i)
-        {
-            k_ThreadPoolAdd(pTp, pushRBTask, &task, sizeof(task));
-            k_ThreadPoolAdd(pTp, popRBTask, &task, sizeof(task));
-        }
-
-        k_ThreadPoolWait(pTp);
-
-        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
-        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
-
-        double elapsed = k_time_diffMSec(k_time_now(), t0);
-        K_CTX_LOG_DEBUG("(ringBuffer) elapsed: {:.3:d} ms", elapsed);
-
-        k_RingBufferDestroy(&rb, &pGpa->base);
-        s_taskCount.volNum = 0;
-    }
-
-    {
         k_RingMPMC r;
         k_RingMPMCInit(&r, &pGpa->base, RING_SIZE);
 
@@ -233,7 +214,31 @@ bench(void)
         K_CTX_LOG_DEBUG("(RingMPMC) elapsed: {:.3:d} ms", elapsed);
 
         k_RingMPMCDestroy(&r, &pGpa->base);
-        s_taskCount.volNum = 0;
+        k_atomic_IntStoreRelease(&s_taskCount, 0);
+    }
+
+    {
+        k_RingBuffer rb;
+        k_RingBufferInit(&rb, &pGpa->base, RING_SIZE);
+
+        k_time_Type t0 = k_time_now();
+        RBTask task = {.pRB = &rb, .pMtx = &mtx, .size = TASK_SIZE};
+        for (int i = 0; i < NTASKS; ++i)
+        {
+            k_ThreadPoolAdd(pTp, pushRBTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popRBTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
+        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
+
+        double elapsed = k_time_diffMSec(k_time_now(), t0);
+        K_CTX_LOG_DEBUG("(RingBuffer+mutex) elapsed: {:.3:d} ms", elapsed);
+
+        k_RingBufferDestroy(&rb, &pGpa->base);
+        k_atomic_IntStoreRelease(&s_taskCount, 0);
     }
 
     {
@@ -257,7 +262,7 @@ bench(void)
         K_CTX_LOG_DEBUG("(QueueMPMC+malloc) elapsed: {:.3:d} ms", elapsed);
 
         k_QueueMPMCDestroy(&q, &pGpa->base);
-        s_taskCount.volNum = 0;
+        k_atomic_IntStoreRelease(&s_taskCount, 0);
     }
 }
 
@@ -288,7 +293,7 @@ test(void)
     k_ThreadPoolWait(pTp);
 
     for (ssize_t i = 0; i < K_ASIZE(aPayloads); ++i)
-        K_CTX_LOG_DEBUG("p{sz}: '{s}'", i + 1, aPayloads[i].aBuff);
+        K_CTX_LOG_DEBUG("({:#x:u64}) p{sz}: '{s}'", aPayloads + i, i + 1, aPayloads[i].aBuff);
 
     int counter = k_atomic_IntLoadRelaxed(&s_counter);
     int popCounter = k_atomic_IntLoadRelaxed(&s_popCounter);
@@ -311,7 +316,6 @@ main(void)
         (k_ThreadPoolInitOpts){
             .arenaReserve = K_SIZE_1M*60,
             .nThreads = k_optimalThreadCount(),
-            .ringBufferSize = K_SIZE_1K*4,
         }
     );
 

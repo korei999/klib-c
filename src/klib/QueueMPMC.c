@@ -18,7 +18,7 @@
 
 #include "QueueMPMC.h"
 
-#include "klib/assert.h"
+#include "assert.h"
 
 typedef struct Slot
 {
@@ -88,8 +88,46 @@ k_QueueMPMCPush(k_QueueMPMC* s, const void* pData, ssize_t dataSize)
 }
 
 bool
+k_QueueMPMCPushV(k_QueueMPMC* s, const k_Span* pSps, ssize_t nSpans)
+{
+    ssize_t totalSize = 0;
+    for (ssize_t i = 0; i < nSpans; ++i) totalSize += pSps[i].size;
+
+    K_ASSERT(totalSize <= s->memberSize, "totalSize: {sz}, memberSize: {i}", totalSize, s->memberSize);
+
+    Slot* pSlot;
+    uint64_t pos = k_atomic_U64LoadRelaxed(&s->tailI);
+    while (true)
+    {
+        pSlot = (Slot*)(s->pData + (pos & s->capMinus1)*s->memberSize);
+        uint64_t seq = k_atomic_U64LoadAcquire(&pSlot->seq);
+        intptr_t diff = (intptr_t)seq - (intptr_t)pos;
+        if (diff == 0)
+        {
+            if (k_atomic_U64CASRelaxed(&s->tailI, &pos, pos + 1))
+                break;
+        }
+        else if (diff < 0)
+        {
+            return false;
+        }
+        else
+        {
+            pos = k_atomic_U64LoadRelaxed(&s->tailI);
+        }
+    }
+
+    for (ssize_t i = 0, off = 0; i < nSpans;  off += pSps[i].size, ++i)
+        memcpy(pSlot->aMem + off, pSps[i].pData, pSps[i].size);
+    k_atomic_U64StoreRelease(&pSlot->seq, pos + 1);
+    return true;
+}
+
+bool
 k_QueueMPMCPop(k_QueueMPMC* s, void* pDest, ssize_t destSize)
 {
+    K_ASSERT(destSize <= s->memberSize, "destSize: {sz}, memberSize: {i}", destSize, s->memberSize);
+
     Slot* pSlot;
     uint64_t pos = k_atomic_U64LoadRelaxed(&s->headI);
     while (true)

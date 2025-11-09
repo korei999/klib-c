@@ -88,6 +88,9 @@ typedef struct
 void k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena);
 void k_ArenaStateRestore(k_ArenaState* s);
 
+void k_ArenaStatePushIgnoreDeleters(k_ArenaState* s, k_Arena* pArena);
+void k_ArenaStateRestoreIgnoreDeleters(k_ArenaState* s);
+
 #define K_ARENA_SCOPE_VAR(pArena, name)                                                                                \
     for (k_ArenaState name, *K_GLUE(_pState, name) = (k_ArenaStatePush(&name, pArena), NULL); !K_GLUE(_pState, name);  \
          K_GLUE(_pState, name) = (k_ArenaStateRestore(&name), (k_ArenaState*)K_NPOS64))

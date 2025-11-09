@@ -66,7 +66,7 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
     if (opts.ringBufferSize <= 0) return true;
 
     s->sem = (k_Semaphore){0};
-    if (!k_SemaphoreInit(&s->sem, 0)) return false;
+    if (!k_SemaphoreInit(&s->sem, 1)) return false;
 
     s->pAlloc = pAlloc;
 
