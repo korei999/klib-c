@@ -12,7 +12,7 @@ typedef struct Header
 } Header;
 #pragma pack()
 
-static const uint8_t LOCK_NOT_READY = 0;
+// static const uint8_t LOCK_NOT_READY = 0; /* TODO: remove?. */
 static const uint8_t LOCK_READY = 1;
 static const uint8_t LOCK_POPPIN = 2;
 static const uint8_t LOCK_FREED = 3;
@@ -26,6 +26,7 @@ k_RingMPMCInit(k_RingMPMC* s, k_IAllocator* pAlloc, size_t capPo2)
 
     s->headI.volNum = 0;
     s->tailI.volNum = 0;
+    s->pushTailI.volNum = 0;
     s->pData = pNew;
     s->capMinus1 = cap - 1;
 
@@ -72,8 +73,6 @@ again:
     k_atomic_U8* pHeader = (k_atomic_U8*)(s->pData + (pushTailI & s->capMinus1));
     if (k_atomic_U64CASRelaxed(&s->pushTailI, &pushTailI, pushTailI + totalSize + sizeof(Header)))
     {
-        k_atomic_U8StoreRelease(pHeader, LOCK_NOT_READY);
-
         pushUnsafe(s, (pushTailI + 1) & s->capMinus1, &totalSize, sizeof(K_RING_MPMC_SIZE_T));
 
         for (ssize_t off = 0, i = 0; i < nSpans; off += pSps[i].size, ++i)
@@ -90,6 +89,7 @@ again:
         goto again;
     }
 
+    /* NOTE: totally hurts performance but i haven't figured a better way. */
     while (true)
     {
         if (k_atomic_U64CASRelaxed(&s->tailI, &pushTailI, pushTailI + totalSize + sizeof(Header)))

@@ -194,30 +194,6 @@ bench(void)
     static const int RING_SIZE = K_SIZE_1M;
 
     {
-        k_RingMPMC r;
-        k_RingMPMCInit(&r, &pGpa->base, RING_SIZE);
-
-        k_time_Type t0 = k_time_now();
-        RingTask task = {.pRing = &r, .size = TASK_SIZE};
-        for (int i = 0; i < NTASKS; ++i)
-        {
-            k_ThreadPoolAdd(pTp, pushRingTask, &task, sizeof(task));
-            k_ThreadPoolAdd(pTp, popRingTask, &task, sizeof(task));
-        }
-
-        k_ThreadPoolWait(pTp);
-
-        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
-        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
-
-        double elapsed = k_time_diffMSec(k_time_now(), t0);
-        K_CTX_LOG_DEBUG("(RingMPMC) elapsed: {:.3:d} ms", elapsed);
-
-        k_RingMPMCDestroy(&r, &pGpa->base);
-        k_atomic_IntStoreRelease(&s_taskCount, 0);
-    }
-
-    {
         k_RingBuffer rb;
         k_RingBufferInit(&rb, &pGpa->base, RING_SIZE);
 
@@ -238,6 +214,30 @@ bench(void)
         K_CTX_LOG_DEBUG("(RingBuffer+mutex) elapsed: {:.3:d} ms", elapsed);
 
         k_RingBufferDestroy(&rb, &pGpa->base);
+        k_atomic_IntStoreRelease(&s_taskCount, 0);
+    }
+
+    {
+        k_RingMPMC r;
+        k_RingMPMCInit(&r, &pGpa->base, RING_SIZE);
+
+        k_time_Type t0 = k_time_now();
+        RingTask task = {.pRing = &r, .size = TASK_SIZE};
+        for (int i = 0; i < NTASKS; ++i)
+        {
+            k_ThreadPoolAdd(pTp, pushRingTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popRingTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        int counter = k_atomic_IntLoadRelaxed(&s_taskCount);
+        K_ASSERT_ALWAYS(counter == NTASKS, "{i}", counter);
+
+        double elapsed = k_time_diffMSec(k_time_now(), t0);
+        K_CTX_LOG_DEBUG("(RingMPMC) elapsed: {:.3:d} ms", elapsed);
+
+        k_RingMPMCDestroy(&r, &pGpa->base);
         k_atomic_IntStoreRelease(&s_taskCount, 0);
     }
 

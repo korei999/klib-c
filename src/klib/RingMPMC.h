@@ -6,7 +6,7 @@
 
 typedef uint16_t K_RING_MPMC_SIZE_T;
 
-/* Almost lock free. Small spinlock in pop()s. */
+/* Almost lock free. Small spinlock in push() to commit in order. */
 typedef struct k_RingMPMC
 {
     k_atomic_U64 headI;
