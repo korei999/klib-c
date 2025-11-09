@@ -418,15 +418,15 @@ static inline void k_SemaphoreDec(k_Semaphore* s);
 static inline bool
 k_SemaphoreInit(k_Semaphore* s, int initialCount)
 {
-    if (sem_init(&s->priv.sem, 0, initialCount) != 0)
-        return false;
-
 #if defined K_THREAD_WIN32
 
     s->priv.sem = CreateSemaphoreA(NULL, initialCount, INT16_MAX, NULL);
     if (s->priv.sem == NULL) return false;
 
 #elif defined K_THREAD_UNIX
+
+    if (sem_init(&s->priv.sem, 0, initialCount) != 0)
+        return false;
 
 #endif
 
@@ -436,8 +436,6 @@ k_SemaphoreInit(k_Semaphore* s, int initialCount)
 static inline void
 k_SemaphoreDestroy(k_Semaphore* s)
 {
-    sem_destroy(&s->priv.sem);
-
 #if defined K_THREAD_WIN32
 
     bool b = CloseHandle(s->priv.sem);
@@ -445,6 +443,8 @@ k_SemaphoreDestroy(k_Semaphore* s)
     assert(b);
 
 #elif defined K_THREAD_UNIX
+
+    sem_destroy(&s->priv.sem);
 
 #endif
 }

@@ -70,14 +70,18 @@ k_FutureInit(k_Future* s, struct k_ThreadPool* pThreadPool)
 }
 
 static void
-execTask(void* p)
+execTask(k_ThreadPool* s, void* p)
 {
+    k_atomic_IntSubRelaxed(&s->nTasks, 1);
+
     k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)((*(uint64_t*)p) >> 1);
     bool bPtr = (*(uint64_t*)p) & 1;
     void** pArg = (void**)((uint8_t*)p + sizeof(pfn));
 
     if (bPtr) pfn(*pArg);
     else pfn(pArg);
+
+    k_atomic_IntSubRelaxed(&s->nTasksActive, 1);
 }
 
 static void
@@ -90,9 +94,7 @@ stealTasks(k_ThreadPool* s)
         if (!k_QueueMPMCPop(&s->qTasks, pBuffer, s->memberSize))
             continue;
 
-        execTask(pBuffer);
-
-        k_atomic_IntSubRelaxed(&s->nTasks, 1);
+        execTask(s, pBuffer);
     }
 }
 
@@ -150,9 +152,7 @@ loop(void* pUser)
             if (!k_QueueMPMCPop(&s->qTasks, pBuffer, s->memberSize))
                 continue;
 
-            execTask(pBuffer);
-
-            k_atomic_IntSubRelease(&s->nTasks, 1);
+            execTask(s, pBuffer);
         }
         else
         {
@@ -194,38 +194,34 @@ fail:
 }
 
 bool
-k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args)
+k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
 {
     *s = (k_ThreadPool){0};
 
     k_Gpa gpa = k_GpaCreate();
     k_Thread* pNewThreads = NULL;
     int memberSize = 0;
-    if (args.nThreads > 0)
+    if (opts.nThreads > 0)
     {
-        pNewThreads = K_IZALLOC_T(&gpa, k_Thread, args.nThreads);
+        pNewThreads = K_IZALLOC_T(&gpa, k_Thread, opts.nThreads);
         if (!pNewThreads) return false;
 
-        memberSize = args.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header): args.queueSlotSize + (int)sizeof(Header);
+        memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header): opts.queueSlotSize + (int)sizeof(Header);
 
         if (!k_QueueMPMCInit(&s->qTasks, &gpa.base, (k_QueueMPMCInitOpts){
             .maxMemberSize = memberSize,
-            .capPo2 = args.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : args.queueCap,
+            .capPo2 = opts.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : opts.queueCap,
         })) goto fail2;
         if (!k_SemaphoreInit(&s->sem, 0)) goto fail1;
     }
 
     s->pThreads = pNewThreads;
-    s->nThreads = args.nThreads;
-    s->pfnLoopStart = args.pfnLoopStart;
-    s->pLoopStartArg = args.pLoopStartArg;
-    s->pfnLoopEnd = args.pfnLoopEnd;
-    s->pLoopEndArg = args.pLoopEndArg;
-    s->nTasks.volNum = 0;
-    s->bDone.volNum = false;
-    s->idCounter.volNum = 0;
-    s->bStarted = false;
-    s->arenaReserve = args.arenaReserve;
+    s->nThreads = opts.nThreads;
+    s->pfnLoopStart = opts.pfnLoopStart;
+    s->pLoopStartArg = opts.pLoopStartArg;
+    s->pfnLoopEnd = opts.pfnLoopEnd;
+    s->pLoopEndArg = opts.pLoopEndArg;
+    s->arenaReserve = opts.arenaReserve;
     s->memberSize = memberSize - sizeof(Header);
 
     if (!start(s)) goto fail0;
@@ -279,6 +275,9 @@ k_ThreadPoolWait(k_ThreadPool* s)
 {
     if (s->nThreads <= 0) return;
     stealTasks(s);
+
+    while (k_atomic_IntLoadRelaxed(&s->nTasksActive) > 0)
+        k_ThreadYield();
 }
 
 k_Arena*
@@ -307,6 +306,7 @@ k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t ar
     while (!k_QueueMPMCPushV(&s->qTasks, aSps, K_ASIZE(aSps)))
         ;
     k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
     k_SemaphoreInc(&s->sem);
 }
 
@@ -319,5 +319,6 @@ k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
     k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
     k_SemaphoreInc(&s->sem);
 }

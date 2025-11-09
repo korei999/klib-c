@@ -43,6 +43,8 @@ typedef struct k_ThreadPool
     k_atomic_Int nTasks;
     char aPad0[64];
     k_atomic_Int idCounter;
+    char aPad1[64];
+    k_atomic_Int nTasksActive;
     ssize_t memberSize;
     bool bStarted;
 } k_ThreadPool;

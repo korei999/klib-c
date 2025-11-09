@@ -187,6 +187,21 @@ k_atomic_U64CASRelaxed(k_atomic_U64* s, uint64_t* pExpected, uint64_t desired)
     }
 }
 
+K_ALWAYS_INLINE static bool
+k_atomic_U64CASRelease(k_atomic_U64* s, uint64_t* pExpected, uint64_t desired)
+{
+    uint64_t r = InterlockedCompareExchangeRelease64((volatile __int64*)&s->volNum, desired, *pExpected);
+    if (r == *pExpected)
+    {
+        return true;
+    }
+    else
+    {
+        *pExpected = r;
+        return false;
+    }
+}
+
 K_ALWAYS_INLINE static uint64_t
 k_atomic_U64AddRelaxed(k_atomic_U64* s, uint64_t val)
 {
