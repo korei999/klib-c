@@ -154,6 +154,21 @@ k_atomic_IntSubRelease(k_atomic_Int* s, k_atomic_IntType val)
     return InterlockedAddRelease(&s->volNum, -val) + val;
 }
 
+K_ALWAYS_INLINE static bool
+k_atomic_IntCASRelaxed(k_atomic_Int* s, k_atomic_IntType* pExpected, k_atomic_IntType desired)
+{
+    k_atomic_IntType r = InterlockedCompareExchangeNoFence(&s->volNum, desired, *pExpected);
+    if (r == *pExpected)
+    {
+        return true;
+    }
+    else
+    {
+        *pExpected = r;
+        return false;
+    }
+}
+
 K_ALWAYS_INLINE static uint64_t
 k_atomic_U64LoadRelaxed(k_atomic_U64* s)
 {
@@ -164,6 +179,12 @@ K_ALWAYS_INLINE static uint64_t
 k_atomic_U64LoadAcquire(k_atomic_U64* s)
 {
     return InterlockedCompareExchangeAcquire64((volatile __int64*)&s->volNum, 0, 0);
+}
+
+K_ALWAYS_INLINE static void
+k_atomic_U64StoreRelaxed(k_atomic_U64* s, uint64_t val)
+{
+    InterlockedExchangeNoFence64((volatile __int64*)&s->volNum, val);
 }
 
 K_ALWAYS_INLINE static void
@@ -246,6 +267,21 @@ k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val)
 
 K_ALWAYS_INLINE static bool
 k_atomic_U8CASAcquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
+{
+    uint8_t r = _InterlockedCompareExchange8((volatile char*)&s->volNum, desired, *pExpected);
+    if (r == *pExpected)
+    {
+        return true;
+    }
+    else
+    {
+        *pExpected = r;
+        return false;
+    }
+}
+
+K_ALWAYS_INLINE static bool
+k_atomic_U8CASRelaxed(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
 {
     uint8_t r = _InterlockedCompareExchange8((volatile char*)&s->volNum, desired, *pExpected);
     if (r == *pExpected)
