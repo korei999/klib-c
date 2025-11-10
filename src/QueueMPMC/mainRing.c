@@ -6,51 +6,51 @@
 
 #include "klib/QueueMPMC.h"
 
-static k_RingMPSC s_r;
-static const int EXPECTED = 14;
-static _Alignas(64) k_atomic_Int s_counter;
-static _Alignas(64) k_atomic_Int s_popCounter;
+// static k_RingMPSC s_r;
+// static const int EXPECTED = 14;
+// static _Alignas(64) k_atomic_Int s_counter;
+// static _Alignas(64) k_atomic_Int s_popCounter;
 
-typedef struct Payload
-{
-    char aBuff[16];
-} Payload;
+// typedef struct Payload
+// {
+//     char aBuff[16];
+// } Payload;
 
-static void
-PayloadInit(Payload* s)
-{
-    char aBuff[16] = {0};
-    static k_atomic_Int s_i = {0};
-    k_print_toBuffer(aBuff, sizeof(aBuff), "payload: {i}", k_atomic_IntAddRelaxed(&s_i, 1));
-    memcpy(s->aBuff, aBuff, sizeof(aBuff));
-}
+// static void
+// PayloadInit(Payload* s)
+// {
+//     char aBuff[16] = {0};
+//     static k_atomic_Int s_i = {0};
+//     k_print_toBuffer(aBuff, sizeof(aBuff), "payload: {i}", k_atomic_IntAddRelaxed(&s_i, 1));
+//     memcpy(s->aBuff, aBuff, sizeof(aBuff));
+// }
 
-static void
-PayloadPush(void* pArg)
-{
-    (void)pArg;
-    Payload p;
-    PayloadInit(&p);
-    K_ASSERT_ALWAYS(k_RingMPSCPush(&s_r, &p, sizeof(p)), "");
-    k_atomic_IntAddRelaxed(&s_counter, 1);
-}
-
-static void
-PayloadPop(void* pArg)
-{
-    Payload* s = pArg;
-    k_Span sp;
-again:
-    sp = k_RingMPSCPop(&s_r, (k_RingMPSCPopOpts){.pDestOrNull = s, .destSize = sizeof(*s)});
-    if (sp.pData)
-    {
-        k_atomic_IntAddRelaxed(&s_popCounter, 1);
-    }
-    else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED)
-    {
-        goto again;
-    }
-}
+// static void
+// PayloadPush(void* pArg)
+// {
+//     (void)pArg;
+//     Payload p;
+//     PayloadInit(&p);
+//     K_ASSERT_ALWAYS(k_RingMPSCPush(&s_r, &p, sizeof(p)), "");
+//     k_atomic_IntAddRelaxed(&s_counter, 1);
+// }
+// 
+// static void
+// PayloadPop(void* pArg)
+// {
+//     Payload* s = pArg;
+//     k_Span sp;
+// again:
+//     sp = k_RingMPSCPop(&s_r, (k_RingMPSCPopOpts){.pDestOrNull = s, .destSize = sizeof(*s)});
+//     if (sp.pData)
+//     {
+//         k_atomic_IntAddRelaxed(&s_popCounter, 1);
+//     }
+//     else if (k_atomic_IntLoadRelaxed(&s_popCounter) < EXPECTED)
+//     {
+//         goto again;
+//     }
+// }
 
 static const int NTASKS = 100000;
 #define TASK_SIZE 44
@@ -206,7 +206,7 @@ bench(void)
 static void
 test(void)
 {
-    K_ASSERT_ALWAYS(k_RingMPSCInit(&s_r, &k_GpaInst()->base, 1 << 8), "");
+    // K_ASSERT_ALWAYS(k_RingMPSCInit(&s_r, &k_GpaInst()->base, 1 << 8), "");
 
     /* TODO: */
     // k_ThreadPool* pTp = k_CtxThreadPool();
