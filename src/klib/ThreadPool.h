@@ -43,6 +43,7 @@ typedef struct k_ThreadPool
     k_atomic_Int nTasks;
     char aPad0[64];
     k_atomic_Int idCounter;
+    ssize_t memberSize;
     bool bStarted;
 } k_ThreadPool;
 
@@ -63,5 +64,6 @@ void k_ThreadPoolDestroy(k_ThreadPool* s);
 int k_ThreadPoolThreadId(void);
 void k_ThreadPoolWait(k_ThreadPool* s);
 k_Arena* k_ThreadPoolArena(k_ThreadPool* s); /* Get thread local arena. */
+uint8_t** k_ThreadPoolBuffer(void); /* Get thread local payload buffer. */
 void k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize);
 void k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg);

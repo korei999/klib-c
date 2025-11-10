@@ -12,10 +12,9 @@
     #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-#define SMALL_BUFFER_SIZE 256
-
-static K_THREAD_LOCAL k_Arena stl_arena = {0};
-static K_THREAD_LOCAL int stl_threadI = 0;
+static K_THREAD_LOCAL k_Arena stl_arena;
+static K_THREAD_LOCAL int stl_threadI;
+static K_THREAD_LOCAL uint8_t* stl_pBuffer;
 
 typedef struct Header
 {
@@ -84,14 +83,14 @@ execTask(void* p)
 static void
 stealTasks(k_ThreadPool* s)
 {
-    uint8_t aSmallBuffer[SMALL_BUFFER_SIZE];
+    uint8_t* pBuffer = stl_pBuffer;
 
     while (k_atomic_IntLoadAcquire(&s->nTasks) > 0)
     {
-        if (!k_QueueMPMCPop(&s->qTasks, aSmallBuffer, s->qTasks.memberSize))
+        if (!k_QueueMPMCPop(&s->qTasks, pBuffer, s->memberSize))
             continue;
 
-        execTask(aSmallBuffer);
+        execTask(pBuffer);
 
         k_atomic_IntSubRelaxed(&s->nTasks, 1);
     }
@@ -139,18 +138,19 @@ loop(void* pUser)
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4)) goto fail;
     if (s->pfnLoopStart) s->pfnLoopStart(s->pLoopStartArg);
     stl_threadI = k_atomic_IntAddRelaxed(&s->idCounter, 1);
+    stl_pBuffer = calloc(1, s->memberSize);
 
-    uint8_t aSmallBuffer[SMALL_BUFFER_SIZE];
+    uint8_t* pBuffer = stl_pBuffer;
 
     while (true)
     {
         const int nTasks = k_atomic_IntLoadAcquire(&s->nTasks);
         if (nTasks > 0)
         {
-            if (!k_QueueMPMCPop(&s->qTasks, aSmallBuffer, s->qTasks.memberSize))
+            if (!k_QueueMPMCPop(&s->qTasks, pBuffer, s->memberSize))
                 continue;
 
-            execTask(aSmallBuffer);
+            execTask(pBuffer);
 
             k_atomic_IntSubRelease(&s->nTasks, 1);
         }
@@ -163,6 +163,8 @@ loop(void* pUser)
 
     if (s->pfnLoopEnd) s->pfnLoopEnd(s->pLoopEndArg);
     k_ArenaDestroy(&stl_arena);
+    free(stl_pBuffer);
+    stl_pBuffer = NULL;
     return 0;
 
 fail:
@@ -178,6 +180,7 @@ start(k_ThreadPool* s)
         if (!k_ThreadInit(&s->pThreads[i], loop, s)) goto fail;
 
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4)) goto fail;
+    stl_pBuffer = calloc(1, s->qTasks.memberSize);
 
     s->bStarted = true;
 
@@ -193,14 +196,20 @@ fail:
 bool
 k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args)
 {
+    *s = (k_ThreadPool){0};
+
     k_Gpa gpa = k_GpaCreate();
     k_Thread* pNewThreads = NULL;
+    int memberSize = 0;
     if (args.nThreads > 0)
     {
-        pNewThreads = K_IZALLOC_T(&gpa.base, k_Thread, args.nThreads);
+        pNewThreads = K_IZALLOC_T(&gpa, k_Thread, args.nThreads);
         if (!pNewThreads) return false;
+
+        memberSize = args.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header): args.queueSlotSize + (int)sizeof(Header);
+
         if (!k_QueueMPMCInit(&s->qTasks, &gpa.base, (k_QueueMPMCInitOpts){
-            .maxMemberSize = args.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE : args.queueSlotSize + (int)sizeof(Header),
+            .maxMemberSize = memberSize,
             .capPo2 = args.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : args.queueCap,
         })) goto fail2;
         if (!k_SemaphoreInit(&s->sem, 0)) goto fail1;
@@ -217,6 +226,7 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args)
     s->idCounter.volNum = 0;
     s->bStarted = false;
     s->arenaReserve = args.arenaReserve;
+    s->memberSize = memberSize - sizeof(Header);
 
     if (!start(s)) goto fail0;
     return true;
@@ -226,7 +236,7 @@ fail0:
 fail1:
     k_QueueMPMCDestroy(&s->qTasks, &gpa.base);
 fail2:
-    k_IAllocatorFree(&gpa.base, pNewThreads);
+    k_IAllocatorFree(&gpa, pNewThreads);
     return false;
 }
 
@@ -254,6 +264,8 @@ k_ThreadPoolDestroy(k_ThreadPool* s)
     }
 
     k_ArenaDestroy(&stl_arena);
+    free(stl_pBuffer);
+    stl_pBuffer = NULL;
 }
 
 int
@@ -275,6 +287,12 @@ k_ThreadPoolArena(k_ThreadPool* s)
     (void)s;
     assert(k_ArenaMemoryReserved(&stl_arena) > 0);
     return &stl_arena;
+}
+
+uint8_t**
+k_ThreadPoolBuffer(void)
+{
+    return &stl_pBuffer;
 }
 
 void

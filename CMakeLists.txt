@@ -126,6 +126,24 @@ if (CMAKE_BUILD_TYPE MATCHES "Asan")
     endif()
 endif()
 
+if (CMAKE_BUILD_TYPE MATCHES "Tsan")
+    set(CMAKE_BUILD_TYPE "Debug")
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        add_compile_options(-fsanitize=thread)
+    else()
+        add_compile_options(-O0 -g3 -fno-omit-frame-pointer -fsanitize=thread)
+
+        if (CMAKE_SYSTEM_NAME MATCHES "Windows")
+            add_compile_options(-shared-libsan)
+            # doesn't work...
+            # target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE clang_rt.asan_cxx-x86_64.lib clang_rt.asan-x86_64.lib)
+        else()
+            add_link_options(-fsanitize=thread)
+        endif()
+    endif()
+endif()
+
 message(STATUS "CMAKE_BUILD_TYPE: '${CMAKE_BUILD_TYPE}'")
 
 if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")

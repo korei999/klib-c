@@ -42,7 +42,7 @@ k_QueueMPMCInit(k_QueueMPMC* s, k_IAllocator* pAlloc, k_QueueMPMCInitOpts opts)
     for (int i = 0; i < cap; ++i)
     {
         Slot* pSlot = (Slot*)(s->pData + i*s->memberSize);
-        pSlot->seq.volNum = i;
+        k_atomic_U64StoreRelease(&pSlot->seq, i);
     }
 
     return true;
@@ -117,7 +117,7 @@ k_QueueMPMCPushV(k_QueueMPMC* s, const k_Span* pSps, ssize_t nSpans)
         }
     }
 
-    for (ssize_t i = 0, off = 0; i < nSpans;  off += pSps[i].size, ++i)
+    for (ssize_t i = 0, off = 0; i < nSpans; off += pSps[i].size, ++i)
         memcpy(pSlot->aMem + off, pSps[i].pData, pSps[i].size);
     k_atomic_U64StoreRelease(&pSlot->seq, pos + 1);
     return true;
@@ -126,7 +126,9 @@ k_QueueMPMCPushV(k_QueueMPMC* s, const k_Span* pSps, ssize_t nSpans)
 bool
 k_QueueMPMCPop(k_QueueMPMC* s, void* pDest, ssize_t destSize)
 {
-    K_ASSERT(destSize <= s->memberSize, "destSize: {sz}, memberSize: {i}", destSize, s->memberSize);
+    K_ASSERT(destSize <= s->memberSize - (ssize_t)sizeof(Slot),
+        "destSize: {sz}, memberSize-sizeof(Slot): {i}", destSize, s->memberSize - sizeof(Slot)
+    );
 
     Slot* pSlot;
     uint64_t pos = k_atomic_U64LoadRelaxed(&s->headI);

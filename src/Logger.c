@@ -27,7 +27,7 @@ main(void)
     K_CTX_LOG_DEBUG("func: {:#x:u64}", func);
 
     k_ThreadPool* pThreadPool = k_CtxThreadPool();
-    for (ssize_t i = 0; i < 10; ++i)
+    for (ssize_t i = 0; i < 1000; ++i)
         k_ThreadPoolAdd(pThreadPool, func, &i, sizeof(i));
     k_ThreadPoolWait(pThreadPool);
 

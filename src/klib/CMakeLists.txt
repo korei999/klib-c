@@ -8,14 +8,13 @@ add_library(klib-static STATIC
     IAllocator.c
     RingBuffer.c
     ThreadPool.c
-    ThreadPool2.c
     Logger.c
     Ctx.c
     file.c
     time.c
     CmdLine.c
     assert.c
-    RingMPMC.c
+    RingMPSC.c
     QueueMPMC.c
 )
 

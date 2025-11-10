@@ -28,23 +28,44 @@ typedef LONG k_atomic_IntType;
 typedef int k_atomic_IntType;
 
 /* __ATOMIC_RELAXED
- * 
- *     Implies no inter-thread ordering constraints. 
  * __ATOMIC_CONSUME
- * 
- *     This is currently implemented using the stronger __ATOMIC_ACQUIRE memory order because of a deficiency in C++11’s semantics for memory_order_consume. 
  * __ATOMIC_ACQUIRE
- *
- *     Creates an inter-thread happens-before constraint from the release (or stronger) semantic store to this acquire load. Can prevent hoisting of code to before the operation. 
  * __ATOMIC_RELEASE
- *
- *     Creates an inter-thread happens-before constraint to acquire (or stronger) semantic loads that read from this release store. Can prevent sinking of code to after the operation. 
  * __ATOMIC_ACQ_REL
- * 
- *     Combines the effects of both __ATOMIC_ACQUIRE and __ATOMIC_RELEASE. 
- * __ATOMIC_SEQ_CST
- * 
- *     Enforces total ordering with all other __ATOMIC_SEQ_CST operations. */
+ * __ATOMIC_SEQ_CST */
+
+/* https://en.cppreference.com/w/cpp/atomic/memory_order.html
+ * memory_order_relaxed
+ * Relaxed operation: there are no synchronization or ordering constraints imposed on other reads or writes,
+ * only this operation's atomicity is guaranteed
+ *
+ * memory_order_consume (deprecated in C++26)
+ * A load operation with this memory order performs a consume operation on the affected memory location:
+ * no reads or writes in the current thread dependent on the value currently loaded can be reordered before this load.
+ * Writes to data-dependent variables in other threads that release the same atomic variable are visible in the current thread.
+ * On most platforms, this affects compiler optimizations only
+ *
+ * memory_order_acquire
+ * A load operation with this memory order performs the acquire operation on the affected memory location:
+ * no reads or writes in the current thread can be reordered before this load.
+ * All writes in other threads that release the same atomic variable are visible in the current thread
+ *
+ * memory_order_release
+ * A store operation with this memory order performs the release operation:
+ * no reads or writes in the current thread can be reordered after this store.
+ * All writes in the current thread are visible in other threads that acquire the same atomic variable
+ * and writes that carry a dependency into the atomic variable become visible in other threads that consume the same atomic
+ *
+ * memory_order_acq_rel
+ * A read-modify-write operation with this memory order is both an acquire operation and a release operation.
+ * No memory reads or writes in the current thread can be reordered before the load, nor after the store.
+ * All writes in other threads that release the same atomic variable
+ * are visible before the modification and the modification is visible in other threads that acquire the same atomic variable.
+ *
+ * memory_order_seq_cst
+ * A load operation with this memory order performs an acquire operation,
+ * a store performs a release operation, and read-modify-write performs both an acquire operation and a release operation,
+ * plus a single total order exists in which all threads observe all modifications in the same order */
 
 #endif
 
@@ -86,7 +107,7 @@ typedef struct k_atomic_U8
 K_ALWAYS_INLINE static uint8_t k_atomic_U8LoadRelaxed(const k_atomic_U8* s);
 K_ALWAYS_INLINE static void k_atomic_U8StoreRelaxed(k_atomic_U8* s, uint8_t val);
 K_ALWAYS_INLINE static void k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val);
-K_ALWAYS_INLINE static bool k_atomic_U8CASAquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired);
+K_ALWAYS_INLINE static bool k_atomic_U8CASAcquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired);
 K_ALWAYS_INLINE static bool k_atomic_U8CASRelaxed(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired);
 
 #if defined _WIN32
@@ -209,7 +230,7 @@ k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val)
 }
 
 K_ALWAYS_INLINE static bool
-k_atomic_U8CASAquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
+k_atomic_U8CASAcquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
 {
     uint8_t r = _InterlockedCompareExchange8((volatile char*)&s->volNum, desired, *pExpected);
     if (r == *pExpected)
@@ -352,9 +373,9 @@ k_atomic_U8StoreRelease(k_atomic_U8* s, uint8_t val)
 }
 
 K_ALWAYS_INLINE static bool
-k_atomic_U8CASAquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
+k_atomic_U8CASAcquire(k_atomic_U8* s, uint8_t* pExpected, uint8_t desired)
 {
-    return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE);
+    return __atomic_compare_exchange_n(&s->volNum, pExpected, desired, false /* weak */, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
 }
 
 K_ALWAYS_INLINE static bool

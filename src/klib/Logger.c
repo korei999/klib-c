@@ -32,7 +32,7 @@ loop(void* pArg)
 
         if (nPosts > 0)
         {
-            k_Span sp = k_RingMPMCPop(&s->rb, (k_RingMPMCPopOpts){
+            k_Span sp = k_RingMPSCPop(&s->rb, (k_RingMPSCPopOpts){
                 .pDestOrNull = pHeader,
                 .destSize = s->buffSize}
             );
@@ -70,14 +70,14 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
 
     s->pAlloc = pAlloc;
 
-    if (!k_RingMPMCInit(&s->rb, pAlloc, opts.ringBufferSize)) return false;
+    if (!k_RingMPSCInit(&s->rb, pAlloc, opts.ringBufferSize)) return false;
 
     s->buffSize = s->rb.capMinus1 + 1;
 
     s->pDrainBuff = k_IAllocatorZalloc(pAlloc, s->buffSize * 2);
     if (!s->pDrainBuff)
     {
-        k_RingMPMCDestroy(&s->rb, pAlloc);
+        k_RingMPSCDestroy(&s->rb, pAlloc);
         return false;
     }
     s->pSecondaryBuff = s->pDrainBuff + s->buffSize;
@@ -120,14 +120,14 @@ k_LoggerDestroy(k_Logger* s)
     k_ThreadJoin(&s->thread);
 
     k_SemaphoreDestroy(&s->sem);
-    k_RingMPMCDestroy(&s->rb, s->pAlloc);
+    k_RingMPSCDestroy(&s->rb, s->pAlloc);
     k_IAllocatorFree(s->pAlloc, s->pDrainBuff);
 }
 
 static bool
 pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
 {
-    if (svMsg.size + (ssize_t)sizeof(LogHeader) + k_RingMPMCHeaderSize() > k_RingMPMCCap(&s->rb)) return false;
+    if (svMsg.size + (ssize_t)sizeof(LogHeader) + k_RingMPSCHeaderSize() > k_RingMPSCCap(&s->rb)) return false;
 
     LogHeader lh = {
         .ntsFile = ntsFile,
@@ -144,7 +144,7 @@ pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* nts
     {
         if (k_atomic_U8LoadRelaxed(&s->bDone)) return false;
 
-        if (k_RingMPMCPushV(&s->rb, aSps, K_ASIZE(aSps)))
+        if (k_RingMPSCPushV(&s->rb, aSps, K_ASIZE(aSps)))
             break;
 
         k_ThreadYield();

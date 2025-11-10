@@ -2,7 +2,7 @@
 
 #include "Arena.h"
 #include "Thread.h"
-#include "RingMPMC.h"
+#include "RingMPSC.h"
 #include "StringView.h"
 
 #include <stdio.h>
@@ -58,7 +58,7 @@ typedef struct k_Logger
     void* pFormatHeaderArg;
     k_LoggerSinkPfn pfnSink;
     void* pSinkArg;
-    k_RingMPMC rb;
+    k_RingMPSC rb;
     k_atomic_Int nPosts;
     ssize_t buffSize;
     uint8_t* pDrainBuff;

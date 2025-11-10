@@ -79,6 +79,16 @@ asan()
     fi
 }
 
+tsan()
+{
+    _clean
+
+    if cmake -G "Ninja" -S . -B build/ -DCMAKE_BUILD_TYPE=Tsan "$@"
+    then
+        cmake --build build/ -j -v
+    fi
+}
+
 build()
 {
     cmake --build build/ -j
@@ -142,6 +152,7 @@ case "$1" in
     debug) debug "${@:2}" ;;
     asanCLANG) asanCLANG "${@:2}" ;;
     asan) asan "${@:2}" ;;
+    tsan) tsan "${@:2}" ;;
     releaseCLANG) releaseCLANG "${@:2}";;
     release) release "${@:2}";;
     install) _install ;;

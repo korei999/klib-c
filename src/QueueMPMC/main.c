@@ -31,6 +31,27 @@ consumer(void* pArg)
 }
 
 static void
+test2(void)
+{
+    K_ASSERT_ALWAYS(k_QueueMPMCInit(&s_q, &k_GpaInst()->base, (k_QueueMPMCInitOpts){.maxMemberSize = 4, .capPo2 = 4}), "");
+
+    k_QueueMPMCPush(&s_q, &(int){1}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){2}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){3}, sizeof(int));
+
+    int i = 0;
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPush(&s_q, &(int){4}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){5}, sizeof(int));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+
+    k_QueueMPMCDestroy(&s_q, &k_GpaInst()->base);
+}
+
+static void
 test(void)
 {
     K_ASSERT_ALWAYS(k_QueueMPMCInit(&s_q, &k_GpaInst()->base, (k_QueueMPMCInitOpts){.maxMemberSize = 64, .capPo2 = TARGET>>2}), "");
@@ -51,6 +72,8 @@ test(void)
     uint64_t counter = k_atomic_U64LoadRelaxed(&s_counter);
     K_CTX_LOG_DEBUG("s_accumulator: {u64}, s_counter: {u64}", accumulator, counter);
     K_ASSERT_ALWAYS(accumulator == accExpected, "");
+
+    test2();
 }
 
 int
