@@ -13,8 +13,7 @@
  *  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  The views and conclusions contained in the software and documentation are those of the authors and should not be interpreted
- *  as representing official policies, either expressed or implied, of Dmitry Vyukov.
- */
+ *  as representing official policies, either expressed or implied, of Dmitry Vyukov. */
 
 #include "QueueMPMC.h"
 
@@ -93,7 +92,8 @@ k_QueueMPMCPushV(k_QueueMPMC* s, const k_Span* pSps, ssize_t nSpans)
     ssize_t totalSize = 0;
     for (ssize_t i = 0; i < nSpans; ++i) totalSize += pSps[i].size;
 
-    K_ASSERT(totalSize <= s->memberSize, "totalSize: {sz}, memberSize: {i}", totalSize, s->memberSize);
+    K_ASSERT(totalSize <= s->memberSize - (int)sizeof(Slot), "totalSize: {sz}, memberSize-sizeof(Slot): {i}", totalSize, s->memberSize-sizeof(Slot));
+    (void)totalSize;
 
     Slot* pSlot;
     uint64_t pos = k_atomic_U64LoadRelaxed(&s->tailI);

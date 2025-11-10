@@ -53,7 +53,7 @@
 // }
 
 static const int NTASKS = 100000;
-#define TASK_SIZE 44
+#define TASK_SIZE 64
 static uint8_t s_aTestBuff[TASK_SIZE];
 static _Alignas(64) k_atomic_Int s_taskCount;
 
@@ -153,6 +153,23 @@ bench(void)
     k_Mutex mtx;
     k_MutexInitPlain(&mtx);
     static const int RING_SIZE = K_SIZE_1M;
+
+    {
+        k_RingBuffer rb;
+        k_RingBufferInit(&rb, &pGpa->base, RING_SIZE);
+
+        RBTask task = {.pRB = &rb, .pMtx = &mtx, .size = TASK_SIZE};
+        for (int i = 0; i < NTASKS; ++i)
+        {
+            k_ThreadPoolAdd(pTp, pushRBTask, &task, sizeof(task));
+            k_ThreadPoolAdd(pTp, popRBTask, &task, sizeof(task));
+        }
+
+        k_ThreadPoolWait(pTp);
+
+        k_RingBufferDestroy(&rb, &pGpa->base);
+        k_atomic_IntStoreRelease(&s_taskCount, 0);
+    }
 
     {
         k_RingBuffer rb;

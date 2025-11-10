@@ -305,8 +305,8 @@ k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t ar
     };
     while (!k_QueueMPMCPushV(&s->qTasks, aSps, K_ASIZE(aSps)))
         ;
-    k_atomic_IntAddRelease(&s->nTasks, 1);
     k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
+    k_atomic_IntAddRelease(&s->nTasks, 1);
     k_SemaphoreInc(&s->sem);
 }
 
@@ -318,7 +318,7 @@ k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
 
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
-    k_atomic_IntAddRelease(&s->nTasks, 1);
     k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
+    k_atomic_IntAddRelease(&s->nTasks, 1);
     k_SemaphoreInc(&s->sem);
 }
