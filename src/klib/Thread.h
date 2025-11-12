@@ -493,7 +493,7 @@ static inline void
 k_TicketMutexLock(k_TicketMutex* s)
 {
     uint64_t ticket = k_atomic_U64AddRelaxed(&s->ticketId, 1);
-    while (ticket != s->servingId.volNum)
+    while (ticket != k_atomic_U64LoadRelaxed(&s->servingId))
         ;
 }
 

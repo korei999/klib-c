@@ -69,7 +69,8 @@ k_RingMPSCPushV(k_RingMPSC* s, const k_Span* pSps, ssize_t nSpans)
 
 again:
     headI = k_atomic_U64LoadRelaxed(&s->headI);
-    if (((pushTailI - headI) + totalSize + sizeof(Header)) > s->capMinus1 + 1) return false;
+    if (((pushTailI - headI) + totalSize + sizeof(Header)) > s->capMinus1 + 1)
+        return false;
 
     if (k_atomic_U64CASRelaxed(&s->pushTailI, &pushTailI, pushTailI + totalSize + sizeof(Header)))
     {
