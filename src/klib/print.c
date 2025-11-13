@@ -26,7 +26,7 @@ static k_print_Map* s_pGlobalPrinter = NULL;
 static ssize_t parseVaList(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
 static ssize_t parseArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
 static void parseFmtArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
-static ssize_t execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, k_StringView* pSvKey, va_list* pArgs);
+static ssize_t execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const k_StringView* pSvKey, va_list* pArgs);
 ssize_t k_print_eatFmtArg(k_print_FmtArgs* pFmtArgs, int64_t num);
 
 static bool
@@ -344,14 +344,16 @@ k_print_BuilderPrintSvFmtArgs(k_print_Builder* s, k_print_FmtArgs* pFmtArgs, k_S
 }
 
 static ssize_t
-sayNoFormatter(k_print_Context* pCtx)
+sayNoFormatter(k_print_Context* pCtx, const k_StringView* pSvKey)
 {
-    const k_StringView svNoFormatter = K_SV("(no formatter)");
-    return k_print_BuilderPushSv(pCtx->pBuilder, svNoFormatter);
+    return k_print_BuilderPrint(pCtx->pBuilder,
+        "(no formatter for '{PSv}')",
+        pSvKey
+    ).size;
 }
 
 static ssize_t
-execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, k_StringView* pSvKey, va_list* pArgs)
+execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const k_StringView* pSvKey, va_list* pArgs)
 {
     ssize_t nWritten = 0;
 
@@ -371,7 +373,7 @@ execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, k_StringView* pS
     }
     else
     {
-        nWritten = sayNoFormatter(pCtx);
+        nWritten = sayNoFormatter(pCtx, pSvKey);
     }
 
     return nWritten;
