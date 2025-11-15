@@ -22,17 +22,24 @@ typedef struct OtherThings
     Pos pos2;
 } OtherThings;
 
+typedef struct BigBuff
+{
+    char aBuff[64];
+} BigBuff;
+
 typedef enum COMPONENT
 {
     COMPONENT_POS,
     COMPONENT_HEALTH,
     COMPONENT_OTHER_THINGS,
+    COMPONENT_BIG_BUFF
 } COMPONENT;
 
 static const int COMPONENT_SIZE_MAP[] = {
     [COMPONENT_POS] = sizeof(Pos),
     [COMPONENT_HEALTH] = sizeof(Health),
     [COMPONENT_OTHER_THINGS] = sizeof(OtherThings),
+    [COMPONENT_BIG_BUFF] = sizeof(BigBuff),
 };
 
 static void
@@ -48,12 +55,14 @@ test(void)
     {
         Pos p3 = {.x = 3, .y = -3};
         ecs_MapAdd(&s, aH[3], COMPONENT_POS, &p3);
+        ecs_MapAdd(&s, aH[3], COMPONENT_BIG_BUFF, &(BigBuff){"entity3"});
     }
     {
         Pos p4 = {.x = 4, .y = -4};
         Health hl4 = {4};
         ecs_MapAdd(&s, aH[4], COMPONENT_POS, &p4);
         ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &hl4);
+        ecs_MapAdd(&s, aH[4], COMPONENT_BIG_BUFF, &(BigBuff){"entity4"});
     }
 
     {
@@ -67,10 +76,14 @@ test(void)
         ecs_MapAdd(&s, aH[11], COMPONENT_POS, &(Pos){11, -11});
         ecs_MapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
         ecs_MapAdd(&s, aH[11], COMPONENT_OTHER_THINGS, &(OtherThings){.nts = "other11", .d = 11.11, .i = 11, .pos2 = {.x = 11, .y = -11}});
+        ecs_MapAdd(&s, aH[11], COMPONENT_BIG_BUFF, &(BigBuff){"entity11"});
+    }
 
+    {
         ecs_MapAdd(&s, aH[13], COMPONENT_POS, &(Pos){13, -13});
         ecs_MapAdd(&s, aH[13], COMPONENT_HEALTH, &(Health){13});
         ecs_MapAdd(&s, aH[13], COMPONENT_OTHER_THINGS, &(OtherThings){.nts = "other13", .d = 13.13, .i = 13, .pos2 = {.x = 13, .y = -13}});
+        ecs_MapAdd(&s, aH[13], COMPONENT_BIG_BUFF, &(BigBuff){"entity13"});
     }
 
     ecs_MapRemoveEntity(&s, aH[4]);
@@ -104,6 +117,14 @@ test(void)
             OtherThings* pIt = &pOthers[posI];
             K_CTX_LOG_DEBUG("({i}) OtherThings: '{s}', {i}, {d}, ({f}, {f})",
                 s.pSOAComponents[COMPONENT_OTHER_THINGS].pDense[posI], pIt->nts, pIt->i, pIt->d, pIt->pos2.x, pIt->pos2.y
+            );
+        }
+        K_CTX_LOG_DEBUG("");
+        BigBuff* pBigBuffs = s.pSOAComponents[COMPONENT_BIG_BUFF].pData;
+        for (int posI = 0; posI < s.pSOAComponents[COMPONENT_BIG_BUFF].size; ++posI)
+        {
+            K_CTX_LOG_DEBUG("({i}) BigBuff: '{s}'",
+                s.pSOAComponents[COMPONENT_BIG_BUFF].pDense[posI], pBigBuffs[posI].aBuff
             );
         }
 

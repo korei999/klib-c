@@ -50,7 +50,7 @@ static inline void*
 ecs_MapGet(ecs_Map* s, ECS_ENTITY h, int eComp)
 {
     K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
-    K_ASSERT(h >= 0 && h < s->size, "h: {}, size: {}", h, s->size);
+    K_ASSERT(h >= 0 && h < s->size, "h: {i}, size: {i}", h, s->size);
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     const int denseI = pComp->pSparse[h];
     return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
@@ -60,7 +60,7 @@ static inline void*
 ecs_MapAt(ecs_Map* s, int denseI, int eComp)
 {
     K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
-    K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {}, cap: {}", denseI, s->cap);
+    K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {i}, cap: {i}", denseI, s->cap);
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }
