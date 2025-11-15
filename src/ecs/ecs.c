@@ -12,7 +12,7 @@ typedef struct DenseEnum
 typedef struct DenseDesc
 {
     int sparseI;
-    uint8_t enumsSize;
+    int enumsSize;
     DenseEnum pEnums[];
 } DenseDesc;
 
@@ -29,7 +29,7 @@ ecs_MapInit(ecs_Map* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int 
     if (!pSOA) return false;
     s->pSOAComponents = pSOA;
 
-    s->denseStride = sizeof(DenseDesc) + sizeof(DenseEnum)*sizeMapSize;
+    s->denseStride = sizeof(DenseDesc) + K_ALIGN_UP(sizeof(DenseEnum)*sizeMapSize, _Alignof(DenseDesc));
 
     if (!MapGrow(s, cap))
     {
@@ -126,8 +126,8 @@ ecs_MapAddEntity(ecs_Map* s)
 
     s->pSparse[s->size] = i;
     DenseDesc* pDense = (DenseDesc*)(s->pDense + s->denseStride*i);
-    pDense[i].sparseI = s->size;
-    pDense[i].enumsSize = 0;
+    pDense->sparseI = s->size;
+    pDense->enumsSize = 0;
 
     ++s->size;
 

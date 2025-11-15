@@ -63,6 +63,8 @@ k_IAllocatorAlloc(void* pSelf, void* p, ssize_t size)
 #define K_ALIGN_UP8(x) K_ALIGN_UP_PO2(x, 8)
 #define K_ALIGN_DOWN8(x) K_ALIGN_DOWN_PO2(x, 8)
 
+#define K_ALIGN_UP(x, to) ((((x) + (to) - 1) / (to)) * (to))
+
 #define K_IALLOC(pAlloc, type, ...) (type*)k_IAllocatorAlloc(pAlloc, &(type) {__VA_ARGS__}, sizeof(type))
 #define K_IMALLOC_T(pAlloc, type, count) (type*)k_IAllocatorMalloc(pAlloc, sizeof(type) * count)
 #define K_IZALLOC_T(pAlloc, type, count) (type*)k_IAllocatorZalloc(pAlloc, sizeof(type) * count)

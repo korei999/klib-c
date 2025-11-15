@@ -14,15 +14,25 @@ typedef struct Health
     int val;
 } Health;
 
+typedef struct OtherThings
+{
+    int i;
+    const char* nts;
+    double d;
+    Pos pos2;
+} OtherThings;
+
 typedef enum COMPONENT
 {
     COMPONENT_POS,
     COMPONENT_HEALTH,
+    COMPONENT_OTHER_THINGS,
 } COMPONENT;
 
 static const int COMPONENT_SIZE_MAP[] = {
     [COMPONENT_POS] = sizeof(Pos),
     [COMPONENT_HEALTH] = sizeof(Health),
+    [COMPONENT_OTHER_THINGS] = sizeof(OtherThings),
 };
 
 static void
@@ -50,13 +60,17 @@ test(void)
         aH[16] = ecs_MapAddEntity(&s);
         ecs_MapAdd(&s, aH[16], COMPONENT_POS, &(Pos){.x = 16, .y = -16});
         ecs_MapAdd(&s, aH[16], COMPONENT_HEALTH, &(Health){16});
+        ecs_MapAdd(&s, aH[16], COMPONENT_OTHER_THINGS, &(OtherThings){.nts = "other16", .d = 16.16, .i = 16, .pos2 = {.x = 16, .y = -16}});
     }
 
     {
         ecs_MapAdd(&s, aH[11], COMPONENT_POS, &(Pos){11, -11});
         ecs_MapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
+        ecs_MapAdd(&s, aH[11], COMPONENT_OTHER_THINGS, &(OtherThings){.nts = "other11", .d = 11.11, .i = 11, .pos2 = {.x = 11, .y = -11}});
+
         ecs_MapAdd(&s, aH[13], COMPONENT_POS, &(Pos){13, -13});
         ecs_MapAdd(&s, aH[13], COMPONENT_HEALTH, &(Health){13});
+        ecs_MapAdd(&s, aH[13], COMPONENT_OTHER_THINGS, &(OtherThings){.nts = "other13", .d = 13.13, .i = 13, .pos2 = {.x = 13, .y = -13}});
     }
 
     ecs_MapRemoveEntity(&s, aH[4]);
@@ -81,6 +95,15 @@ test(void)
         {
             K_CTX_LOG_DEBUG("({i}) Health: {i}",
                 s.pSOAComponents[COMPONENT_HEALTH].pDense[posI], pHealth[posI].val
+            );
+        }
+        K_CTX_LOG_DEBUG("");
+        OtherThings* pOthers = s.pSOAComponents[COMPONENT_OTHER_THINGS].pData;
+        for (int posI = 0; posI < s.pSOAComponents[COMPONENT_OTHER_THINGS].size; ++posI)
+        {
+            OtherThings* pIt = &pOthers[posI];
+            K_CTX_LOG_DEBUG("({i}) OtherThings: '{s}', {i}, {d}, ({f}, {f})",
+                s.pSOAComponents[COMPONENT_OTHER_THINGS].pDense[posI], pIt->nts, pIt->i, pIt->d, pIt->pos2.x, pIt->pos2.y
             );
         }
 
