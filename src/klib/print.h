@@ -124,6 +124,7 @@ ssize_t k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, v
 ssize_t k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 ssize_t k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
+ssize_t k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
 
 static inline void
 k_print_MapAddDefaultFormatters(k_print_Map* s)
@@ -158,4 +159,5 @@ k_print_MapAddDefaultFormatters(k_print_Map* s)
     k_print_MapAddFormatter(s, "PS", k_print_formatPString);
     k_print_MapAddFormatter(s, "nts", k_print_formatNts);
     k_print_MapAddFormatter(s, "s", k_print_formatNts);
+    k_print_MapAddFormatter(s, "p", k_print_formatPtr);
 }

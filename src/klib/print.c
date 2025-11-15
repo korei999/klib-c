@@ -70,7 +70,7 @@ k_print_MapAlloc(k_IAllocator* pAlloc)
     k_print_Map* pMap = K_IALLOC(pAlloc, k_print_Map, .pAlloc = pAlloc);
     if (!pMap) return NULL;
 
-    if (!MapSigToPfnInit(&pMap->mSigToPfn, pAlloc, 64))
+    if (!MapSigToPfnInit(&pMap->mSigToPfn, pAlloc, 128))
     {
         k_IAllocatorFree(pAlloc, pMap);
         return NULL;
@@ -925,4 +925,14 @@ k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
     char* nts = (char*)arg;
     const ssize_t size = strlen(nts);
     return k_print_formatPStringView(pCtx, pFmtArgs, &(k_StringView){nts, size});
+}
+
+ssize_t
+k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+{
+    uint64_t v = (uint64_t)arg;
+    k_print_FmtArgs fmtArgs = *pFmtArgs;
+    fmtArgs.eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
+    fmtArgs.eBase = K_PRINT_BASE_SIXTEEN;
+    return formatInteger(pCtx, &fmtArgs, (void*)v, true);
 }
