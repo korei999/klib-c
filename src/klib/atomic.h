@@ -88,7 +88,7 @@ typedef struct k_atomic_U64
     volatile uint64_t volNum;
 } k_atomic_U64;
 
-K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadRelaxed(k_atomic_U64* s);
+K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadRelaxed(const k_atomic_U64* s);
 K_ALWAYS_INLINE static uint64_t k_atomic_U64LoadAcquire(k_atomic_U64* s);
 K_ALWAYS_INLINE static void k_atomic_U64StoreRelaxed(k_atomic_U64* s, uint64_t val);
 K_ALWAYS_INLINE static void k_atomic_U64StoreRelease(k_atomic_U64* s, uint64_t val);
@@ -170,7 +170,7 @@ k_atomic_IntCASRelaxed(k_atomic_Int* s, k_atomic_IntType* pExpected, k_atomic_In
 }
 
 K_ALWAYS_INLINE static uint64_t
-k_atomic_U64LoadRelaxed(k_atomic_U64* s)
+k_atomic_U64LoadRelaxed(const k_atomic_U64* s)
 {
     return InterlockedCompareExchangeNoFence64((volatile __int64*)&s->volNum, 0, 0);
 }
@@ -346,7 +346,7 @@ k_atomic_IntCASRelaxed(k_atomic_Int* s, k_atomic_IntType* pExpected, k_atomic_In
 }
 
 K_ALWAYS_INLINE static uint64_t
-k_atomic_U64LoadRelaxed(k_atomic_U64* s)
+k_atomic_U64LoadRelaxed(const k_atomic_U64* s)
 {
     return __atomic_load_n(&s->volNum, __ATOMIC_RELAXED);
 }

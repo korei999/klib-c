@@ -197,7 +197,7 @@ bench(void)
 
     {
         k_QueueMPMC q;
-        k_QueueMPMCInit(&q, &pGpa->base, (k_QueueMPMCInitOpts){.maxMemberSize = 8, .capPo2 = RING_SIZE});
+        k_QueueMPMCInit(&q, &pGpa->base, (k_QueueMPMCInitOpts){.slotSize = 8, .cap = RING_SIZE});
 
         k_time_Type t0 = k_time_now();
         QueueTask task = {.pQ = &q, .size = TASK_SIZE};

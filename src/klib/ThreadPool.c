@@ -176,7 +176,7 @@ start(k_ThreadPool* s)
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4))
         goto fail;
 
-    stl_pBuffer = calloc(1, s->qTasks.memberSize);
+    stl_pBuffer = calloc(1, k_QueueMPMCSlotSize(&s->qTasks));
 
     s->bStarted = true;
 
@@ -205,8 +205,8 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
         memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header): opts.queueSlotSize + (int)sizeof(Header);
 
         if (!k_QueueMPMCInit(&s->qTasks, &gpa.base, (k_QueueMPMCInitOpts){
-            .maxMemberSize = memberSize,
-            .capPo2 = opts.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : opts.queueCap,
+            .slotSize = memberSize,
+            .cap = opts.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : opts.queueCap,
         })) goto fail2;
         if (!k_SemaphoreInit(&s->sem, 0)) goto fail1;
     }

@@ -4,16 +4,14 @@
 
 #include "klib/QueueMPMC.h"
 
-#include "QueueMPMC2.h"
-
 #define TARGET 10000
-static QueueMPMC2 s_q;
+static k_QueueMPMC s_q;
 static k_atomic_U64 s_accumulator;
 static k_atomic_U64 s_counter;
 static void
 produser(void* pArg)
 {
-    while (!QueueMPMCPush(&s_q, &(int){(ssize_t)pArg}, sizeof(int)))
+    while (!k_QueueMPMCPush(&s_q, &(int){(ssize_t)pArg}, sizeof(int)))
         ;
 
     k_atomic_U64AddRelaxed(&s_counter, 1);
@@ -24,10 +22,10 @@ consumer(void* pArg)
 {
     (void)pArg;
 
-    while (k_atomic_U64LoadAcquire(&s_counter) < TARGET || QueueMPMCSize(&s_q) > 0)
+    while (k_atomic_U64LoadAcquire(&s_counter) < TARGET || k_QueueMPMCSize(&s_q) > 0)
     {
         int i = 0;
-        if (QueueMPMCPop(&s_q, &i, sizeof(i)))
+        if (k_QueueMPMCPop(&s_q, &i, sizeof(i)))
             k_atomic_U64AddRelaxed(&s_accumulator, i);
     }
 }
@@ -35,28 +33,28 @@ consumer(void* pArg)
 static void
 test2(void)
 {
-    K_ASSERT_ALWAYS(QueueMPMCInit(&s_q, &k_GpaInst()->base, 4, 4), "");
+    K_ASSERT_ALWAYS(k_QueueMPMCInit(&s_q, &k_GpaInst()->base, (k_QueueMPMCInitOpts){.cap = 4, .slotSize = 4}), "");
 
-    QueueMPMCPush(&s_q, &(int){1}, sizeof(int));
-    QueueMPMCPush(&s_q, &(int){2}, sizeof(int));
-    QueueMPMCPush(&s_q, &(int){3}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){1}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){2}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){3}, sizeof(int));
 
     int i = 0;
-    QueueMPMCPop(&s_q, &i, sizeof(i));
-    QueueMPMCPop(&s_q, &i, sizeof(i));
-    QueueMPMCPop(&s_q, &i, sizeof(i));
-    QueueMPMCPush(&s_q, &(int){4}, sizeof(int));
-    QueueMPMCPush(&s_q, &(int){5}, sizeof(int));
-    QueueMPMCPop(&s_q, &i, sizeof(i));
-    QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPush(&s_q, &(int){4}, sizeof(int));
+    k_QueueMPMCPush(&s_q, &(int){5}, sizeof(int));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
+    k_QueueMPMCPop(&s_q, &i, sizeof(i));
 
-    QueueMPMCDestroy(&s_q, &k_GpaInst()->base);
+    k_QueueMPMCDestroy(&s_q, &k_GpaInst()->base);
 }
 
 static void
 test(void)
 {
-    K_ASSERT_ALWAYS(QueueMPMCInit(&s_q, &k_GpaInst()->base, 64, 2), "");
+    K_ASSERT_ALWAYS(k_QueueMPMCInit(&s_q, &k_GpaInst()->base, (k_QueueMPMCInitOpts){.slotSize = 64, .cap = 2}), "");
 
     k_ThreadPool* pTp = k_CtxThreadPool();
 
@@ -67,7 +65,7 @@ test(void)
 
     k_ThreadPoolWait(pTp);
 
-    QueueMPMCDestroy(&s_q, &k_GpaInst()->base);
+    k_QueueMPMCDestroy(&s_q, &k_GpaInst()->base);
 
     const uint64_t accExpected = ((TARGET-1)*(TARGET))/2;
     uint64_t accumulator = k_atomic_U64LoadRelaxed(&s_accumulator);
