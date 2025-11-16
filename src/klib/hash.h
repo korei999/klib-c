@@ -3,9 +3,11 @@
 #include "common.h"
 
 #include <assert.h>
-#include <nmmintrin.h>
 
-/* Not a real crc remainder. Just a hash function using crc32 hardware intrinsic. */
+#ifdef K_SSE4_2
+    #include <nmmintrin.h>
+
+/* Not a real crc remainder. Just a hash function using crc32 hardware intrinsics. */
 K_NO_UB static inline uint64_t
 k_hash_crc32(const uint8_t* p, ssize_t byteSize, uint64_t seed)
 {
@@ -30,6 +32,8 @@ k_hash_crc32(const uint8_t* p, ssize_t byteSize, uint64_t seed)
 
     return ~crc;
 }
+
+#endif
 
 K_NO_UB static inline uint64_t
 k_hash_mulXor(const uint8_t* p, ssize_t byteSize, uint64_t seed)

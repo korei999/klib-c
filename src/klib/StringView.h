@@ -42,7 +42,11 @@ static inline void k_StringViewSet(const k_StringView* s, ssize_t i, char c);
 static inline uint64_t
 k_StringViewHash(const k_StringView* pSv)
 {
+#ifdef K_SSE4_2
     return k_hash_crc32((uint8_t*)pSv->pData, pSv->size, 0);
+#else
+    return k_hash_mulXor((const uint8_t*)pSv->pData, pSv->size, 0);
+#endif
 }
 
 static inline bool
