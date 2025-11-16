@@ -28,19 +28,20 @@ funcBig(void* pArg)
         k_print(&k_GpaInst()->base, stdout, "big: {sz}\n", p->aBig[i]);
 }
 
-typedef struct FutureDouble
-{
-    k_Future base;
-    double d;
-} FutureDouble;
-
 static void
 futureFunc(void* pArg)
 {
-    FutureDouble* pFut = pArg;
-    k_print(&k_GpaInst()->base, stdout, "(FUNC) fut addr: {:#x:uz}\n", pFut);
-    pFut->d = 111.222;
-    k_FutureSignal(&pFut->base);
+    double* d = pArg;
+    *d = 111.222;
+    k_print(&k_GpaInst()->base, stdout, "futureFunk: {d}\n", *d);
+}
+
+static void
+futureFunc2(void* pArg)
+{
+    double* d = pArg;
+    *d = 666.999;
+    k_print(&k_GpaInst()->base, stdout, "futureFunk2: {d}\n", *d);
 }
 
 static k_atomic_Int s_atomCounter = {0};
@@ -69,7 +70,7 @@ main(void)
     if (!k_ThreadPoolInit(&tp, (k_ThreadPoolInitOpts){
         .nThreads = k_optimalThreadCount(),
         .arenaReserve = K_SIZE_1K*60,
-        .queueSlotSize = 64,
+        .queueSlotSize = 128,
         .queueCap = 256
     }))
     {
@@ -103,17 +104,21 @@ main(void)
     for (ssize_t i = 0; i < K_ASIZE(bp0.aBig); ++i) bp0.aBig[i] = i;
     k_ThreadPoolAdd(&tp, funcBig, &bp0, sizeof(bp0));
 
-    FutureDouble fut = {0};
-    k_FutureInit(&fut.base, &tp);
-    k_print(&gpa.base, stdout, "(CALL) fut addr: {:#x:uz}\n", &fut.base);
-    k_ThreadPoolAddP(&tp, futureFunc, &fut);
+    {
+        k_Future fut = k_FutureCreate(&tp);
+        double dd = 0;
+        k_ThreadPoolAddPFuture(&tp, &fut, futureFunc, &dd);
 
-    k_FutureWait(&fut.base);
-    k_print(&gpa.base, stdout, "fut: {d}\n", fut.d);
-    assert(fut.d == 111.222);
-    k_FutureDestroy(&fut.base);
+        k_FutureWait(&fut);
+        k_print(&gpa.base, stdout, "dd: {d}\n", dd);
+        assert(dd == 111.222);
 
-    const ssize_t BIG = 2000;
+        k_ThreadPoolAddFuture(&tp, &fut, futureFunc2, &dd, sizeof(dd));
+        k_FutureWait(&fut);
+        assert(dd == 111.222);
+    }
+
+    const ssize_t BIG = 1000;
     for (ssize_t i = 0; i < BIG; ++i)
         k_ThreadPoolAddP(&tp, funcBigLoad, NULL);
 

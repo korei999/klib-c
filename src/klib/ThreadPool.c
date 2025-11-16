@@ -16,9 +16,13 @@ static K_THREAD_LOCAL k_Arena stl_arena;
 static K_THREAD_LOCAL int stl_threadI;
 static K_THREAD_LOCAL uint8_t* stl_pBuffer;
 
+#define PTR_BIT 1
+#define FUTURE_BIT (1 << 1)
+
 typedef struct Header
 {
     uint64_t pfnPlusBPtr;
+    /* Pfn << 2. First bit is 1 if arg is pointer. Second bit is 1 if future must be signaled. */
 } Header;
 
 ssize_t
@@ -58,28 +62,25 @@ k_optimalThreadCount(void)
     return  n;
 }
 
-bool
-k_FutureInit(k_Future* s, struct k_ThreadPool* pThreadPool)
-{
-    s->pThreadPool = pThreadPool;
-    k_MutexInit(&s->mtx, K_MUTEX_TYPE_PLAIN);
-    k_CndVarInit(&s->cnd);
-    s->bDone = false;
-
-    return true;
-}
-
 static void
 execTask(k_ThreadPool* s, void* p)
 {
     k_atomic_IntSubRelaxed(&s->nTasks, 1);
 
-    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)((*(uint64_t*)p) >> 1);
-    bool bPtr = (*(uint64_t*)p) & 1;
-    void** pArg = (void**)((uint8_t*)p + sizeof(pfn));
+    const uint64_t payload = *(uint64_t*)p;
+    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)(payload >> 2ull);
 
-    if (bPtr) pfn(*pArg);
+    void** pArg = payload & FUTURE_BIT ?
+        (void**)((uint8_t*)p + sizeof(pfn)*2) :
+        (void**)((uint8_t*)p + sizeof(pfn));
+    k_Future* pFut = payload & FUTURE_BIT ?
+        *(k_Future**)((uint8_t*)p + sizeof(pfn)) :
+        NULL;
+
+    if (payload & PTR_BIT) pfn(*pArg);
     else pfn(pArg);
+
+    if (pFut) k_FutureSignal(pFut);
 
     k_atomic_IntSubRelaxed(&s->nTasksActive, 1);
 }
@@ -99,36 +100,25 @@ stealTasks(k_ThreadPool* s)
 }
 
 void
-k_FutureDestroy(k_Future* s)
-{
-    k_MutexDestroy(&s->mtx);
-    k_CndVarDestroy(&s->cnd);
-}
-
-void
 k_FutureWait(k_Future* s)
 {
-    stealTasks(s->pThreadPool);
+    uint8_t* pBuffer = stl_pBuffer;
 
-    k_MutexLock(&s->mtx);
-    while (!s->bDone) k_CndVarWait(&s->cnd, &s->mtx);
-    k_MutexUnlock(&s->mtx);
-}
+    while (k_atomic_IntLoadAcquire(&s->pThreadPool->nTasks) > 0)
+    {
+        if (!k_QueueMPMCPop(&s->pThreadPool->qTasks, pBuffer, s->pThreadPool->memberSize))
+            continue;
 
-void
-k_FutureSignal(k_Future* s)
-{
-    k_MutexLock(&s->mtx);
-    s->bDone = true;
-    k_CndVarSignal(&s->cnd);
-    k_MutexUnlock(&s->mtx);
-}
+        execTask(s->pThreadPool, pBuffer);
 
-void
-k_FutureReset(k_Future* s)
-{
-    assert(s->bDone == true);
-    s->bDone = false;
+        if (k_atomic_U8LoadRelaxed(&s->bDone))
+            return;
+    }
+
+    while (!k_atomic_U8LoadRelaxed(&s->bDone))
+        k_ThreadYield();
+
+    k_atomic_U8StoreRelaxed(&s->bDone, false);
 }
 
 static K_THREAD_RESULT
@@ -137,8 +127,11 @@ loop(void* pUser)
     k_ThreadPool* s = pUser;
 
     assert(s->arenaReserve > 0);
-    if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4)) goto fail;
+    if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4))
+        goto fail;
+
     if (s->pfnLoopStart) s->pfnLoopStart(s->pLoopStartArg);
+
     stl_threadI = k_atomic_IntAddRelaxed(&s->idCounter, 1);
     stl_pBuffer = calloc(1, s->memberSize);
 
@@ -177,9 +170,12 @@ start(k_ThreadPool* s)
 {
     k_atomic_IntAddRelaxed(&s->idCounter, 1);
     for (ssize_t i = 0; i < s->nThreads; ++i)
-        if (!k_ThreadInit(&s->pThreads[i], loop, s)) goto fail;
+        if (!k_ThreadInit(&s->pThreads[i], loop, s))
+            goto fail;
 
-    if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4)) goto fail;
+    if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4))
+        goto fail;
+
     stl_pBuffer = calloc(1, s->qTasks.memberSize);
 
     s->bStarted = true;
@@ -297,7 +293,7 @@ k_ThreadPoolBuffer(void)
 void
 k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize)
 {
-    Header header = {(uint64_t)pfn << 1ull};
+    Header header = {(uint64_t)pfn << 2ull};
 
     const k_Span aSps[] = {
         {&header, sizeof(header)},
@@ -311,9 +307,41 @@ k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t ar
 }
 
 void
+k_ThreadPoolAddFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize)
+{
+    assert(pFut->pThreadPool == s && "use k_FutureCreate()");
+
+    Header header = {(uint64_t)pfn << 2ull | FUTURE_BIT};
+    void* aPayload[] = {(void*)header.pfnPlusBPtr, pFut};
+    const k_Span aSps[] = {
+        {aPayload, sizeof(aPayload)},
+        {pArg, argSize},
+    };
+    while (!k_QueueMPMCPushV(&s->qTasks, aSps, K_ASIZE(aSps)))
+        ;
+    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
+    k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_SemaphoreInc(&s->sem);
+}
+
+void
+k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, void* pArg)
+{
+    assert(pFut->pThreadPool == s && "use k_FutureCreate()");
+
+    Header header = {(uint64_t)pfn << 2ull | FUTURE_BIT | PTR_BIT};
+    void* aPayload[] = {(void*)header.pfnPlusBPtr, pFut, pArg};
+    while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
+        ;
+    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
+    k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_SemaphoreInc(&s->sem);
+}
+
+void
 k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
 {
-    Header header = {(uint64_t)pfn << 1ull | 1ull };
+    Header header = {(uint64_t)pfn << 2ull | PTR_BIT};
     void* aPayload[2] = {(void*)header.pfnPlusBPtr, pArg};
 
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))

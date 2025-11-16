@@ -17,16 +17,13 @@ struct k_ThreadPool;
 typedef struct k_Future
 {
     struct k_ThreadPool* pThreadPool;
-    k_Mutex mtx;
-    k_CndVar cnd;
-    bool bDone;
+    k_atomic_U8 bDone;
 } k_Future;
 
-bool k_FutureInit(k_Future* s, struct k_ThreadPool* pThreadPool);
-void k_FutureDestroy(k_Future* s);
+static inline k_Future k_FutureCreate(struct k_ThreadPool* pThreadPool);
 void k_FutureWait(k_Future* s);
-void k_FutureSignal(k_Future* s);
-void k_FutureReset(k_Future* s);
+static inline void k_FutureSignal(k_Future* s);
+static inline void k_FutureReset(k_Future* s);
 
 typedef struct k_ThreadPool
 {
@@ -68,4 +65,25 @@ void k_ThreadPoolWait(k_ThreadPool* s);
 k_Arena* k_ThreadPoolArena(k_ThreadPool* s); /* Get thread local arena. */
 uint8_t** k_ThreadPoolBuffer(void); /* Get thread local payload buffer. */
 void k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize);
+void k_ThreadPoolAddFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize);
+void k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, void* pArg);
 void k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg);
+
+static inline k_Future
+k_FutureCreate(struct k_ThreadPool* pThreadPool)
+{
+    return (k_Future){.pThreadPool = pThreadPool, .bDone.volNum = 0};
+}
+
+static inline void
+k_FutureSignal(k_Future* s)
+{
+    k_atomic_U8StoreRelease(&s->bDone, true);
+}
+
+static inline void
+k_FutureReset(k_Future* s)
+{
+    assert(k_atomic_U8LoadRelaxed(&s->bDone) == true);
+    k_atomic_U8StoreRelaxed(&s->bDone, false);
+}
