@@ -290,6 +290,14 @@ k_ThreadPoolBuffer(void)
     return &stl_pBuffer;
 }
 
+static void
+addEpilogue(k_ThreadPool* s)
+{
+    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
+    k_atomic_IntAddRelease(&s->nTasks, 1);
+    k_SemaphoreInc(&s->sem);
+}
+
 void
 k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize)
 {
@@ -301,9 +309,7 @@ k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t ar
     };
     while (!k_QueueMPMCPushV(&s->qTasks, aSps, K_ASIZE(aSps)))
         ;
-    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
-    k_atomic_IntAddRelease(&s->nTasks, 1);
-    k_SemaphoreInc(&s->sem);
+    addEpilogue(s);
 }
 
 void
@@ -319,9 +325,7 @@ k_ThreadPoolAddFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, 
     };
     while (!k_QueueMPMCPushV(&s->qTasks, aSps, K_ASIZE(aSps)))
         ;
-    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
-    k_atomic_IntAddRelease(&s->nTasks, 1);
-    k_SemaphoreInc(&s->sem);
+    addEpilogue(s);
 }
 
 void
@@ -333,9 +337,7 @@ k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn,
     void* aPayload[] = {(void*)header.pfnPlusBPtr, pFut, pArg};
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
-    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
-    k_atomic_IntAddRelease(&s->nTasks, 1);
-    k_SemaphoreInc(&s->sem);
+    addEpilogue(s);
 }
 
 void
@@ -346,7 +348,5 @@ k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
 
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
-    k_atomic_IntAddRelaxed(&s->nTasksActive, 1);
-    k_atomic_IntAddRelease(&s->nTasks, 1);
-    k_SemaphoreInc(&s->sem);
+    addEpilogue(s);
 }
