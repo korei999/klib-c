@@ -16,14 +16,11 @@ static K_THREAD_LOCAL k_Arena stl_arena;
 static K_THREAD_LOCAL int stl_threadI;
 static K_THREAD_LOCAL uint8_t* stl_pBuffer;
 
+#define PFN_SHIFT 2
 #define PTR_BIT 1
 #define FUTURE_BIT (1 << 1)
 
-typedef struct Header
-{
-    uint64_t pfnPlusBPtr;
-    /* Pfn << 2. First bit is 1 if arg is pointer. Second bit is 1 if future must be signaled. */
-} Header;
+typedef uint64_t Header;
 
 ssize_t
 k_logicalCoreCount(void)
@@ -68,7 +65,7 @@ execTask(k_ThreadPool* s, void* p)
     k_atomic_IntSubRelaxed(&s->nTasks, 1);
 
     const uint64_t payload = *(uint64_t*)p;
-    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)(payload >> 2ull);
+    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)(payload >> PFN_SHIFT);
 
     void** pArg = payload & FUTURE_BIT ?
         (void**)((uint8_t*)p + sizeof(pfn)*2) :
@@ -301,7 +298,7 @@ addEpilogue(k_ThreadPool* s)
 void
 k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize)
 {
-    Header header = {(uint64_t)pfn << 2ull};
+    Header header = (uint64_t)pfn << PFN_SHIFT;
 
     const k_Span aSps[] = {
         {&header, sizeof(header)},
@@ -317,8 +314,8 @@ k_ThreadPoolAddFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, 
 {
     assert(pFut->pThreadPool == s && "use k_FutureCreate()");
 
-    Header header = {(uint64_t)pfn << 2ull | FUTURE_BIT};
-    void* aPayload[] = {(void*)header.pfnPlusBPtr, pFut};
+    Header header = ((uint64_t)pfn << PFN_SHIFT) | FUTURE_BIT;
+    void* aPayload[] = {(void*)header, pFut};
     const k_Span aSps[] = {
         {aPayload, sizeof(aPayload)},
         {pArg, argSize},
@@ -333,8 +330,8 @@ k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn,
 {
     assert(pFut->pThreadPool == s && "use k_FutureCreate()");
 
-    Header header = {(uint64_t)pfn << 2ull | FUTURE_BIT | PTR_BIT};
-    void* aPayload[] = {(void*)header.pfnPlusBPtr, pFut, pArg};
+    Header header = ((uint64_t)pfn << PFN_SHIFT) | FUTURE_BIT | PTR_BIT;
+    void* aPayload[] = {(void*)header, pFut, pArg};
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
     addEpilogue(s);
@@ -343,8 +340,8 @@ k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn,
 void
 k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
 {
-    Header header = {(uint64_t)pfn << 2ull | PTR_BIT};
-    void* aPayload[2] = {(void*)header.pfnPlusBPtr, pArg};
+    Header header = ((uint64_t)pfn << PFN_SHIFT) | PTR_BIT;
+    void* aPayload[2] = {(void*)header, pArg};
 
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;

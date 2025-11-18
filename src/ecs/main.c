@@ -42,9 +42,30 @@ static const int COMPONENT_SIZE_MAP[] = {
     [COMPONENT_BIG_BUFF] = sizeof(BigBuff),
 };
 
+static ssize_t
+PosPFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* p)
+{
+    Pos* pPos = p;
+    return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
+        "({f}, {f})", pPos->x, pPos->y
+    ).size;
+}
+
+static ssize_t
+OtherThingsPFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* p)
+{
+    OtherThings* ps = p;
+    return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
+        "({i}, '{s}', {d}, {PPos})", ps->i, ps->nts, ps->d, &ps->pos2
+    ).size;
+}
+
 static void
 test(void)
 {
+    k_print_MapAddFormatter(k_CtxPrintMap(), "PPos", PosPFormatter);
+    k_print_MapAddFormatter(k_CtxPrintMap(), "POtherThings", OtherThingsPFormatter);
+
     ecs_Map s = {0};
     ecs_MapInit(&s, &k_GpaInst()->base, 8, COMPONENT_SIZE_MAP, K_ASIZE(COMPONENT_SIZE_MAP));
     ECS_ENTITY aH[17] = {0};
@@ -57,6 +78,7 @@ test(void)
         ecs_MapAdd(&s, aH[3], COMPONENT_POS, &p3);
         ecs_MapAdd(&s, aH[3], COMPONENT_BIG_BUFF, &(BigBuff){"entity3"});
     }
+
     {
         Pos p4 = {.x = 4, .y = -4};
         Health hl4 = {4};
@@ -98,8 +120,8 @@ test(void)
         Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;
         for (int posI = 0; posI < s.pSOAComponents[COMPONENT_POS].size; ++posI)
         {
-            K_CTX_LOG_DEBUG("({i}) pos: ({:.3:f}, {:.3:f})",
-                s.pSOAComponents[COMPONENT_POS].pDense[posI], pPos[posI].x, pPos[posI].y
+            K_CTX_LOG_DEBUG("({i}) pos: {:.3:PPos}",
+                s.pSOAComponents[COMPONENT_POS].pDense[posI], pPos
             );
         }
         K_CTX_LOG_DEBUG("");
@@ -115,8 +137,8 @@ test(void)
         for (int posI = 0; posI < s.pSOAComponents[COMPONENT_OTHER_THINGS].size; ++posI)
         {
             OtherThings* pIt = &pOthers[posI];
-            K_CTX_LOG_DEBUG("({i}) OtherThings: '{s}', {i}, {d}, ({f}, {f})",
-                s.pSOAComponents[COMPONENT_OTHER_THINGS].pDense[posI], pIt->nts, pIt->i, pIt->d, pIt->pos2.x, pIt->pos2.y
+            K_CTX_LOG_DEBUG("({i}) OtherThings: {:.2:POtherThings}",
+                s.pSOAComponents[COMPONENT_OTHER_THINGS].pDense[posI], pIt
             );
         }
         K_CTX_LOG_DEBUG("");
@@ -131,7 +153,7 @@ test(void)
         {
             Health* pH13 = ecs_MapGet(&s, aH[13], COMPONENT_HEALTH);
             Pos* p13 = ecs_MapGet(&s, aH[13], COMPONENT_POS);
-            K_CTX_LOG_DEBUG("h13 Health: {i}, p13 pos: ({:.3:f}, {:.3:f})", pH13->val, p13->x, p13->y);
+            K_CTX_LOG_DEBUG("h13 Health: {i}, p13 pos: {:.3:PPos}", pH13->val, p13);
 
             Health* pH11 = ecs_MapGet(&s, aH[11], COMPONENT_HEALTH);
             K_CTX_LOG_DEBUG("h11 Health: {i}", pH11->val);

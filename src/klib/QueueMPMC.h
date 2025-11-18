@@ -41,7 +41,7 @@ typedef struct k_QueueMPMC
 typedef struct k_QueueMPMCInitOpts
 {
     int slotSize; /* Aligned to sizeof(k_QueueMPMCSlot). */
-    int cap; /* Rounded to next power of two. */
+    int cap; /* Rounded to the next power of two. */
 } k_QueueMPMCInitOpts;
 
 static inline bool k_QueueMPMCInit(k_QueueMPMC* s, k_IAllocator* pAlloc, k_QueueMPMCInitOpts opts);
