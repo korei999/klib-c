@@ -549,20 +549,17 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
 
     while (s->tok.eType == TOKEN_BRACE_OPEN || s->tok.eType == TOKEN_BRACKET_OPEN)
     {
-        if (s->tok.eType == TOKEN_BRACE_OPEN)
-        {
-            const ssize_t n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
-            if (n < 0) return false;
+        const K_JSON_TYPE eType = s->tok.eType == TOKEN_BRACE_OPEN ? K_JSON_TYPE_OBJECT : K_JSON_TYPE_ARRAY;
+        const ssize_t n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = eType});
+        if (n < 0) return false;
+        k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
 
-            k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
+        if (eType == K_JSON_TYPE_OBJECT)
+        {
             if (!parseObject(s, pAlloc, &pNewVal->object)) return false;
         }
-        else if (s->tok.eType == TOKEN_BRACKET_OPEN)
+        else
         {
-            const ssize_t n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
-            if (n < 0) return false;
-
-            k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
             if (!parseArray(s, pAlloc, &pNewVal->array)) return false;
         }
 
