@@ -76,7 +76,16 @@ static inline ssize_t k_JsonObjectPush(k_JsonObject* s, k_IAllocator* pAlloc, co
 static inline ssize_t k_JsonObjectPushSv(k_JsonObject* s, k_IAllocator* pAlloc, const k_StringView svName, const k_JsonValue* pNameValue);
 static inline ssize_t k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pNameValue);
 
-static inline k_JsonValue k_JsonCreateObject(void)
+static inline k_JsonObject* k_JsonAsObject(k_JsonValue* pVal);
+static inline k_JsonArray* k_JsonAsArray(k_JsonValue* pVal);
+static inline k_StringView k_JsonAsString(k_JsonValue* pVal);
+static inline int64_t k_JsonAsInt(k_JsonValue* pVal);
+static inline double k_JsonAsFloat(k_JsonValue* pVal);
+static inline bool k_JsonAsBool(k_JsonValue* pVal);
+static inline void* k_JsonAsNull(k_JsonValue* pVal);
+
+static inline k_JsonValue
+k_JsonCreateObject(void)
 {
     return (k_JsonValue){
         .eType = K_JSON_TYPE_OBJECT,
@@ -184,4 +193,55 @@ static inline ssize_t
 k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pNameValue)
 {
     return k_VecPush(&s->vValues, pAlloc, sizeof(*pNameValue), pNameValue);
+}
+
+static inline k_JsonObject*
+k_JsonAsObject(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_OBJECT);
+    return &pVal->object;
+}
+
+static inline k_JsonArray*
+k_JsonAsArray(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_ARRAY);
+    return &pVal->array;
+}
+
+static inline k_StringView
+k_JsonAsString(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_STRING);
+    return pVal->svValue;
+}
+
+static inline int64_t
+k_JsonAsInt(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_INT);
+    return k_StringViewToI64(pVal->svValue, 10);
+}
+
+static inline double
+k_JsonAsFloat(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_FLOAT);
+    return k_StringViewToDouble(pVal->svValue);
+}
+
+static inline bool
+k_JsonAsBool(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_TRUE || pVal->eType == K_JSON_TYPE_FALSE);
+    if (k_StringViewCmp(&pVal->svValue, &K_SV("true")))
+        return true;
+    else return false;
+}
+
+static inline void*
+k_JsonAsNull(k_JsonValue* pVal)
+{
+    assert(pVal->eType == K_JSON_TYPE_NULL);
+    return NULL;
 }
