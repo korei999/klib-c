@@ -531,7 +531,7 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
     s->i = 0;
     s->x = 1;
     s->y = 1;
-    s->vTree = (k_Vec){0};
+    s->tree.v = (k_Vec){0};
 
     if (!nextToken(s)) return false;
 
@@ -549,10 +549,10 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
     {
         ssize_t n;
 moreObjects:
-        n = k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
+        n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
         if (n < 0) return false;
 
-        k_JsonValue* pNewVal = (k_JsonValue*)s->vTree.pData + n;
+        k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
         if (!parseObject(s, pAlloc, &pNewVal->object)) return false;
 
         if (!nextToken(s)) return false;
@@ -563,10 +563,10 @@ moreObjects:
     {
         ssize_t n;
 moreArrays:
-        n = k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
+        n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
         if (n < 0) return false;
 
-        k_JsonValue* pNewVal = (k_JsonValue*)s->vTree.pData + n;
+        k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
         if (!parseArray(s, pAlloc, &pNewVal->array)) return false;
 
         if (!nextToken(s)) return false;
@@ -680,9 +680,15 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
 }
 
 void
-k_JsonParserPrint(k_JsonParser* s, k_print_Builder* pBuilder)
+k_JsonParserPrint(const k_JsonParser* s, k_print_Builder* pBuilder)
 {
-    K_VEC_FOR_EACH(&s->vTree, k_JsonValue, pVal)
+    k_JsonPrint(&s->tree, pBuilder);
+}
+
+void
+k_JsonPrint(const k_JsonTree* s, k_print_Builder* pBuilder)
+{
+    K_VEC_FOR_EACH(&s->v, k_JsonValue, pVal)
     {
         switch (pVal->eType)
         {
