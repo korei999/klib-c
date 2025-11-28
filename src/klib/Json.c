@@ -570,7 +570,7 @@ printArray(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
     fmtArgs.padSize = depth;
     k_print_FmtArgs fmtArgsNext = fmtArgs;
-    fmtArgsNext.padSize += 4;
+    fmtArgsNext.padSize += 2;
 
     if (pArr->vValues.size <= 0)
     {
@@ -587,11 +587,11 @@ printArray(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
         switch (pIt->eType)
         {
             case K_JSON_TYPE_OBJECT:
-            printObject(&pIt->object, pBuilder, depth + 4);
+            printObject(&pIt->object, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_ARRAY:
-            printArray(&pIt->array, pBuilder, depth + 4);
+            printArray(&pIt->array, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_STRING:
@@ -620,7 +620,7 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
     fmtArgs.padSize = depth;
     k_print_FmtArgs fmtArgsNext = fmtArgs;
-    fmtArgsNext.padSize += 4;
+    fmtArgsNext.padSize += 2;
 
     if (pObj->vNameValues.size <= 0)
     {
@@ -640,11 +640,11 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
         switch (pIt->val.eType)
         {
             case K_JSON_TYPE_OBJECT:
-            printObject(&pIt->val.object, pBuilder, depth + 4);
+            printObject(&pIt->val.object, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_ARRAY:
-            printArray(&pIt->val.array, pBuilder, depth + 4);
+            printArray(&pIt->val.array, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_STRING:
