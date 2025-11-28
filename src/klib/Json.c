@@ -278,17 +278,11 @@ setStringType(k_JsonValue* pVal)
     if (pVal->svValue.size > 0)
     {
         if (k_StringViewCmp(&pVal->svValue, &K_SV("false")))
-        {
             pVal->eType = K_JSON_TYPE_FALSE;
-        }
         else if (k_StringViewCmp(&pVal->svValue, &K_SV("true")))
-        {
             pVal->eType = K_JSON_TYPE_TRUE;
-        }
         else if (k_StringViewCmp(&pVal->svValue, &K_SV("null")))
-        {
             pVal->eType = K_JSON_TYPE_NULL;
-        }
     }
 
     if (pVal->eType == 0)
@@ -358,6 +352,7 @@ gotComma:
         {
             val.eType = K_JSON_TYPE_STRING;
             val.svValue = s->tok.sv;
+            if (!setStringType(&val)) return false;
             if (k_VecPush(&pArr->vValues, pAlloc, sizeof(val), &val) < 0)
                 return false;
         }
