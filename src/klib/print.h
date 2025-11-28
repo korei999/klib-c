@@ -7,19 +7,19 @@
 #include <stdio.h>
 
 typedef uint8_t K_PRINT_BASE;
-static const uint8_t K_PRINT_BASE_TWO = 2;
-static const uint8_t K_PRINT_BASE_EIGHT = 8;
-static const uint8_t K_PRINT_BASE_TEN = 10;
-static const uint8_t K_PRINT_BASE_SIXTEEN = 16;
+static const K_PRINT_BASE K_PRINT_BASE_TWO = 2;
+static const K_PRINT_BASE K_PRINT_BASE_EIGHT = 8;
+static const K_PRINT_BASE K_PRINT_BASE_TEN = 10;
+static const K_PRINT_BASE K_PRINT_BASE_SIXTEEN = 16;
 
 typedef uint8_t K_PRINT_FMT_FLAGS;
-static const uint8_t K_PRINT_FMT_FLAGS_HASH = 1;
-static const uint8_t K_PRINT_FMT_FLAGS_SHOW_SIGN = 1 << 1;
-static const uint8_t K_PRINT_FMT_FLAGS_ARG_IS_FMT = 1 << 2;
-static const uint8_t K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION = 1 << 3;
-static const uint8_t K_PRINT_FMT_FLAGS_ARG_IS_FILLER = 1 << 4;
-static const uint8_t K_PRINT_FMT_FLAGS_JUSTIFY_LEFT = 1 << 5;
-static const uint8_t K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT = 1 << 6;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_HASH = 1;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_SHOW_SIGN = 1 << 1;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_ARG_IS_FMT = 1 << 2;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION = 1 << 3;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_ARG_IS_FILLER = 1 << 4;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_JUSTIFY_LEFT = 1 << 5;
+static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT = 1 << 6;
 
 static const ssize_t K_PRINT_FMT_ARG_EATEN = -666999;
 

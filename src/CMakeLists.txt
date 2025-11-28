@@ -22,6 +22,7 @@ set(TestBinaries
     CmdLine
     Pool
     SOAGen
+    Json
 )
 
 foreach(Executable IN LISTS TestBinaries)

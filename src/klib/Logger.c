@@ -28,7 +28,7 @@ loop(void* pArg)
         K_LOGGER_LEVEL eLevel = 0;
         LogHeader* pHeader = (LogHeader*)s->pDrainBuff;
 
-        int nPosts = k_atomic_IntLoadRelaxed(&s->nPosts);
+        const int nPosts = k_atomic_IntLoadRelaxed(&s->nPosts);
 
         if (nPosts > 0)
         {
@@ -200,7 +200,7 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOGGER_LEVEL eLevel, const c
         "",
         K_LOGGER_ANSI_COLOR_YELLOW K_LOGGER_ANSI_COLOR_BOLD "WARNING" K_LOGGER_ANSI_COLOR_NORM,
         K_LOGGER_ANSI_COLOR_RED K_LOGGER_ANSI_COLOR_BOLD "ERROR" K_LOGGER_ANSI_COLOR_NORM,
-        K_LOGGER_ANSI_COLOR_BLUE "INFO" K_LOGGER_ANSI_COLOR_NORM,
+        K_LOGGER_ANSI_COLOR_BLUE K_LOGGER_ANSI_COLOR_ITALIC "INFO" K_LOGGER_ANSI_COLOR_NORM,
         K_LOGGER_ANSI_COLOR_CYAN "DEBUG" K_LOGGER_ANSI_COLOR_NORM,
     };
     static const char* map[] = {

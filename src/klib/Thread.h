@@ -466,6 +466,23 @@ k_SemaphoreInc(k_Semaphore* s)
 }
 
 static inline void
+k_SemaphoreIncN(k_Semaphore* s, int n)
+{
+#if defined K_THREAD_WIN32
+
+    bool b = ReleaseSemaphore(s->priv.sem, n, NULL);
+    (void)b;
+    assert(b);
+
+#elif defined K_THREAD_UNIX
+
+    for (int i = 0; i < n; ++i)
+        sem_post(&s->priv.sem);
+
+#endif
+}
+
+static inline void
 k_SemaphoreDec(k_Semaphore* s)
 {
 #if defined K_THREAD_WIN32

@@ -27,7 +27,7 @@ main(void)
 
         ArenaPtrI64 anNumber = {0};
 
-        K_ARENA_SCOPE(&arena)
+        K_ARENA_SCOPE_DELETERS(&arena)
         {
             k_ArenaPtrAlloc(&arena, (k_ArenaPtrAllocOpts){
                 .pNode = &anNumber.base,

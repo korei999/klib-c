@@ -88,8 +88,9 @@ typedef struct
 void k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena);
 void k_ArenaStateRestore(k_ArenaState* s);
 
-void k_ArenaStatePushIgnoreDeleters(k_ArenaState* s, k_Arena* pArena);
-void k_ArenaStateRestoreIgnoreDeleters(k_ArenaState* s);
+/* Also push new deleters list. */
+void k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena);
+void k_ArenaStateRestoreDeleters(k_ArenaState* s);
 
 #define K_ARENA_SCOPE_VAR(pArena, name)                                                                                \
     for (k_ArenaState name, *K_GLUE(_pState, name) = (k_ArenaStatePush(&name, pArena), NULL); !K_GLUE(_pState, name);  \
@@ -101,4 +102,11 @@ void k_ArenaStateRestoreIgnoreDeleters(k_ArenaState* s);
          !K_GLUE(_pState__, name);                                                                                     \
          K_GLUE(_pState__, name) = (k_ArenaStateRestore(&K_GLUE(_state__, name)), (k_ArenaState*)K_NPOS64))
 
+#define K_ARENA_SCOPE_AUTO_VAR_DELETERS(pArena, name)                                                                  \
+    for (k_ArenaState K_GLUE(_state__, name),                                                                          \
+         *K_GLUE(_pState__, name) = (k_ArenaStatePushDeleters(&K_GLUE(_state__, name), pArena), NULL);                 \
+         !K_GLUE(_pState__, name);                                                                                     \
+         K_GLUE(_pState__, name) = (k_ArenaStateRestoreDeleters(&K_GLUE(_state__, name)), (k_ArenaState*)K_NPOS64))
+
 #define K_ARENA_SCOPE(pArena) K_ARENA_SCOPE_AUTO_VAR(pArena, __COUNTER__)
+#define K_ARENA_SCOPE_DELETERS(pArena) K_ARENA_SCOPE_AUTO_VAR_DELETERS(pArena, __COUNTER__)

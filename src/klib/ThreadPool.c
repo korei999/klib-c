@@ -191,17 +191,17 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
 {
     *s = (k_ThreadPool){0};
 
-    k_Gpa gpa = k_GpaCreate();
+    k_Gpa* pGpa = k_GpaInst();
     k_Thread* pNewThreads = NULL;
     int memberSize = 0;
     if (opts.nThreads > 0)
     {
-        pNewThreads = K_IZALLOC_T(&gpa, k_Thread, opts.nThreads);
+        pNewThreads = K_IZALLOC_T(pGpa, k_Thread, opts.nThreads);
         if (!pNewThreads) return false;
 
         memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header): opts.queueSlotSize + (int)sizeof(Header);
 
-        if (!k_QueueMPMCInit(&s->qTasks, &gpa.base, (k_QueueMPMCInitOpts){
+        if (!k_QueueMPMCInit(&s->qTasks, &pGpa->base, (k_QueueMPMCInitOpts){
             .slotSize = memberSize,
             .cap = opts.queueCap <= 0 ? K_THREAD_POOL_DEFAULT_QUEUE_CAP : opts.queueCap,
         })) goto fail2;
@@ -223,32 +223,31 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
 fail0:
     k_SemaphoreDestroy(&s->sem);
 fail1:
-    k_QueueMPMCDestroy(&s->qTasks, &gpa.base);
+    k_QueueMPMCDestroy(&s->qTasks, &pGpa->base);
 fail2:
-    k_IAllocatorFree(&gpa, pNewThreads);
+    k_IAllocatorFree(&pGpa, pNewThreads);
     return false;
 }
 
 void
 k_ThreadPoolDestroy(k_ThreadPool* s)
 {
-    k_Gpa gpa = k_GpaCreate();
+    k_Gpa* pGpa = k_GpaInst();
 
     if (s->nThreads > 0)
     {
         k_ThreadPoolWait(s);
 
         k_atomic_IntStoreRelease(&s->bDone, true);
-        for (int i = 0; i < s->nThreads; ++i)
-            k_SemaphoreInc(&s->sem);
+        k_SemaphoreIncN(&s->sem, s->nThreads);
 
         for (ssize_t i = 0; i < s->nThreads; ++i)
             k_ThreadJoin(&s->pThreads[i]);
 
         assert(k_atomic_IntLoadAcquire(&s->nTasks) == 0);
 
-        k_IAllocatorFree(&gpa.base, s->pThreads);
-        k_QueueMPMCDestroy(&s->qTasks, &gpa.base);
+        k_IAllocatorFree(&pGpa->base, s->pThreads);
+        k_QueueMPMCDestroy(&s->qTasks, &pGpa->base);
         k_SemaphoreDestroy(&s->sem);
     }
 
