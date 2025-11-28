@@ -113,7 +113,7 @@ static void
 tokNumber(k_JsonParser* s)
 {
     const ssize_t pos = s->i;
-    s->tok.x = pos;
+    s->tok.x = s->x;
     s->tok.y = s->y;
 
     while (s->i < s->svText.size)
@@ -219,14 +219,14 @@ expectErrorLog(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot)
         k_print_BuilderInitOpts opts = {.pAllocOrNull = &pArena->base, .preallocOrBufferSize = 256};
         if (k_print_BuilderInit(&b, opts))
         {
-            const k_StringView svExpected = bNot ? K_SV("\nexpected not: ") : K_SV("\nexpected: ");
+            const k_StringView svExpected = bNot ? K_SV("expected not: [") : K_SV("expected: [");
             k_print_BuilderPushSv(&b, svExpected);
             for (int i = 0; i < nTokens; ++i)
             {
                 k_print_BuilderPushSv(&b, K_NTS(aTOKEN_STRINGS[pTokens[i]]));
                 if (i != nTokens - 1) k_print_BuilderPushSv(&b, K_SV(" or "));
             }
-            k_print_BuilderPrint(&b, "\ngot: {s} '{PSv}' (at: {i}, {i})", aTOKEN_STRINGS[s->tok.eType], &s->tok.sv, s->tok.x, s->tok.y);
+            k_print_BuilderPrint(&b, "], got: {s} '{PSv}' (at: {i}, {i})", aTOKEN_STRINGS[s->tok.eType], &s->tok.sv, s->tok.x, s->tok.y);
         }
 
         const k_StringView svPrinted = k_print_BuilderToSv(&b);
@@ -484,8 +484,6 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
     {
         k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonArray), &(k_JsonArray){0});
     }
-
-    // if (!parse(s, pAlloc)) return false;
 
     // while (s->i < s->svText.size)
     // {
