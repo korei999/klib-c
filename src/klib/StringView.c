@@ -80,7 +80,7 @@ k_StringViewSubStringAt(const k_StringView s, const k_StringView r)
 }
 
 bool
-k_StringViewContainsSv(const k_StringView s, const k_StringView r)
+k_StringViewHasSv(const k_StringView s, const k_StringView r)
 {
     if (s.size < r.size || s.size == 0 || r.size == 0)
         return false;
@@ -104,10 +104,23 @@ k_StringViewContainsSv(const k_StringView s, const k_StringView r)
 }
 
 bool
-k_StringViewContainsChar(const k_StringView s, char c)
+k_StringViewHasChar(const k_StringView s, char c)
 {
     if (s.size < 0 || !s.pData) return false;
     return memchr(s.pData, c, s.size) != NULL;
+}
+
+bool
+k_StringViewHasOneOf(const k_StringView s, const k_StringView svOneOf)
+{
+    for (ssize_t i = 0; i < s.size; ++i)
+    {
+        for (ssize_t j = 0; j < svOneOf.size; ++j)
+            if (s.pData[i] == svOneOf.pData[j])
+                return true;
+    }
+
+    return false;
 }
 
 bool

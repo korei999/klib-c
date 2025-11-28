@@ -181,7 +181,8 @@ again:
 static inline ssize_t
 k_QueueMPMCSlotSize(const k_QueueMPMC* s)
 {
-    return s->stride - sizeof(k_QueueMPMCSlot);
+    assert((s->stride - (ssize_t)sizeof(k_QueueMPMCSlot)) >= 0);
+    return s->stride - (ssize_t)sizeof(k_QueueMPMCSlot);
 }
 
 static inline ssize_t

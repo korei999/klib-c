@@ -173,7 +173,7 @@ start(k_ThreadPool* s)
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4))
         goto fail;
 
-    stl_pBuffer = calloc(1, k_QueueMPMCSlotSize(&s->qTasks));
+    stl_pBuffer = calloc(1, s->memberSize + sizeof(Header));
 
     s->bStarted = true;
 
@@ -193,13 +193,11 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
 
     k_Gpa* pGpa = k_GpaInst();
     k_Thread* pNewThreads = NULL;
-    int memberSize = 0;
+    const int memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header) : opts.queueSlotSize + (int)sizeof(Header);
     if (opts.nThreads > 0)
     {
         pNewThreads = K_IZALLOC_T(pGpa, k_Thread, opts.nThreads);
         if (!pNewThreads) return false;
-
-        memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header): opts.queueSlotSize + (int)sizeof(Header);
 
         if (!k_QueueMPMCInit(&s->qTasks, &pGpa->base, (k_QueueMPMCInitOpts){
             .slotSize = memberSize,

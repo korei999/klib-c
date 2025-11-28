@@ -28,6 +28,8 @@ static const char* aTOKEN_STRINGS[] = {
     "TOKEN_COLON",
 };
 
+static void expectErrorLog(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot);
+
 static void
 skipWhiteSpace(k_JsonParser* s)
 {
@@ -42,6 +44,7 @@ skipWhiteSpace(k_JsonParser* s)
             s->x = 0;
             ++s->y;
         }
+
         ++s->i;
         ++s->x;
     }
@@ -51,11 +54,13 @@ static bool
 tokQuotedString(k_JsonParser* s)
 {
     const ssize_t pos = s->i++;
-    ++s->x;
+    s->tok.x = s->x++;
+    s->tok.y = s->y;
 
+    bool bEscape = false;
     while (s->i < s->svText.size)
     {
-        if (s->svText.pData[s->i] == '"')
+        if (s->svText.pData[s->i] == '"' && !bEscape)
         {
             ++s->i;
             ++s->x;
@@ -64,11 +69,16 @@ tokQuotedString(k_JsonParser* s)
             return true;
         }
 
+        if (s->svText.pData[s->i] == '\\')
+            bEscape = true;
+        else bEscape = false;
+
         if (s->svText.pData[s->i] == '\n')
         {
             s->x = 0;
             ++s->y;
         }
+
         ++s->i;
         ++s->x;
     }
@@ -81,7 +91,8 @@ static void
 tokString(k_JsonParser* s)
 {
     const ssize_t pos = s->i++;
-    ++s->x;
+    s->tok.x = s->x++;
+    s->tok.y = s->y;
 
     while (s->i < s->svText.size &&
         s->svText.pData[s->i] != ' ' &&
@@ -90,11 +101,6 @@ tokString(k_JsonParser* s)
         s->svText.pData[s->i] != ','
     )
     {
-        if (s->svText.pData[s->i] == '\n')
-        {
-            s->x = 0;
-            ++s->y;
-        }
         ++s->i;
         ++s->x;
     }
@@ -107,9 +113,16 @@ static void
 tokNumber(k_JsonParser* s)
 {
     const ssize_t pos = s->i;
+    s->tok.x = pos;
+    s->tok.y = s->y;
+
     while (s->i < s->svText.size)
     {
-        if (!isxdigit(s->svText.pData[s->i]) && s->svText.pData[s->i] != '.')
+        if (!isxdigit(s->svText.pData[s->i]) &&
+            s->svText.pData[s->i] != '.' &&
+            s->svText.pData[s->i] != '-' &&
+            s->svText.pData[s->i] != '+'
+        )
         {
             s->tok.eType = TOKEN_NUMBER;
             s->tok.sv = (k_StringView){s->svText.pData + pos, s->i - pos};
@@ -123,7 +136,10 @@ tokNumber(k_JsonParser* s)
 static void
 tokChar(k_JsonParser* s)
 {
+    s->tok.x = s->x;
+    s->tok.y = s->y;
     s->tok.sv = (k_StringView){s->svText.pData + s->i, 1};
+
     ++s->i;
     ++s->x;
 }
@@ -137,7 +153,11 @@ nextToken(k_JsonParser* s)
     {
         skipWhiteSpace(s);
         if (s->i >= s->svText.size)
+        {
+            s->tok.x = s->x;
+            s->tok.y = s->y;
             return true; /* EOF */
+        }
 
         switch (s->svText.pData[s->i])
         {
@@ -145,7 +165,7 @@ nextToken(k_JsonParser* s)
                 tokString(s);
                 break;
 
-            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '.':
                 tokNumber(s);
                 break;
 
@@ -190,7 +210,7 @@ nextToken(k_JsonParser* s)
 }
 
 static void
-printExpect(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot)
+expectErrorLog(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot)
 {
     k_Arena* pArena = k_CtxArena();
     K_ARENA_SCOPE(pArena)
@@ -204,9 +224,9 @@ printExpect(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot)
             for (int i = 0; i < nTokens; ++i)
             {
                 k_print_BuilderPushSv(&b, K_NTS(aTOKEN_STRINGS[pTokens[i]]));
-                if (i != nTokens - 1) k_print_BuilderPushSv(&b, K_SV(", "));
+                if (i != nTokens - 1) k_print_BuilderPushSv(&b, K_SV(" or "));
             }
-            k_print_BuilderPrint(&b, "\ngot: {s} '{PSv}'", aTOKEN_STRINGS[s->tok.eType], &s->tok.sv);
+            k_print_BuilderPrint(&b, "\ngot: {s} '{PSv}' (at: {i}, {i})", aTOKEN_STRINGS[s->tok.eType], &s->tok.sv, s->tok.x, s->tok.y);
         }
 
         const k_StringView svPrinted = k_print_BuilderToSv(&b);
@@ -221,7 +241,7 @@ expect(k_JsonParser* s, const int* pTokens, int nTokens)
     {
         if (pTokens[i] != s->tok.eType)
         {
-            printExpect(s, pTokens, nTokens, false);
+            expectErrorLog(s, pTokens, nTokens, false);
             return false;
         }
     }
@@ -236,7 +256,7 @@ expectNot(k_JsonParser* s, const int* pTokens, int nTokens)
     {
         if (pTokens[i] == s->tok.eType)
         {
-            printExpect(s, pTokens, nTokens, true);
+            expectErrorLog(s, pTokens, nTokens, true);
             return false;
         }
     }
@@ -245,30 +265,160 @@ expectNot(k_JsonParser* s, const int* pTokens, int nTokens)
 }
 
 static bool
-parseValue(k_JsonParser* s, k_IAllocator* pAlloc)
+parseString(k_JsonParser* s, k_IAllocator* pAlloc)
 {
+    return true;
+}
+
+K_NO_DISCARD static bool
+setStringType(k_JsonValue* pVal)
+{
+    if (pVal->svValue.size > 0)
+    {
+        if (k_StringViewCmp(&pVal->svValue, &K_SV("false")))
+        {
+            pVal->eType = K_JSON_TYPE_FALSE;
+        }
+        else if (k_StringViewCmp(&pVal->svValue, &K_SV("true")))
+        {
+            pVal->eType = K_JSON_TYPE_TRUE;
+        }
+        else if (k_StringViewCmp(&pVal->svValue, &K_SV("null")))
+        {
+            pVal->eType = K_JSON_TYPE_NULL;
+        }
+    }
+
+    if (pVal->eType == 0)
+    {
+        K_CTX_LOG_DEBUG("failed to set type for '{PSv}'", &pVal->svValue);
+        return false;
+    }
+
+    return true;
+}
+
+K_NO_DISCARD static bool
+setNumberType(k_JsonValue* pVal)
+{
+    if (pVal->svValue.size > 0)
+    {
+        if (isxdigit(pVal->svValue.pData[0]) ||
+            pVal->svValue.pData[0] == '+' ||
+            pVal->svValue.pData[0] == '-' ||
+            pVal->svValue.pData[0] == '.'
+        )
+        {
+            if (k_StringViewHasOneOf(pVal->svValue, K_SV(".eE")))
+                pVal->eType = K_JSON_TYPE_FLOAT;
+            else pVal->eType = K_JSON_TYPE_INT;
+        }
+    }
+
+    if (pVal->eType == 0)
+    {
+        K_CTX_LOG_DEBUG("failed to set type for '{PSv}'", &pVal->svValue);
+        return false;
+    }
+
+    return true;
 }
 
 static bool
-parseObject(k_JsonParser* s, k_IAllocator* pAlloc)
+parseObject(k_JsonParser* s, k_IAllocator* pAlloc, k_JsonObject* pObj)
 {
+gotComma:
     if (!nextToken(s)) return false;
+
+    const k_StringView svObjName = k_StringViewSubString(s->tok.sv, 1, s->tok.sv.size - 2);
+    K_CTX_LOG_DEBUG("svObjName: '{PSv}'", &svObjName);
 
     switch (s->tok.eType)
     {
         case TOKEN_QSTRING:
-            break;
+        {
+            if (!nextToken(s)) return false;
+            if (!expect(s, &(int){TOKEN_COLON}, 1)) return false;
+            if (!nextToken(s)) return false;
+
+            k_JsonNameValue nameVal = {0};
+            nameVal.svName = svObjName;
+
+            switch (s->tok.eType)
+            {
+                case TOKEN_QSTRING:
+                {
+                    nameVal.val.svValue = k_StringViewSubString(s->tok.sv, 1, s->tok.sv.size - 2);
+                    nameVal.val.eType = K_JSON_TYPE_STRING;
+                    K_CTX_LOG_DEBUG("svValue: '{PSv}'", &nameVal.val.svValue);
+                    if (k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal) < 0)
+                        return false;
+                }
+                break;
+
+                case TOKEN_NUMBER:
+                {
+                    nameVal.val.svValue = s->tok.sv;
+                    if (!setNumberType(&nameVal.val)) return false;
+                    K_CTX_LOG_DEBUG("svValue: '{PSv}'", &nameVal.val.svValue);
+                    if (k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal) < 0)
+                        return false;
+                }
+                break;
+
+                case TOKEN_STRING:
+                {
+                    nameVal.val.svValue = s->tok.sv;
+                    if (!setStringType(&nameVal.val)) return false;
+                    K_CTX_LOG_DEBUG("svValue: '{PSv}'", &nameVal.val.svValue);
+                    if (k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal) < 0)
+                        return false;
+                }
+                break;
+
+                case TOKEN_BRACE_OPEN:
+                {
+                    nameVal.val.eType = K_JSON_TYPE_OBJECT;
+                    ssize_t n = k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal);
+                    if (n < 0) return false;
+
+                    k_JsonNameValue* pNewNameVal = (k_JsonNameValue*)pObj->vNameValues.pData + n;
+                    if (!parseObject(s, pAlloc, &pNewNameVal->val.object))
+                        return false;
+                }
+                break;
+            }
+        }
+        break;
 
         case TOKEN_BRACE_CLOSE:
-            break;
+        if (!nextToken(s)) return false;
+        return true;
 
         default:
         {
             const int aTokens[] = {TOKEN_QSTRING, TOKEN_BRACE_CLOSE};
-            printExpect(s, aTokens, K_ASIZE(aTokens), false);
+            expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
             return false;
         }
+    }
+
+    if (!nextToken(s)) return false;
+
+    switch (s->tok.eType)
+    {
+        case TOKEN_COMMA:
+        goto gotComma;
+
+        case TOKEN_BRACE_CLOSE:
         break;
+
+        default:
+        {
+            const int aTokens[] = {TOKEN_COMMA, TOKEN_BRACE_CLOSE};
+            expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
+            return false;
+        }
     }
 
     return true;
@@ -286,7 +436,7 @@ parse(k_JsonParser* s, k_IAllocator* pAlloc)
             break;
 
         case TOKEN_BRACE_OPEN:
-            return parseObject(s, pAlloc);
+            // return parseObject(s, pAlloc);
             break;
 
         case TOKEN_BRACKET_OPEN:
@@ -309,20 +459,41 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
     s->i = 0;
     s->x = 1;
     s->y = 1;
+    s->vTree = (k_Vec){0};
 
     if (!nextToken(s)) return false;
 
     if (s->tok.eType == TOKEN_EOF)
         return true;
 
-    while (s->i < s->svText.size)
+    if (s->tok.eType != TOKEN_BRACE_OPEN && s->tok.eType != TOKEN_BRACKET_OPEN)
     {
-        if (!nextToken(s)) return false;
-        K_CTX_LOG_DEBUG("({sz}, {sz}, {s}): '{PSv}'",
-            (s->x - s->tok.sv.size), s->y, aTOKEN_STRINGS[s->tok.eType], &s->tok.sv
-        );
-        if (!parse(s, pAlloc)) return false;
+        const int aTokens[] = {TOKEN_BRACE_OPEN, TOKEN_BRACKET_OPEN};
+        expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
+        return false;
     }
+
+    /* TODO: json can have multiple root objects. */
+    if (s->tok.eType == TOKEN_BRACE_OPEN)
+    {
+        ssize_t n = k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonObject), &(k_JsonObject){0});
+        if (n < 0) return false;
+        return parseObject(s, pAlloc, (k_JsonObject*)s->vTree.pData + n);
+    }
+    else if (s->tok.eType == TOKEN_BRACKET_OPEN)
+    {
+        k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonArray), &(k_JsonArray){0});
+    }
+
+    // if (!parse(s, pAlloc)) return false;
+
+    // while (s->i < s->svText.size)
+    // {
+    //     if (!nextToken(s)) return false;
+    //     K_CTX_LOG_DEBUG("({sz}, {sz}, {s}): '{PSv}'",
+    //         s->tok.x, s->tok.y, aTOKEN_STRINGS[s->tok.eType], &s->tok.sv
+    //     );
+    // }
 
     return true;
 }
