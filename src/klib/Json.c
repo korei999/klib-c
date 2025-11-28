@@ -100,7 +100,9 @@ tokString(k_JsonParser* s)
         s->svText.pData[s->i] != ' ' &&
         s->svText.pData[s->i] != '\n' &&
         s->svText.pData[s->i] != '\r' &&
-        s->svText.pData[s->i] != ','
+        s->svText.pData[s->i] != ',' &&
+        s->svText.pData[s->i] != '}' &&
+        s->svText.pData[s->i] != ']'
     )
     {
         ++s->i;
@@ -543,16 +545,33 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
         return false;
     }
 
-    /* TODO: json can have multiple root objects. */
     if (s->tok.eType == TOKEN_BRACE_OPEN)
     {
-        ssize_t n = k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonObject), &(k_JsonObject){0});
+        ssize_t n;
+moreObjects:
+        n = k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
         if (n < 0) return false;
-        return parseObject(s, pAlloc, (k_JsonObject*)s->vTree.pData + n);
+
+        k_JsonValue* pNewVal = (k_JsonValue*)s->vTree.pData + n;
+        if (!parseObject(s, pAlloc, &pNewVal->object)) return false;
+
+        if (!nextToken(s)) return false;
+        if (s->tok.eType == TOKEN_BRACE_OPEN)
+            goto moreObjects;
     }
     else if (s->tok.eType == TOKEN_BRACKET_OPEN)
     {
-        k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonArray), &(k_JsonArray){0});
+        ssize_t n;
+moreArrays:
+        n = k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
+        if (n < 0) return false;
+
+        k_JsonValue* pNewVal = (k_JsonValue*)s->vTree.pData + n;
+        if (!parseArray(s, pAlloc, &pNewVal->array)) return false;
+
+        if (!nextToken(s)) return false;
+        if (s->tok.eType == TOKEN_BRACKET_OPEN)
+            goto moreArrays;
     }
 
     return true;
@@ -623,7 +642,6 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
     }
 
     k_print_BuilderPushSv(pBuilder, K_SV("{\n"));
-
     K_VEC_FOR_EACH(&pObj->vNameValues, k_JsonNameValue, pIt)
     {
         k_print_BuilderPushSvPaddedFmtArgs(pBuilder, &fmtArgsNext, K_SV(""));
@@ -664,11 +682,19 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
 void
 k_JsonParserPrint(k_JsonParser* s, k_print_Builder* pBuilder)
 {
-    K_VEC_FOR_EACH(&s->vTree, k_JsonObject, pObj)
+    K_VEC_FOR_EACH(&s->vTree, k_JsonValue, pVal)
     {
-        printObject(pObj, pBuilder, 0);
-        if (pObj - (k_JsonObject*)s->vTree.pData != s->vTree.size - 1)
-            k_print_BuilderPushSv(pBuilder, K_SV(",\n"));
-        else k_print_BuilderPushSv(pBuilder, K_SV("\n"));
+        switch (pVal->eType)
+        {
+            case K_JSON_TYPE_ARRAY:
+            printArray(&pVal->array, pBuilder, 0);
+            break;
+
+            case K_JSON_TYPE_OBJECT:
+            printObject(&pVal->object, pBuilder, 0);
+            break;
+        }
+
+        k_print_BuilderPushSv(pBuilder, K_SV("\n"));
     }
 }

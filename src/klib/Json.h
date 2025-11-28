@@ -55,7 +55,7 @@ typedef struct k_JsonParser
     k_JsonToken tok;
     k_StringView svText;
     ssize_t i, x, y;
-    k_Vec vTree; /* <k_JsonObject> */
+    k_Vec vTree; /* <k_JsonValue> */
 } k_JsonParser;
 
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
