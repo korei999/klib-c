@@ -80,6 +80,8 @@ static inline k_JsonValue k_JsonCreateNull(void);
 
 static inline ssize_t k_JsonObjectPush(k_JsonObject* s, k_IAllocator* pAlloc, const k_JsonNameValue* pNameValue);
 static inline ssize_t k_JsonObjectPushSv(k_JsonObject* s, k_IAllocator* pAlloc, const k_StringView svName, const k_JsonValue* pNameValue);
+static inline k_JsonNameValue* k_JsonObjectSearch(k_JsonObject* s, const k_StringView svName); /* NULL. */
+
 static inline ssize_t k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pNameValue);
 
 static inline k_JsonObject* k_JsonAsObject(k_JsonValue* pVal);
@@ -249,5 +251,15 @@ static inline void*
 k_JsonAsNull(k_JsonValue* pVal)
 {
     assert(pVal->eType == K_JSON_TYPE_NULL);
+    return NULL;
+}
+
+static inline k_JsonNameValue*
+k_JsonObjectSearch(k_JsonObject* s, const k_StringView svName)
+{
+    K_VEC_FOR_EACH(&s->vNameValues, k_JsonNameValue, pIt)
+        if (k_StringViewEq(pIt->svName, svName))
+            return pIt;
+
     return NULL;
 }
