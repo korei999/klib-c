@@ -60,3 +60,128 @@ typedef struct k_JsonParser
 
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
 void k_JsonParserPrint(k_JsonParser* s, k_print_Builder* pBuilder);
+
+static inline k_JsonValue k_JsonCreateObject(void);
+static inline k_JsonValue k_JsonCreateArray(void);
+static inline k_JsonValue k_JsonCreateString(const k_StringView svVal);
+static inline k_JsonValue k_JsonCreateInt(k_IAllocator* pAlloc, uint64_t i);
+static inline k_JsonValue k_JsonCreateIntSv(const k_StringView svInt);
+static inline k_JsonValue k_JsonCreateFloat(k_IAllocator* pAlloc, double d);
+static inline k_JsonValue k_JsonCreateFloatSv(const k_StringView svFloat);
+static inline k_JsonValue k_JsonCreateTrue(void);
+static inline k_JsonValue k_JsonCreateFalse(void);
+static inline k_JsonValue k_JsonCreateNull(void);
+
+static inline ssize_t k_JsonObjectPush(k_JsonObject* s, k_IAllocator* pAlloc, const k_JsonNameValue* pNameValue);
+static inline ssize_t k_JsonObjectPushSv(k_JsonObject* s, k_IAllocator* pAlloc, const k_StringView svName, const k_JsonValue* pNameValue);
+static inline ssize_t k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pNameValue);
+
+static inline k_JsonValue k_JsonCreateObject(void)
+{
+    return (k_JsonValue){
+        .eType = K_JSON_TYPE_OBJECT,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateArray(void)
+{
+    return (k_JsonValue){
+        .eType = K_JSON_TYPE_ARRAY,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateString(const k_StringView sv)
+{
+    return (k_JsonValue){
+        .svValue = sv,
+        .eType = K_JSON_TYPE_STRING,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateInt(k_IAllocator* pAlloc, uint64_t i)
+{
+    k_print_Builder pb;
+    k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = pAlloc, .preallocOrBufferSize = 8});
+    return (k_JsonValue){
+        .svValue = k_print_BuilderPrint(&pb, "{i64}", i),
+        .eType = K_JSON_TYPE_INT,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateIntSv(const k_StringView svInt)
+{
+    return (k_JsonValue){
+        .svValue = svInt,
+        .eType = K_JSON_TYPE_INT,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateFloat(k_IAllocator* pAlloc, double d)
+{
+    k_print_Builder pb;
+    k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = pAlloc, .preallocOrBufferSize = 8});
+    return (k_JsonValue){
+        .svValue = k_print_BuilderPrint(&pb, "{d}", d),
+        .eType = K_JSON_TYPE_FLOAT,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateFloatSv(const k_StringView svFloat)
+{
+    return (k_JsonValue){
+        .svValue = svFloat,
+        .eType = K_JSON_TYPE_FLOAT,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateTrue(void)
+{
+    return (k_JsonValue){
+        .svValue = K_SV("true"),
+        .eType = K_JSON_TYPE_TRUE,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateFalse(void)
+{
+    return (k_JsonValue){
+        .svValue = K_SV("false"),
+        .eType = K_JSON_TYPE_FALSE,
+    };
+}
+
+static inline k_JsonValue
+k_JsonCreateNull(void)
+{
+    return (k_JsonValue){
+        .svValue = K_SV("null"),
+        .eType = K_JSON_TYPE_NULL,
+    };
+}
+
+static inline ssize_t
+k_JsonObjectPush(k_JsonObject* s, k_IAllocator* pAlloc, const k_JsonNameValue* pNameValue)
+{
+    return k_VecPush(&s->vNameValues, pAlloc, sizeof(*pNameValue), pNameValue);
+}
+
+static inline ssize_t
+k_JsonObjectPushSv(k_JsonObject* s, k_IAllocator* pAlloc, const k_StringView svName, const k_JsonValue* pNameValue)
+{
+    k_JsonNameValue nameVal = {.svName = svName, .val = *pNameValue};
+    return k_JsonObjectPush(s, pAlloc, &nameVal);
+}
+
+static inline ssize_t
+k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pNameValue)
+{
+    return k_VecPush(&s->vValues, pAlloc, sizeof(*pNameValue), pNameValue);
+}
