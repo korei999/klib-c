@@ -128,7 +128,7 @@ parseShort(k_CmdLine* s, int* pI, int argc, char** argv)
                 }
                 else
                 {
-                    k_VecPush(&s->vCmdCommands,  s->pAlloc, sizeof(CmdCommand), &(CmdCommand){s, pCmdArg, K_NTS(argv[*pI])});
+                    k_VecPush(&s->vCmdCommands,  s->pAlloc, sizeof(CmdCommand), &(CmdCommand){s, pCmdArg, K_NTS(argv[*pI + 1])});
                     ++(*pI);
                 }
             }

@@ -253,7 +253,7 @@ expect(k_JsonParser* s, const int* pTokens, int nTokens)
     return true;
 }
 
-static bool
+K_UNUSED static bool
 expectNot(k_JsonParser* s, const int* pTokens, int nTokens)
 {
     for (int i = 0; i < nTokens; ++i)

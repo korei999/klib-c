@@ -280,6 +280,7 @@ static inline void*
 k_JsonAsNull(k_JsonValue* pVal)
 {
     assert(pVal->eType == K_JSON_TYPE_NULL);
+    (void)pVal;
     return NULL;
 }
 
