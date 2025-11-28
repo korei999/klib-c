@@ -38,7 +38,8 @@ skipWhiteSpace(k_JsonParser* s)
     while (s->i < s->svText.size &&
         (s->svText.pData[s->i] == ' ' ||
         s->svText.pData[s->i] == '\n' ||
-        s->svText.pData[s->i] == '\r')
+        s->svText.pData[s->i] == '\r' ||
+        s->svText.pData[s->i] == '\t')
     )
     {
         if (s->svText.pData[s->i] == '\n')
@@ -100,6 +101,7 @@ tokString(k_JsonParser* s)
         s->svText.pData[s->i] != ' ' &&
         s->svText.pData[s->i] != '\n' &&
         s->svText.pData[s->i] != '\r' &&
+        s->svText.pData[s->i] != '\t' &&
         s->svText.pData[s->i] != ',' &&
         s->svText.pData[s->i] != '}' &&
         s->svText.pData[s->i] != ']'

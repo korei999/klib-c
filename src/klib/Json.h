@@ -1,6 +1,6 @@
 /* https://www.json.org/json-en.html
  * This parser doesn't care about trailing commas.
- * Some escape sequences are not handled (\t \v \u \f).*/
+ * Some escape sequences are not handled (\v \u \f).*/
 
 #pragma once
 
