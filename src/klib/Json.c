@@ -86,7 +86,7 @@ tokQuotedString(k_JsonParser* s)
         ++s->x;
     }
 
-    K_CTX_LOG_ERROR("unterminated string");
+    K_CTX_LOG_ERROR("unterminated string (at: {i}, {i})", s->tok.x, s->tok.y);
     return false;
 }
 
