@@ -245,18 +245,37 @@ expectNot(k_JsonParser* s, const int* pTokens, int nTokens)
 }
 
 static bool
-parseObject(k_JsonParser* s)
+parseValue(k_JsonParser* s, k_IAllocator* pAlloc)
 {
+}
+
+static bool
+parseObject(k_JsonParser* s, k_IAllocator* pAlloc)
+{
+    if (!nextToken(s)) return false;
+
+    switch (s->tok.eType)
     {
-        int aTokens[] = {TOKEN_COMMA, TOKEN_QSTRING};
-        if (!expect(s, aTokens, K_ASIZE(aTokens))) return false;
+        case TOKEN_QSTRING:
+            break;
+
+        case TOKEN_BRACE_CLOSE:
+            break;
+
+        default:
+        {
+            const int aTokens[] = {TOKEN_QSTRING, TOKEN_BRACE_CLOSE};
+            printExpect(s, aTokens, K_ASIZE(aTokens), false);
+            return false;
+        }
+        break;
     }
 
     return true;
 }
 
 static bool
-parseToken(k_JsonParser* s)
+parse(k_JsonParser* s, k_IAllocator* pAlloc)
 {
     switch (s->tok.eType)
     {
@@ -267,7 +286,7 @@ parseToken(k_JsonParser* s)
             break;
 
         case TOKEN_BRACE_OPEN:
-            return parseObject(s);
+            return parseObject(s, pAlloc);
             break;
 
         case TOKEN_BRACKET_OPEN:
@@ -284,22 +303,26 @@ parseToken(k_JsonParser* s)
 }
 
 bool
-k_JsonParserParse(k_JsonParser* s, const k_StringView svText)
+k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText)
 {
     s->svText = svText;
     s->i = 0;
     s->x = 1;
     s->y = 1;
 
-    do
+    if (!nextToken(s)) return false;
+
+    if (s->tok.eType == TOKEN_EOF)
+        return true;
+
+    while (s->i < s->svText.size)
     {
         if (!nextToken(s)) return false;
         K_CTX_LOG_DEBUG("({sz}, {sz}, {s}): '{PSv}'",
             (s->x - s->tok.sv.size), s->y, aTOKEN_STRINGS[s->tok.eType], &s->tok.sv
         );
-        if (!parseToken(s)) return false;
+        if (!parse(s, pAlloc)) return false;
     }
-    while (s->i < s->svText.size);
 
     return true;
 }

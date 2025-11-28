@@ -18,7 +18,7 @@ test(const k_StringView svFile)
     K_CTX_LOG_DEBUG("\n{s}", spFile.pData);
 
     k_JsonParser p;
-    if (!k_JsonParserParse(&p, (k_StringView){spFile.pData, spFile.size - 1}))
+    if (!k_JsonParserParse(&p, &pGpa->base, (k_StringView){spFile.pData, spFile.size - 1}))
         goto fail;
 
     return true;
@@ -26,6 +26,8 @@ test(const k_StringView svFile)
 fail:
     k_GpaFree(pGpa, spFile.pData);
     return false;
+
+    k_JsonNameValue nv;
 }
 
 int
@@ -39,7 +41,6 @@ main(int argc, char** argv)
             .ringBufferSize = K_SIZE_1K*4,
         },
         (k_ThreadPoolInitOpts){
-            .nThreads = 0,
             .arenaReserve = K_SIZE_1M*60,
         }
     );

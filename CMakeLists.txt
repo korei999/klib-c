@@ -90,6 +90,10 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+# if (NOT CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+#     add_compile_options(-fms-extensions)
+# endif()
+
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_definitions("-D_DEFAULT_SOURCE")
     add_definitions("-D_XOPEN_SOURCE")
