@@ -1,3 +1,7 @@
+/* https://www.json.org/json-en.html
+ * This parser doesn't care about trailing commas.
+ * Some escape sequences are not handled (\t \v \u \f).*/
+
 #pragma once
 
 #include "IAllocator.h"
@@ -23,11 +27,13 @@ typedef struct k_JsonToken
     int eType;
 } k_JsonToken;
 
+/* An array is an ordered collection of values. */
 typedef struct k_JsonArray
 {
     k_Vec vValues; /* <k_JsonValue> */
 } k_JsonArray;
 
+/* An object is an unordered set of name/value pairs. */
 typedef struct k_JsonObject
 {
     k_Vec vNameValues; /* <k_JsonNameValue> */
