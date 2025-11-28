@@ -234,7 +234,7 @@ static inline bool
 k_JsonAsBool(k_JsonValue* pVal)
 {
     assert(pVal->eType == K_JSON_TYPE_TRUE || pVal->eType == K_JSON_TYPE_FALSE);
-    if (k_StringViewCmp(&pVal->svValue, &K_SV("true")))
+    if (k_StringViewEq(pVal->svValue, K_SV("true")))
         return true;
     else return false;
 }

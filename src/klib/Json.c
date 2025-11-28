@@ -164,47 +164,47 @@ nextToken(k_JsonParser* s)
         switch (s->svText.pData[s->i])
         {
             default:
-                tokString(s);
-                break;
+            tokString(s);
+            break;
 
             case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '.':
-                tokNumber(s);
-                break;
+            tokNumber(s);
+            break;
 
             case '"':
-                if (!tokQuotedString(s))
-                    return false;
-                break;
+            if (!tokQuotedString(s))
+                return false;
+            break;
 
             case ',':
-                s->tok.eType = TOKEN_COMMA;
-                tokChar(s);
-                break;
+            s->tok.eType = TOKEN_COMMA;
+            tokChar(s);
+            break;
 
             case ':':
-                s->tok.eType = TOKEN_COLON;
-                tokChar(s);
-                break;
+            s->tok.eType = TOKEN_COLON;
+            tokChar(s);
+            break;
 
             case '[':
-                s->tok.eType = TOKEN_BRACKET_OPEN;
-                tokChar(s);
-                break;
+            s->tok.eType = TOKEN_BRACKET_OPEN;
+            tokChar(s);
+            break;
 
             case ']':
-                s->tok.eType = TOKEN_BRACKET_CLOSE;
-                tokChar(s);
-                break;
+            s->tok.eType = TOKEN_BRACKET_CLOSE;
+            tokChar(s);
+            break;
 
             case '{':
-                s->tok.eType = TOKEN_BRACE_OPEN;
-                tokChar(s);
-                break;
+            s->tok.eType = TOKEN_BRACE_OPEN;
+            tokChar(s);
+            break;
 
             case '}':
-                s->tok.eType = TOKEN_BRACE_CLOSE;
-                tokChar(s);
-                break;
+            s->tok.eType = TOKEN_BRACE_CLOSE;
+            tokChar(s);
+            break;
         }
     }
 
@@ -266,22 +266,16 @@ expectNot(k_JsonParser* s, const int* pTokens, int nTokens)
     return true;
 }
 
-static bool
-parseString(k_JsonParser* s, k_IAllocator* pAlloc)
-{
-    return true;
-}
-
 K_NO_DISCARD static bool
 setStringType(k_JsonValue* pVal)
 {
     if (pVal->svValue.size > 0)
     {
-        if (k_StringViewCmp(&pVal->svValue, &K_SV("false")))
+        if (k_StringViewEq(pVal->svValue, K_SV("false")))
             pVal->eType = K_JSON_TYPE_FALSE;
-        else if (k_StringViewCmp(&pVal->svValue, &K_SV("true")))
+        else if (k_StringViewEq(pVal->svValue, K_SV("true")))
             pVal->eType = K_JSON_TYPE_TRUE;
-        else if (k_StringViewCmp(&pVal->svValue, &K_SV("null")))
+        else if (k_StringViewEq(pVal->svValue, K_SV("null")))
             pVal->eType = K_JSON_TYPE_NULL;
     }
 
