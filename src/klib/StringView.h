@@ -60,15 +60,15 @@ static inline k_StringView
 k_StringViewSubString(const k_StringView s, ssize_t startI, ssize_t size)
 {
     assert(startI + size <= s.size);
-    assert((startI >= 0 && startI < s.size) || size == 0);
-    return (k_StringView){s.pData + startI, size};
+    assert((startI >= 0 && startI < s.size) || size <= 0);
+    return (k_StringView){s.pData + startI, K_MAX(0, size)};
 }
 
 static inline k_StringView
 k_StringViewSubString1(const k_StringView s, ssize_t startI)
 {
     assert(startI <= s.size && "(out of range)");
-    return k_StringViewSubString(s, startI, s.size - startI);
+    return k_StringViewSubString(s, startI, K_MAX(0, s.size - startI));
 }
 
 static inline int

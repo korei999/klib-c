@@ -230,6 +230,8 @@ k_print_BuilderPushSvPaddedFmtArgs(k_print_Builder* s, k_print_FmtArgs* pFmtArgs
 ssize_t
 k_print_BuilderPush(k_print_Builder* s, const char* pStr, ssize_t size)
 {
+    if (size <= 0 || !pStr) return 0;
+
     if (s->size + size >= s->cap)
     {
         ssize_t newCap = s->cap * 2;

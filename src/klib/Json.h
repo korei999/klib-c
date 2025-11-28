@@ -3,6 +3,7 @@
 #include "IAllocator.h"
 #include "StringView.h"
 #include "Vec.h"
+#include "print.h"
 
 typedef uint8_t K_JSON_TYPE;
 #define K_JSON_TYPE_UNKNOWN 0
@@ -18,7 +19,8 @@ typedef uint8_t K_JSON_TYPE;
 typedef struct k_JsonToken
 {
     k_StringView sv;
-    ssize_t eType, x, y;
+    ssize_t x, y;
+    int eType;
 } k_JsonToken;
 
 typedef struct k_JsonArray
@@ -53,7 +55,8 @@ typedef struct k_JsonParser
     k_JsonToken tok;
     k_StringView svText;
     ssize_t i, x, y;
-    k_Vec vTree;
+    k_Vec vTree; /* <k_JsonObject> */
 } k_JsonParser;
 
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
+void k_JsonParserPrint(k_JsonParser* s, k_print_Builder* pBuilder);

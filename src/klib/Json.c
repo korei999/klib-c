@@ -29,6 +29,8 @@ static const char* aTOKEN_STRINGS[] = {
 };
 
 static void expectErrorLog(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot);
+static bool parseObject(k_JsonParser* s, k_IAllocator* pAlloc, k_JsonObject* pObj);
+static void printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth);
 
 static void
 skipWhiteSpace(k_JsonParser* s)
@@ -291,7 +293,7 @@ setStringType(k_JsonValue* pVal)
 
     if (pVal->eType == 0)
     {
-        K_CTX_LOG_DEBUG("failed to set type for '{PSv}'", &pVal->svValue);
+        K_CTX_LOG_ERROR("failed to set type for '{PSv}'", &pVal->svValue);
         return false;
     }
 
@@ -317,7 +319,94 @@ setNumberType(k_JsonValue* pVal)
 
     if (pVal->eType == 0)
     {
-        K_CTX_LOG_DEBUG("failed to set type for '{PSv}'", &pVal->svValue);
+        K_CTX_LOG_ERROR("failed to set type for '{PSv}'", &pVal->svValue);
+        return false;
+    }
+
+    return true;
+}
+
+static bool
+parseArray(k_JsonParser* s, k_IAllocator* pAlloc, k_JsonArray* pArr)
+{
+gotComma:
+    if (!nextToken(s)) return false;
+
+    k_JsonValue val = {0};
+
+    switch (s->tok.eType)
+    {
+        case TOKEN_NUMBER:
+        {
+            val.svValue = s->tok.sv;
+            if (!setNumberType(&val)) return false;
+            const ssize_t n = k_VecPush(&pArr->vValues, pAlloc, sizeof(val), &val);
+            if (n < 0) return false;
+        }
+        break;
+
+        case TOKEN_QSTRING:
+        {
+            val.eType = K_JSON_TYPE_STRING;
+            val.svValue = k_StringViewSubString(s->tok.sv, 1, s->tok.sv.size - 2);
+            if (k_VecPush(&pArr->vValues, pAlloc, sizeof(val), &val) < 0)
+                return false;
+        }
+        break;
+
+        case TOKEN_STRING:
+        {
+            val.eType = K_JSON_TYPE_STRING;
+            val.svValue = s->tok.sv;
+            if (k_VecPush(&pArr->vValues, pAlloc, sizeof(val), &val) < 0)
+                return false;
+        }
+        break;
+
+        case TOKEN_BRACE_OPEN:
+        {
+            val.eType = K_JSON_TYPE_OBJECT;
+            const ssize_t n = k_VecPush(&pArr->vValues, pAlloc, sizeof(val), &val);
+            if (n < 0) return false;
+
+            k_JsonValue* pNewVal = (k_JsonValue*)pArr->vValues.pData + n;
+            if (!parseObject(s, pAlloc, &pNewVal->object))
+                return false;
+        }
+        break;
+
+        case TOKEN_BRACKET_CLOSE:
+        return true;
+
+        default:
+        {
+            const int aTokens[] = {
+                TOKEN_NUMBER,
+                TOKEN_QSTRING,
+                TOKEN_STRING,
+                TOKEN_BRACE_OPEN,
+                TOKEN_BRACKET_CLOSE,
+            };
+            expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
+            return false;
+        }
+    }
+
+    if (!nextToken(s)) return false;
+
+    switch (s->tok.eType)
+    {
+        case TOKEN_COMMA:
+        goto gotComma;
+
+        case TOKEN_BRACKET_CLOSE:
+        break;
+
+        default:
+        {
+            const int aTokens[] = {TOKEN_COMMA, TOKEN_BRACKET_CLOSE};
+            expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
+        }
         return false;
     }
 
@@ -331,7 +420,6 @@ gotComma:
     if (!nextToken(s)) return false;
 
     const k_StringView svObjName = k_StringViewSubString(s->tok.sv, 1, s->tok.sv.size - 2);
-    K_CTX_LOG_DEBUG("svObjName: '{PSv}'", &svObjName);
 
     switch (s->tok.eType)
     {
@@ -350,7 +438,6 @@ gotComma:
                 {
                     nameVal.val.svValue = k_StringViewSubString(s->tok.sv, 1, s->tok.sv.size - 2);
                     nameVal.val.eType = K_JSON_TYPE_STRING;
-                    K_CTX_LOG_DEBUG("svValue: '{PSv}'", &nameVal.val.svValue);
                     if (k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal) < 0)
                         return false;
                 }
@@ -360,7 +447,6 @@ gotComma:
                 {
                     nameVal.val.svValue = s->tok.sv;
                     if (!setNumberType(&nameVal.val)) return false;
-                    K_CTX_LOG_DEBUG("svValue: '{PSv}'", &nameVal.val.svValue);
                     if (k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal) < 0)
                         return false;
                 }
@@ -370,7 +456,6 @@ gotComma:
                 {
                     nameVal.val.svValue = s->tok.sv;
                     if (!setStringType(&nameVal.val)) return false;
-                    K_CTX_LOG_DEBUG("svValue: '{PSv}'", &nameVal.val.svValue);
                     if (k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal) < 0)
                         return false;
                 }
@@ -387,12 +472,36 @@ gotComma:
                         return false;
                 }
                 break;
+
+                case TOKEN_BRACKET_OPEN:
+                {
+                    nameVal.val.eType = K_JSON_TYPE_ARRAY;
+                    ssize_t n = k_VecPush(&pObj->vNameValues, pAlloc, sizeof(nameVal), &nameVal);
+                    if (n < 0) return false;
+
+                    k_JsonNameValue* pNewNameVal = (k_JsonNameValue*)pObj->vNameValues.pData + n;
+                    if (!parseArray(s, pAlloc, &pNewNameVal->val.array))
+                        return false;
+                }
+                break;
+
+                default:
+                {
+                    const int aTokens[] = {
+                        TOKEN_QSTRING,
+                        TOKEN_NUMBER,
+                        TOKEN_STRING,
+                        TOKEN_BRACE_OPEN,
+                        TOKEN_BRACKET_OPEN,
+                    };
+                    expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
+                    return false;
+                }
             }
         }
         break;
 
         case TOKEN_BRACE_CLOSE:
-        if (!nextToken(s)) return false;
         return true;
 
         default:
@@ -419,34 +528,6 @@ gotComma:
             expectErrorLog(s, aTokens, K_ASIZE(aTokens), false);
             return false;
         }
-    }
-
-    return true;
-}
-
-static bool
-parse(k_JsonParser* s, k_IAllocator* pAlloc)
-{
-    switch (s->tok.eType)
-    {
-        case TOKEN_STRING:
-            break;
-
-        case TOKEN_QSTRING:
-            break;
-
-        case TOKEN_BRACE_OPEN:
-            // return parseObject(s, pAlloc);
-            break;
-
-        case TOKEN_BRACKET_OPEN:
-            break;
-
-        case TOKEN_NUMBER:
-            break;
-
-        case TOKEN_COMMA:
-            break;
     }
 
     return true;
@@ -485,13 +566,120 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
         k_VecPush(&s->vTree, pAlloc, sizeof(k_JsonArray), &(k_JsonArray){0});
     }
 
-    // while (s->i < s->svText.size)
-    // {
-    //     if (!nextToken(s)) return false;
-    //     K_CTX_LOG_DEBUG("({sz}, {sz}, {s}): '{PSv}'",
-    //         s->tok.x, s->tok.y, aTOKEN_STRINGS[s->tok.eType], &s->tok.sv
-    //     );
-    // }
-
     return true;
+}
+
+static void
+printArray(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
+{
+    k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
+    fmtArgs.padSize = depth;
+    k_print_FmtArgs fmtArgsNext = fmtArgs;
+    fmtArgsNext.padSize += 4;
+
+    if (pArr->vValues.size <= 0)
+    {
+        k_print_BuilderPushSv(pBuilder, K_SV("[]"));
+        return;
+    }
+
+    k_print_BuilderPushSv(pBuilder, K_SV("[\n"));
+
+    K_VEC_FOR_EACH(&pArr->vValues, k_JsonValue, pIt)
+    {
+        k_print_BuilderPushSvPaddedFmtArgs(pBuilder, &fmtArgsNext, K_SV(""));
+
+        switch (pIt->eType)
+        {
+            case K_JSON_TYPE_OBJECT:
+            printObject(&pIt->object, pBuilder, depth + 4);
+            break;
+
+            case K_JSON_TYPE_ARRAY:
+            printArray(&pIt->array, pBuilder, depth + 4);
+            break;
+
+            case K_JSON_TYPE_STRING:
+            k_print_BuilderPushSv(pBuilder, K_SV("\""));
+            k_print_BuilderPushSv(pBuilder, pIt->svValue);
+            k_print_BuilderPushSv(pBuilder, K_SV("\""));
+            break;
+
+            default:
+            k_print_BuilderPushSv(pBuilder, pIt->svValue);
+            break;
+        }
+
+        if (pIt - (k_JsonValue*)pArr->vValues.pData != pArr->vValues.size - 1)
+            k_print_BuilderPushSv(pBuilder, K_SV(",\n"));
+        else k_print_BuilderPushSv(pBuilder, K_SV("\n"));
+    }
+
+    k_print_BuilderPushSvPaddedFmtArgs(pBuilder, &fmtArgs, K_SV(""));
+    k_print_BuilderPushSv(pBuilder, K_SV("]"));
+}
+
+static void
+printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
+{
+    k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
+    fmtArgs.padSize = depth;
+    k_print_FmtArgs fmtArgsNext = fmtArgs;
+    fmtArgsNext.padSize += 4;
+
+    if (pObj->vNameValues.size <= 0)
+    {
+        k_print_BuilderPushSv(pBuilder, K_SV("{}"));
+        return;
+    }
+
+    k_print_BuilderPushSv(pBuilder, K_SV("{\n"));
+
+    K_VEC_FOR_EACH(&pObj->vNameValues, k_JsonNameValue, pIt)
+    {
+        k_print_BuilderPushSvPaddedFmtArgs(pBuilder, &fmtArgsNext, K_SV(""));
+        k_print_BuilderPushSv(pBuilder, K_SV("\""));
+        k_print_BuilderPushSv(pBuilder, pIt->svName);
+        k_print_BuilderPushSv(pBuilder, K_SV("\": "));
+
+        switch (pIt->val.eType)
+        {
+            case K_JSON_TYPE_OBJECT:
+            printObject(&pIt->val.object, pBuilder, depth + 4);
+            break;
+
+            case K_JSON_TYPE_ARRAY:
+            printArray(&pIt->val.array, pBuilder, depth + 4);
+            break;
+
+            case K_JSON_TYPE_STRING:
+            k_print_BuilderPushSv(pBuilder, K_SV("\""));
+            k_print_BuilderPushSv(pBuilder, pIt->val.svValue);
+            k_print_BuilderPushSv(pBuilder, K_SV("\""));
+            break;
+
+            default:
+            k_print_BuilderPushSv(pBuilder, pIt->val.svValue);
+            break;
+        }
+
+        if (pIt - (k_JsonNameValue*)pObj->vNameValues.pData != pObj->vNameValues.size - 1)
+            k_print_BuilderPushSv(pBuilder, K_SV(",\n"));
+        else k_print_BuilderPushSv(pBuilder, K_SV("\n"));
+    }
+
+    k_print_BuilderPushSvPaddedFmtArgs(pBuilder, &fmtArgs, K_SV(""));
+    k_print_BuilderPushSv(pBuilder, K_SV("}"));
+}
+
+void
+k_JsonParserPrint(k_JsonParser* s, k_print_Builder* pBuilder)
+{
+    K_VEC_FOR_EACH(&s->vTree, k_JsonObject, pObj)
+    {
+        printObject(pObj, pBuilder, 0);
+        if (pObj - (k_JsonObject*)s->vTree.pData != s->vTree.size - 1)
+            k_print_BuilderPushSv(pBuilder, K_SV(",\n"));
+        else k_print_BuilderPushSv(pBuilder, K_SV("\n"));
+    }
 }

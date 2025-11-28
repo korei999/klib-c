@@ -21,6 +21,15 @@ test(const k_StringView svFile)
     if (!k_JsonParserParse(&p, &pGpa->base, (k_StringView){spFile.pData, spFile.size - 1}))
         goto fail;
 
+    k_print_Builder pb = {0};
+    if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pGpa->base, .preallocOrBufferSize = 256}))
+    {
+        k_JsonParserPrint(&p, &pb);
+        const k_StringView svPrinted = k_print_BuilderToSv(&pb);
+        fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
+    }
+    k_print_BuilderDestroy(&pb);
+
     return true;
 
 fail:
