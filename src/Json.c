@@ -27,6 +27,16 @@ printArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
 }
 
 static K_CMD_LINE_RESULT
+helpArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
+{
+    (void)pCmdLine, (void)pCmdArg;
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+        k_CmdLinePrintDescriptions(pCmdLine, &pArena->base, stderr);
+    return K_CMD_LINE_RESULT_BREAK;
+}
+
+static K_CMD_LINE_RESULT
 fileArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svValue)
 {
     (void)pCmdLine, (void)pCmdArg;
@@ -39,36 +49,6 @@ test(void)
 {
     k_Arena* pArena = k_CtxArena();
     k_Gpa* pGpa = k_GpaInst();
-    k_Span spFile = k_file_load(&pGpa->base, s_svFile.pData);
-
-    if (!spFile.pData)
-    {
-        K_CTX_LOG_ERROR("failed to open: '{PSv}'", &s_svFile);
-        return false;
-    }
-
-    {
-        k_JsonParser p;
-
-        k_time_Type t0 = k_time_now();
-
-        if (!k_JsonParserParse(&p, &pGpa->base, (k_StringView){spFile.pData, spFile.size - 1}))
-            goto fail;
-
-        K_CTX_LOG_DEBUG("parsed in: {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
-
-        if (s_bPrint)
-        {
-            k_print_Builder pb = {0};
-            if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pGpa->base, .preallocOrBufferSize = 256}))
-            {
-                k_JsonParserPrint(&p, &pb);
-                const k_StringView svPrinted = k_print_BuilderToSv(&pb);
-                fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
-            }
-            k_print_BuilderDestroy(&pb);
-        }
-    }
 
     if (s_bCreatingExample)
     {
@@ -124,6 +104,38 @@ test(void)
         }
     }
 
+    if (!s_svFile.pData) return true;
+    k_Span spFile = k_file_load(&pGpa->base, s_svFile.pData);
+
+    if (!spFile.pData)
+    {
+        K_CTX_LOG_ERROR("failed to open: '{PSv}'", &s_svFile);
+        return false;
+    }
+
+    {
+        k_JsonParser p;
+
+        k_time_Type t0 = k_time_now();
+
+        if (!k_JsonParserParse(&p, &pGpa->base, (k_StringView){spFile.pData, spFile.size - 1}))
+            goto fail;
+
+        K_CTX_LOG_DEBUG("parsed in: {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
+
+        if (s_bPrint)
+        {
+            k_print_Builder pb = {0};
+            if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pGpa->base, .preallocOrBufferSize = 256}))
+            {
+                k_JsonParserPrint(&p, &pb);
+                const k_StringView svPrinted = k_print_BuilderToSv(&pb);
+                fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
+            }
+            k_print_BuilderDestroy(&pb);
+        }
+    }
+
     return true;
 
 fail:
@@ -148,33 +160,42 @@ main(int argc, char** argv)
         }
     );
 
-    K_CTX_LOG_INFO("Json test...");
-
     k_Arena* pArena = k_CtxArena();
     K_ARENA_SCOPE(pArena)
     {
         k_CmdLineArg aArgs[] = {
             (k_CmdLineArg){
+                .cShortName = 'h',
+                .svLongName = K_SV("help"),
+                .pfnHandler = helpArg,
+                .svDescription = K_SV("show this text"),
+            },
+            (k_CmdLineArg){
                 .cShortName = 'p',
                 .pfnHandler = printArg,
+                .svDescription = K_SV("print parse json"),
             },
             (k_CmdLineArg){
                 .cShortName = 'c',
                 .pfnHandler = createArg,
+                .svDescription = K_SV("print manually created json tree"),
             },
             (k_CmdLineArg){
                 .cShortName = 'f',
                 .svLongName = K_SV("file"),
                 .bNeedsValue = true,
                 .pfnValueHandler = fileArg,
+                .svDescription = K_SV("selected file to parse"),
             },
         };
         k_CmdLine* pCmdLine = k_CmdLineAlloc(&pArena->base, stderr, K_NTS(argv[0]), K_SV(""), aArgs, K_ASIZE(aArgs));
-        k_CmdLineParse(pCmdLine, argc, argv);
+        K_CMD_LINE_RESULT eRes = k_CmdLineParse(pCmdLine, argc, argv);
+        if (eRes != K_CMD_LINE_RESULT_SUCCESS)
+            goto done;
     }
 
+    K_CTX_LOG_INFO("Json test...");
     if (!test()) goto done;
-
     K_CTX_LOG_INFO("Json test passed.");
 
 done:

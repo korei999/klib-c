@@ -227,7 +227,9 @@ k_CmdLineParse(k_CmdLine* s, int argc, char** argv)
 
 done:
     k_VecDestroy(&s->vCmdCommands, s->pAlloc);
-    return eRes;
+    if (eRes == K_CMD_LINE_RESULT_NEXT || eRes == K_CMD_LINE_RESULT_SUCCESS)
+        return eRes = K_CMD_LINE_RESULT_SUCCESS;
+    else return eRes;
 }
 
 void
