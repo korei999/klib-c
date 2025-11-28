@@ -547,33 +547,28 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
         return false;
     }
 
-    if (s->tok.eType == TOKEN_BRACE_OPEN)
+    while (s->tok.eType == TOKEN_BRACE_OPEN || s->tok.eType == TOKEN_BRACKET_OPEN)
     {
-        ssize_t n;
-moreObjects:
-        n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
-        if (n < 0) return false;
-
-        k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
-        if (!parseObject(s, pAlloc, &pNewVal->object)) return false;
-
-        if (!nextToken(s)) return false;
         if (s->tok.eType == TOKEN_BRACE_OPEN)
-            goto moreObjects;
-    }
-    else if (s->tok.eType == TOKEN_BRACKET_OPEN)
-    {
-        ssize_t n;
-moreArrays:
-        n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
-        if (n < 0) return false;
+        {
+            ssize_t n;
+            n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
+            if (n < 0) return false;
 
-        k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
-        if (!parseArray(s, pAlloc, &pNewVal->array)) return false;
+            k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
+            if (!parseObject(s, pAlloc, &pNewVal->object)) return false;
+        }
+        else if (s->tok.eType == TOKEN_BRACKET_OPEN)
+        {
+            ssize_t n;
+            n = k_VecPush(&s->tree.v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
+            if (n < 0) return false;
+
+            k_JsonValue* pNewVal = (k_JsonValue*)s->tree.v.pData + n;
+            if (!parseArray(s, pAlloc, &pNewVal->array)) return false;
+        }
 
         if (!nextToken(s)) return false;
-        if (s->tok.eType == TOKEN_BRACKET_OPEN)
-            goto moreArrays;
     }
 
     return true;
