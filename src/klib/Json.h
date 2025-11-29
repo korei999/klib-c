@@ -69,6 +69,7 @@ typedef struct k_JsonParser
     k_JsonTree tree;
 } k_JsonParser;
 
+static inline k_JsonParser k_JsonParserCreate(void);
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
 void k_JsonParserDestroy(k_JsonParser* s, k_IAllocator* pAlloc);
 void k_JsonParserPrint(const k_JsonParser* s, k_print_Builder* pBuilder);
@@ -107,6 +108,12 @@ static inline int64_t k_JsonAsInt(k_JsonValue* pVal);
 static inline double k_JsonAsFloat(k_JsonValue* pVal);
 static inline bool k_JsonAsBool(k_JsonValue* pVal);
 static inline void* k_JsonAsNull(k_JsonValue* pVal);
+
+static inline k_JsonParser
+k_JsonParserCreate(void)
+{
+    return (k_JsonParser){0};
+}
 
 static inline k_JsonTree
 k_JsonTreeCreate(void)

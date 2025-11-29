@@ -74,7 +74,7 @@ K_METHOD(Push)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* pVal)
 {
     if (s->size >= s->cap)
     {
-        if (!K_METHOD(Grow)(s, pAlloc, K_MAX(8, s->cap * 2)))
+        if (!K_METHOD(Grow)(s, pAlloc, K_MAX(2, s->cap * 2)))
             return K_NPOS;
     }
 

@@ -114,7 +114,7 @@ test(void)
     }
 
     {
-        k_JsonParser p;
+        k_JsonParser p = k_JsonParserCreate();
 
         k_time_Type t0 = k_time_now();
 
