@@ -176,6 +176,8 @@ k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const ch
 void
 k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svFmt, ...)
 {
+    if (eLevel > s->eLogLevel) return;
+
     va_list args;
     va_start(args, svFmt);
     k_LoggerPostVaList(s, pArena, eLevel, ntsFile, ntsFunc, line, svFmt, &args);
@@ -185,6 +187,8 @@ k_LoggerPostSv(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* 
 void
 k_LoggerPost(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const char* ntsFmt, ...)
 {
+    if (eLevel > s->eLogLevel) return;
+
     va_list args;
     va_start(args, ntsFmt);
     k_LoggerPostVaList(s, pArena, eLevel, ntsFile, ntsFunc, line, K_NTS(ntsFmt), &args);
