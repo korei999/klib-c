@@ -30,7 +30,6 @@ static const char* aTOKEN_STRINGS[] = {
 
 static void expectErrorLog(k_JsonParser* s, const int* pTokens, int nTokens, bool bNot);
 static bool parseObject(k_JsonParser* s, k_IAllocator* pAlloc, k_JsonObject* pObj);
-static void printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth);
 
 static void
 skipWhiteSpace(k_JsonParser* s)
@@ -569,8 +568,14 @@ k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svTe
     return true;
 }
 
-static void
-printArray(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
+void
+k_JsonParserDestroy(k_JsonParser* s, k_IAllocator* pAlloc)
+{
+    k_JsonTreeDestroy(&s->tree, pAlloc);
+}
+
+void
+k_JsonArrayPrint(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
 {
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
     fmtArgs.padSize = depth;
@@ -592,11 +597,11 @@ printArray(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
         switch (pIt->eType)
         {
             case K_JSON_TYPE_OBJECT:
-            printObject(&pIt->object, pBuilder, depth + 2);
+            k_JsonObjectPrint(&pIt->object, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_ARRAY:
-            printArray(&pIt->array, pBuilder, depth + 2);
+            k_JsonArrayPrint(&pIt->array, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_STRING:
@@ -619,8 +624,8 @@ printArray(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
     k_print_BuilderPushSv(pBuilder, K_SV("]"));
 }
 
-static void
-printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
+void
+k_JsonObjectPrint(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
 {
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
     fmtArgs.padSize = depth;
@@ -644,11 +649,11 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
         switch (pIt->val.eType)
         {
             case K_JSON_TYPE_OBJECT:
-            printObject(&pIt->val.object, pBuilder, depth + 2);
+            k_JsonObjectPrint(&pIt->val.object, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_ARRAY:
-            printArray(&pIt->val.array, pBuilder, depth + 2);
+            k_JsonArrayPrint(&pIt->val.array, pBuilder, depth + 2);
             break;
 
             case K_JSON_TYPE_STRING:
@@ -674,22 +679,68 @@ printObject(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
 void
 k_JsonParserPrint(const k_JsonParser* s, k_print_Builder* pBuilder)
 {
-    k_JsonPrint(&s->tree, pBuilder);
+    k_JsonTreePrint(&s->tree, pBuilder);
 }
 
 void
-k_JsonPrint(const k_JsonTree* s, k_print_Builder* pBuilder)
+k_JsonTreeDestroy(k_JsonTree* s, k_IAllocator* pAlloc)
+{
+    k_JsonArrayDestroy((k_JsonArray*)s, pAlloc);
+}
+
+void
+k_JsonObjectDestroy(k_JsonObject* s, k_IAllocator* pAlloc)
+{
+    K_VEC_FOR_EACH(&s->vNameValues, k_JsonNameValue, pIt)
+    {
+        switch (pIt->val.eType)
+        {
+            case K_JSON_TYPE_OBJECT:
+            k_JsonObjectDestroy(&pIt->val.object, pAlloc);
+            break;
+
+            case K_JSON_TYPE_ARRAY:
+            k_JsonArrayDestroy(&pIt->val.array, pAlloc);
+            break;
+        }
+    }
+
+    k_VecDestroy(&s->vNameValues, pAlloc);
+}
+
+void
+k_JsonArrayDestroy(k_JsonArray* s, k_IAllocator* pAlloc)
+{
+    K_VEC_FOR_EACH(&s->vValues, k_JsonValue, pIt)
+    {
+        switch (pIt->eType)
+        {
+            case K_JSON_TYPE_OBJECT:
+            k_JsonObjectDestroy(&pIt->object, pAlloc);
+            break;
+
+            case K_JSON_TYPE_ARRAY:
+            k_JsonArrayDestroy(&pIt->array, pAlloc);
+            break;
+        }
+    }
+
+    k_VecDestroy(&s->vValues, pAlloc);
+}
+
+void
+k_JsonTreePrint(const k_JsonTree* s, k_print_Builder* pBuilder)
 {
     K_VEC_FOR_EACH(&s->v, k_JsonValue, pVal)
     {
         switch (pVal->eType)
         {
             case K_JSON_TYPE_ARRAY:
-            printArray(&pVal->array, pBuilder, 0);
+            k_JsonArrayPrint(&pVal->array, pBuilder, 0);
             break;
 
             case K_JSON_TYPE_OBJECT:
-            printObject(&pVal->object, pBuilder, 0);
+            k_JsonObjectPrint(&pVal->object, pBuilder, 0);
             break;
         }
 

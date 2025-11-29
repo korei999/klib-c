@@ -11,6 +11,19 @@ typedef struct k_Vec
     ssize_t cap;
 } k_Vec;
 
+static inline bool k_VecInit(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t cap);
+static inline void k_VecDestroy(k_Vec* s, k_IAllocator* pAlloc);
+static inline bool k_VecGrow(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap);
+static inline ssize_t k_VecPush(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, const void* pVal);
+static inline ssize_t k_VecPushMany(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, const void* p, ssize_t size);
+static inline void* k_VecPop(k_Vec* s, ssize_t mSize);
+static inline void k_VecPopAsLast(k_Vec* s, ssize_t i, ssize_t mSize, void* pPopDestOrNull);
+static inline bool k_VecShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap);
+static inline bool k_VecPopShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize);
+static inline bool k_VecSetCap(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap);
+static inline void* k_VecGetP(k_Vec* s, ssize_t mSize, ssize_t i);
+static inline void k_VecSet(k_Vec* s, ssize_t i, ssize_t mSize, const void* p);
+
 static inline bool
 k_VecInit(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t cap)
 {
@@ -52,7 +65,7 @@ k_VecPush(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, const void* pVal)
 {
     if (s->size >= s->cap)
     {
-        if (!k_VecGrow(s, pAlloc, mSize, K_MAX(8, s->cap * 2)))
+        if (!k_VecGrow(s, pAlloc, mSize, K_MAX(2, s->cap * 2)))
             return K_NPOS;
     }
 
@@ -82,6 +95,14 @@ k_VecPop(k_Vec* s, ssize_t mSize)
 {
     assert(s->size > 0);
     return (uint8_t*)s->pData + --s->size*mSize;
+}
+
+static inline void
+k_VecPopAsLast(k_Vec* s, ssize_t i, ssize_t mSize, void* pPopDestOrNull)
+{
+    assert(s->size > 0);
+    if (pPopDestOrNull) memcpy(pPopDestOrNull, (uint8_t*)s->pData + i*mSize, mSize);
+    memcpy((uint8_t*)s->pData + i*mSize, (uint8_t*)s->pData + --s->size, mSize);
 }
 
 static inline bool

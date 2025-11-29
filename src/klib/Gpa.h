@@ -17,6 +17,7 @@ static inline k_Gpa k_GpaCreate(void);
 K_NO_DISCARD static inline k_Gpa* k_GpaInst(void);
 
 #define K_GPA_ALLOC(type, ...) (type*)k_GpaAlloc(NULL, &(type) {__VA_ARGS__}, sizeof(type))
+#define K_GPA_FREE(ptr) k_GpaFree(NULL, ptr)
 
 static const k_IAllocatorVTable k_s_vtGpa = {
     .malloc = k_GpaMalloc,

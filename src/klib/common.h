@@ -63,3 +63,11 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
 
 #else
 #endif
+
+#if defined __GNUC__ || defined __clang__
+    #define K_UNLIKELY(x) (__builtin_expect(!!(x), false))
+    #define K_LIKELY(x) (__builtin_expect(!!(x), true))
+#else
+    #define K_UNLIKELY(x) (x)
+    #define K_LIKELY(x) (x)
+#endif

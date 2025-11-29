@@ -78,7 +78,7 @@ growIfNeeded(k_Arena* pSelf, ssize_t newPos)
         const ssize_t pageSize = k_getPageSize();
         ssize_t aligned = K_ALIGN_UP_PO2(newPos, pageSize);
         const ssize_t newCommited = K_MAX(aligned, s->commited * 2);
-        if (newCommited > s->reserved)
+        if K_UNLIKELY(newCommited > s->reserved)
         {
             return false;
         }
@@ -156,7 +156,7 @@ k_ArenaMalloc(void* pSelf, ssize_t nBytes)
     k_Arena* s = (k_Arena*)pSelf;
     const ssize_t realSize = K_ALIGN_UP8(nBytes);
     void* pRet = (void*)((uint8_t*)s->priv.pData + s->priv.pos);
-    if (!growIfNeeded(s, s->priv.pos + realSize)) return NULL;
+    if K_UNLIKELY(!growIfNeeded(s, s->priv.pos + realSize)) return NULL;
     s->priv.pLastAlloc = pRet;
 
     return pRet;
@@ -174,20 +174,20 @@ void*
 k_ArenaRealloc(void* pSelf, void* p, ssize_t oldNBytes, ssize_t newNBytes)
 {
     k_Arena* s = (k_Arena*)pSelf;
-    if (!p) return malloc(newNBytes);
+    if (!p) return k_ArenaMalloc(pSelf, newNBytes);
 
     /* bump case */
     if (p == s->priv.pLastAlloc)
     {
         const ssize_t realSize = K_ALIGN_UP8(newNBytes);
         const ssize_t newPos = ((ssize_t)s->priv.pLastAlloc - (ssize_t)s->priv.pData) + realSize;
-        if (!growIfNeeded(s, newPos)) return NULL;
+        if K_UNLIKELY(!growIfNeeded(s, newPos)) return NULL;
         return p;
     }
 
     if (newNBytes <= oldNBytes) return p;
 
-    void* pMem = malloc(newNBytes);
+    void* pMem = k_ArenaMalloc(pSelf, newNBytes);
     if (p) memcpy(pMem, p, K_MIN(oldNBytes, newNBytes));
     return pMem;
 }

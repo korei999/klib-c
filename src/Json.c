@@ -96,7 +96,7 @@ test(void)
             k_print_Builder pb = {0};
             if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base, .preallocOrBufferSize = 256}))
             {
-                k_JsonPrint(&json, &pb);
+                k_JsonTreePrint(&json, &pb);
                 const k_StringView svPrinted = k_print_BuilderToSv(&pb);
                 fwrite(svPrinted.pData, svPrinted.size, 1, stderr);
             }
@@ -118,7 +118,7 @@ test(void)
 
         k_time_Type t0 = k_time_now();
 
-        if (!k_JsonParserParse(&p, &pGpa->base, (k_StringView){spFile.pData, spFile.size - 1}))
+        if (!k_JsonParserParse(&p, &pArena->base, (k_StringView){spFile.pData, spFile.size - 1}))
             goto fail;
 
         K_CTX_LOG_DEBUG("parsed in: {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
@@ -134,7 +134,11 @@ test(void)
             }
             k_print_BuilderDestroy(&pb);
         }
+
+        // k_JsonParserDestroy(&p, &pArena->base);
     }
+
+    K_GPA_FREE(spFile.pData);
 
     return true;
 
@@ -156,7 +160,7 @@ main(int argc, char** argv)
             .ringBufferSize = K_SIZE_1K*4,
         },
         (k_ThreadPoolInitOpts){
-            .arenaReserve = K_SIZE_1M*60,
+            .arenaReserve = K_SIZE_1G*8,
         }
     );
 

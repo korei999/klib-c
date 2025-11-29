@@ -70,11 +70,12 @@ typedef struct k_JsonParser
 } k_JsonParser;
 
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
+void k_JsonParserDestroy(k_JsonParser* s, k_IAllocator* pAlloc);
 void k_JsonParserPrint(const k_JsonParser* s, k_print_Builder* pBuilder);
 
-void k_JsonPrint(const k_JsonTree* s, k_print_Builder* pBuilder);
-
 static inline k_JsonTree k_JsonTreeCreate(void);
+void k_JsonTreeDestroy(k_JsonTree* s, k_IAllocator* pAlloc);
+void k_JsonTreePrint(const k_JsonTree* s, k_print_Builder* pBuilder);
 static inline ssize_t k_JsonTreePushObject(k_JsonTree* s, k_IAllocator* pAlloc);
 static inline ssize_t k_JsonTreePushArray(k_JsonTree* s, k_IAllocator* pAlloc);
 
@@ -89,11 +90,15 @@ static inline k_JsonValue k_JsonCreateTrue(void);
 static inline k_JsonValue k_JsonCreateFalse(void);
 static inline k_JsonValue k_JsonCreateNull(void);
 
+void k_JsonObjectDestroy(k_JsonObject* s, k_IAllocator* pAlloc);
 static inline ssize_t k_JsonObjectPush(k_JsonObject* s, k_IAllocator* pAlloc, const k_JsonNameValue* pNameValue);
 static inline ssize_t k_JsonObjectPushSv(k_JsonObject* s, k_IAllocator* pAlloc, const k_StringView svName, const k_JsonValue* pValue);
 static inline k_JsonNameValue* k_JsonObjectSearch(k_JsonObject* s, const k_StringView svName); /* NULL. */
+void k_JsonObjectPrint(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth);
 
+void k_JsonArrayDestroy(k_JsonArray* s, k_IAllocator* pAlloc);
 static inline ssize_t k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pValue);
+void k_JsonArrayPrint(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth);
 
 static inline k_JsonObject* k_JsonAsObject(k_JsonValue* pVal);
 static inline k_JsonArray* k_JsonAsArray(k_JsonValue* pVal);
