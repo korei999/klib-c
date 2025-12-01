@@ -525,6 +525,45 @@ gotComma:
     return true;
 }
 
+k_JsonTraverseResult
+k_JsonTraverse(
+    k_JsonValue* pVal,
+    const k_StringView svNameOrEmpty,
+    bool (*pfn)(k_JsonValue* pNV, const k_StringView svNameOrEmpty, void* pArg),
+    void* pArg
+)
+{
+    if (pfn(pVal, svNameOrEmpty, pArg))
+    {
+        return (k_JsonTraverseResult){
+            .pValOrNull = pVal,
+            .svNameOrEmpty = svNameOrEmpty,
+            .bReturn = true
+        };
+    }
+
+    switch (pVal->eType)
+    {
+        case K_JSON_TYPE_ARRAY:
+        K_VEC_FOR_EACH(&pVal->array.vValues, k_JsonValue, pIt)
+        {
+            k_JsonTraverseResult res = k_JsonTraverse(pIt, (k_StringView){0}, pfn, pArg);
+            if (res.bReturn) return res;
+        }
+        break;
+
+        case K_JSON_TYPE_OBJECT:
+        K_VEC_FOR_EACH(&pVal->object.vNameValues, k_JsonNameValue, pIt)
+        {
+            k_JsonTraverseResult res = k_JsonTraverse(&pIt->val, pIt->svName, pfn, pArg);
+            if (res.bReturn) return res;
+        }
+        break;
+    }
+
+    return (k_JsonTraverseResult){0};
+}
+
 bool
 k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText)
 {

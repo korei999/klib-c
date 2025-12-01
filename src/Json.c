@@ -45,6 +45,15 @@ fileArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svValue)
 }
 
 static bool
+traverse(k_JsonValue* pNV, const k_StringView svNameOrEmpty, void* pArg)
+{
+    const k_StringView* pSv = pArg;
+    if (k_StringViewEq(svNameOrEmpty, *pSv))
+        return true;
+    return false;
+}
+
+static bool
 test(void)
 {
     k_Arena* pArena = k_CtxArena();
@@ -122,6 +131,14 @@ test(void)
             goto fail;
 
         K_CTX_LOG_DEBUG("parsed in: {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
+
+        {
+            k_StringView svFind = K_SV("GlossTerm");
+            k_JsonTraverseResult res = k_JsonTraverse((k_JsonValue*)p.tree.v.pData, (k_StringView){0}, traverse, &svFind);
+            if (res.pValOrNull)
+                K_CTX_LOG_DEBUG("res: {PSv}: {PSv}", &res.svNameOrEmpty, &res.pValOrNull->svValue);
+            else K_CTX_LOG_DEBUG("res: null");
+        }
 
         if (s_bPrint)
         {

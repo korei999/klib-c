@@ -69,6 +69,20 @@ typedef struct k_JsonParser
     k_JsonTree tree;
 } k_JsonParser;
 
+typedef struct k_JsonTraverseResult
+{
+    k_JsonValue* pValOrNull;
+    k_StringView svNameOrEmpty;
+    bool bReturn; /* Early return flag. */
+} k_JsonTraverseResult;
+
+k_JsonTraverseResult k_JsonTraverse(
+    k_JsonValue* pVal,
+    const k_StringView svNameOrEmpty,
+    bool (*pfn)(k_JsonValue* pNV, const k_StringView svNameOrEmpty, void* pArg), /* Return true for early return. */
+    void* pArg
+);
+
 static inline k_JsonParser k_JsonParserCreate(void);
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
 void k_JsonParserDestroy(k_JsonParser* s, k_IAllocator* pAlloc);
