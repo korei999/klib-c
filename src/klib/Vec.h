@@ -102,7 +102,7 @@ k_VecPopAsLast(k_Vec* s, ssize_t i, ssize_t mSize, void* pPopDestOrNull)
 {
     assert(s->size > 0);
     if (pPopDestOrNull) memcpy(pPopDestOrNull, (uint8_t*)s->pData + i*mSize, mSize);
-    memcpy((uint8_t*)s->pData + i*mSize, (uint8_t*)s->pData + --s->size, mSize);
+    memcpy((uint8_t*)s->pData + i*mSize, (uint8_t*)s->pData + --s->size*mSize, mSize);
 }
 
 static inline bool
