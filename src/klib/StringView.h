@@ -13,6 +13,8 @@ typedef struct
 #define K_NTS(nts) (k_StringView){(char*)nts, strlen(nts)}
 #define K_SV(nts) (k_StringView){(char*)nts, (ssize_t)(sizeof(nts) - 1)}
 
+static inline bool k_oneOfChars(char c, const k_StringView svChars);
+
 ssize_t k_StringViewCmp(const k_StringView* l, const k_StringView* r);
 ssize_t k_StringViewCmpRev(const k_StringView* l, const k_StringView* r);
 static inline uint64_t k_StringViewHash(const k_StringView* pSv);
@@ -39,6 +41,16 @@ static inline char k_StringViewGet(const k_StringView* s, ssize_t i);
 static inline void k_StringViewSet(const k_StringView* s, ssize_t i, char c);
 
 /* Impl */
+
+static inline bool
+k_oneOfChars(char c, const k_StringView svChars)
+{
+    for (ssize_t i = 0; i < svChars.size; ++i)
+        if (c == svChars.pData[i])
+            return true;
+
+    return false;
+}
 
 static inline uint64_t
 k_StringViewHash(const k_StringView* pSv)

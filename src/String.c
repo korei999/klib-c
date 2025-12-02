@@ -1,4 +1,5 @@
 #include "klib/String.h"
+#include "klib/WordIt.h"
 
 #include "klib/Ctx.h"
 #include "klib/assert.h"
@@ -22,6 +23,12 @@ test(void)
 
         K_ASSERT_ALWAYS(k_StringViewEq(k_StringToSv(&s), K_SV("HELLO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE")), "got: '{PS}'", &s);
         K_CTX_LOG_DEBUG("s (size: {sz}, cap: {sz}): '{PS}'", k_StringSize(&s), k_StringCap(&s), &s);
+
+        for (k_WordIt word = k_WordItBegin(k_StringToSv(&s), K_SV(" SF\n")); !k_WordItDone(&word); k_WordItNext(&word))
+        {
+            const k_StringView svWord = k_WordItToSv(&word);
+            K_CTX_LOG_WARN("word: '{PSv}'", &svWord);
+        }
 
         k_StringReallocWith(&s, &pArena->base, K_SV("what"));
         K_ASSERT_ALWAYS(k_StringViewEq(k_StringToSv(&s), K_SV("what")), "got: '{PS}'", &s);
