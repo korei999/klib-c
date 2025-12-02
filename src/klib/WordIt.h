@@ -9,13 +9,13 @@ typedef struct k_WordIt
     ssize_t startI, endI;
 } k_WordIt;
 
-static inline k_WordIt k_WordItBegin(const k_StringView sv, const k_StringView svSeparators);
+static inline k_WordIt k_WordItCreate(const k_StringView sv, const k_StringView svSeparators);
 static inline bool k_WordItDone(const k_WordIt* s);
 static inline void k_WordItNext(k_WordIt* s);
 static inline k_StringView k_WordItToSv(const k_WordIt* s);
 
 static inline k_WordIt
-k_WordItBegin(const k_StringView sv, const k_StringView svSeparators)
+k_WordItCreate(const k_StringView sv, const k_StringView svSeparators)
 {
     k_WordIt it = {.sv = sv, .svSeparators = svSeparators, .startI = 0, .endI = 0};
     k_WordItNext(&it);
