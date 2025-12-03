@@ -9,6 +9,7 @@
 static bool s_bCreatingExample = false;
 static bool s_bPrint = false;
 static k_StringView s_svFile;
+static k_StringView s_svQuery;
 
 static K_CMD_LINE_RESULT
 createArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
@@ -44,6 +45,14 @@ fileArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svValue)
     return K_CMD_LINE_RESULT_NEXT;
 }
 
+static K_CMD_LINE_RESULT
+queryKeyArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svValue)
+{
+    (void)pCmdLine, (void)pCmdArg;
+    s_svQuery = svValue;
+    return K_CMD_LINE_RESULT_NEXT;
+}
+
 static bool
 traverse(k_JsonValue* pNV, const k_StringView svNameOrEmpty, void* pArg)
 {
@@ -63,9 +72,9 @@ test(void)
     {
         K_ARENA_SCOPE(pArena)
         {
-            k_JsonTree json = k_JsonTreeCreate();
-            const ssize_t firstI = k_JsonTreePushObject(&json, &pArena->base);
-            k_JsonObject* pObj = (k_JsonObject*)json.v.pData + firstI;
+            k_JsonArray json = {0};
+            const ssize_t firstI = k_JsonArrayPush(&json, &pArena->base, &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
+            k_JsonObject* pObj = k_VecGetP(&json.vValues, sizeof(k_JsonObject), firstI);
 
             {
                 k_JsonValue val = k_JsonCreateIntSv(K_SV("666"));
@@ -105,9 +114,10 @@ test(void)
             k_print_Builder pb = {0};
             if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base, .preallocOrBufferSize = 256}))
             {
-                k_JsonTreePrint(&json, &pb);
+                k_JsonArrayPrint(&json, &pb, 0);
+                k_print_BuilderPushChar(&pb, '\n');
                 const k_StringView svPrinted = k_print_BuilderToSv(&pb);
-                fwrite(svPrinted.pData, svPrinted.size, 1, stderr);
+                fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
             }
             k_print_BuilderDestroy(&pb);
         }
@@ -132,12 +142,12 @@ test(void)
 
         K_CTX_LOG_DEBUG("parsed in: {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
 
+        if (s_svQuery.size > 0)
         {
-            k_StringView svFind = K_SV("GlossTerm");
-            k_JsonTraverseResult res = k_JsonTraverse((k_JsonValue*)p.tree.v.pData, (k_StringView){0}, traverse, &svFind);
+            k_JsonTraverseResult res = k_JsonTraverse((k_JsonValue*)p.root.vValues.pData, (k_StringView){0}, traverse, &s_svQuery);
             if (res.pValOrNull)
-                K_CTX_LOG_DEBUG("res: {PSv}: {PSv}", &res.svNameOrEmpty, &res.pValOrNull->svValue);
-            else K_CTX_LOG_DEBUG("res: null");
+                K_CTX_LOG_DEBUG("query: '{PSv}': '{PSv}'", &res.svNameOrEmpty, &res.pValOrNull->svValue);
+            else K_CTX_LOG_DEBUG("query: null");
         }
 
         if (s_bPrint)
@@ -207,6 +217,13 @@ main(int argc, char** argv)
                 .bNeedsValue = true,
                 .pfnValueHandler = fileArg,
                 .svDescription = K_SV("selected file to parse"),
+            },
+            (k_CmdLineArg){
+                .cShortName = 'q',
+                .svLongName = K_SV("query"),
+                .bNeedsValue = true,
+                .pfnValueHandler = queryKeyArg,
+                .svDescription = K_SV("find value for the given key"),
             },
         };
         k_CmdLine* pCmdLine = k_CmdLineAlloc(&pArena->base, stderr, K_NTS(argv[0]), K_SV(""), aArgs, K_ASIZE(aArgs));

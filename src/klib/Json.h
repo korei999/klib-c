@@ -56,17 +56,12 @@ typedef struct k_JsonNameValue
     k_JsonValue val;
 } k_JsonNameValue;
 
-typedef struct k_JsonTree
-{
-    k_Vec v; /* <k_JsonValue> */
-} k_JsonTree;
-
 typedef struct k_JsonParser
 {
     k_JsonToken tok;
     k_StringView svText;
     ssize_t i, x, y;
-    k_JsonTree tree;
+    k_JsonArray root; /* There may be multiple unnamed root objects. */
 } k_JsonParser;
 
 typedef struct k_JsonTraverseResult
@@ -88,12 +83,6 @@ bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView
 void k_JsonParserDestroy(k_JsonParser* s, k_IAllocator* pAlloc);
 void k_JsonParserPrint(const k_JsonParser* s, k_print_Builder* pBuilder);
 
-static inline k_JsonTree k_JsonTreeCreate(void);
-void k_JsonTreeDestroy(k_JsonTree* s, k_IAllocator* pAlloc);
-void k_JsonTreePrint(const k_JsonTree* s, k_print_Builder* pBuilder);
-static inline ssize_t k_JsonTreePushObject(k_JsonTree* s, k_IAllocator* pAlloc);
-static inline ssize_t k_JsonTreePushArray(k_JsonTree* s, k_IAllocator* pAlloc);
-
 static inline k_JsonValue k_JsonCreateObject(void);
 static inline k_JsonValue k_JsonCreateArray(void);
 static inline k_JsonValue k_JsonCreateString(const k_StringView svVal);
@@ -113,7 +102,7 @@ void k_JsonObjectPrint(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
 
 void k_JsonArrayDestroy(k_JsonArray* s, k_IAllocator* pAlloc);
 static inline ssize_t k_JsonArrayPush(k_JsonArray* s, k_IAllocator* pAlloc, const k_JsonValue* pValue);
-void k_JsonArrayPrint(k_JsonArray* pArr, k_print_Builder* pBuilder, int depth);
+void k_JsonArrayPrint(const k_JsonArray* pArr, k_print_Builder* pBuilder, int depth);
 
 static inline k_JsonObject* k_JsonAsObject(k_JsonValue* pVal);
 static inline k_JsonArray* k_JsonAsArray(k_JsonValue* pVal);
@@ -127,24 +116,6 @@ static inline k_JsonParser
 k_JsonParserCreate(void)
 {
     return (k_JsonParser){0};
-}
-
-static inline k_JsonTree
-k_JsonTreeCreate(void)
-{
-    return (k_JsonTree){0};
-}
-
-static inline ssize_t
-k_JsonTreePushObject(k_JsonTree* s, k_IAllocator* pAlloc)
-{
-    return k_VecPush(&s->v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
-}
-
-static inline ssize_t
-k_JsonTreePushArray(k_JsonTree* s, k_IAllocator* pAlloc)
-{
-    return k_VecPush(&s->v, pAlloc, sizeof(k_JsonValue), &(k_JsonValue){.eType = K_JSON_TYPE_ARRAY});
 }
 
 static inline k_JsonValue
