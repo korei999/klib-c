@@ -84,7 +84,7 @@ k_SListInsertBefore(k_SList* s, k_SListInsertBeforeOpts opts)
         return;
     }
 
-    k_SListNode** walk = &s->pFirst;
+    k_SListNode** walk = &s->pFirst->pNext;
     while (*walk)
     {
         if (*walk == opts.pBefore)
