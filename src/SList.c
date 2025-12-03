@@ -67,10 +67,8 @@ test(void)
     removeNode(&list, &n1);
     removeNode(&list, &n0);
 
-    {
-        SListNodeInt n6 = {.i = 6};
-        k_SListInsertBefore(&list, (k_SListInsertBeforeOpts){.pBefore = &n5.listNode, .pNode = &n6.listNode});
-    }
+    SListNodeInt n6 = {.i = 6};
+    k_SListInsertBefore(&list, (k_SListInsertBeforeOpts){.pBefore = &n5.listNode, .pNode = &n6.listNode});
 
     {
         int i = 0;
