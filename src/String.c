@@ -27,7 +27,7 @@ test(void)
         for (k_WordIt word = k_WordItCreate(k_StringToSv(&s), K_SV(" SF\n")); !k_WordItDone(&word); k_WordItNext(&word))
         {
             const k_StringView svWord = k_WordItToSv(&word);
-            K_CTX_LOG_WARN("word: '{PSv}'", &svWord);
+            K_CTX_LOG_DEBUG("word: '{PSv}'", &svWord);
         }
 
         k_StringReallocWith(&s, &pArena->base, K_SV("what"));

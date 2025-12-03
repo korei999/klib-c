@@ -23,6 +23,7 @@ set(TestBinaries
     Pool
     SOAGen
     Json
+    SList
 )
 
 foreach(Executable IN LISTS TestBinaries)

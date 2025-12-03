@@ -933,8 +933,7 @@ ssize_t
 k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 {
     uint64_t v = (uint64_t)arg;
-    k_print_FmtArgs fmtArgs = *pFmtArgs;
-    fmtArgs.eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
-    fmtArgs.eBase = K_PRINT_BASE_SIXTEEN;
-    return formatInteger(pCtx, &fmtArgs, (void*)v, true);
+    pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
+    pFmtArgs->eBase = K_PRINT_BASE_SIXTEEN;
+    return formatInteger(pCtx, pFmtArgs, (void*)v, true);
 }

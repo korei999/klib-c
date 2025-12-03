@@ -32,11 +32,11 @@ k_WordItDone(const k_WordIt* s)
 static inline void
 k_WordItNext(k_WordIt* s)
 {
+    /* Skip separators. */
     while (s->endI < s->sv.size)
     {
         if (!k_oneOfChars(s->sv.pData[s->endI], s->svSeparators))
             break;
-
         ++s->endI;
     }
 
@@ -46,7 +46,6 @@ k_WordItNext(k_WordIt* s)
     {
         if (k_oneOfChars(s->sv.pData[s->endI], s->svSeparators))
             return;
-
         ++s->endI;
     }
 }
