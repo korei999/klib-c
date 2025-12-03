@@ -36,11 +36,14 @@ test(void)
     SListNodeInt n4 = {.i = 4};
     k_SListInsertTail(&list, &n4.listNode);
 
+    SListNodeInt n5 = {.i = 5};
+    k_SListInsertBefore(&list, (k_SListInsertBeforeOpts){.pBefore = &n1.listNode, .pNode = &n5.listNode});
+
     {
         int i = 0;
-        K_SLIST_FOR_EACH(&list, pIter)
+        K_SLIST_FOR_EACH(&list, pNodeIter)
         {
-            SListNodeInt* pIt = (SListNodeInt*)pIter;
+            SListNodeInt* pIt = (SListNodeInt*)pNodeIter;
             K_CTX_LOG_DEBUG("{i}: {i}", i, pIt->i);
             ++i;
         }
@@ -50,9 +53,9 @@ test(void)
 
     {
         int i = 0;
-        K_SLIST_FOR_EACH(&list, pIter)
+        K_SLIST_FOR_EACH(&list, pNodeIter)
         {
-            SListNodeInt* pIt = (SListNodeInt*)pIter;
+            SListNodeInt* pIt = (SListNodeInt*)pNodeIter;
             K_CTX_LOG_DEBUG("{i}: {i}", i, pIt->i);
             ++i;
         }
@@ -62,9 +65,9 @@ test(void)
 
     {
         int i = 0;
-        K_SLIST_FOR_EACH(&list, pIter)
+        K_SLIST_FOR_EACH(&list, pNodeIter)
         {
-            SListNodeInt* pIt = (SListNodeInt*)pIter;
+            SListNodeInt* pIt = (SListNodeInt*)pNodeIter;
             K_CTX_LOG_DEBUG("{i}: {i}", i, pIt->i);
             ++i;
         }
