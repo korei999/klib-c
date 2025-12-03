@@ -13,7 +13,7 @@ static void
 removeNode(k_SList* s, SListNodeInt* pNode)
 {
     K_CTX_LOG_DEBUG("removing: {i}", pNode->i);
-    SListNodeInt* pPrev = (SListNodeInt*)k_SListRemove(s, &pNode->listNode);
+    SListNodeInt* pPrev = (SListNodeInt*)k_SListRemove1(s, &pNode->listNode);
     if (!pPrev) K_CTX_LOG_DEBUG("pPrev: null {p}", pPrev);
     else K_CTX_LOG_DEBUG("pPrev: {i}", pPrev->i);
 }

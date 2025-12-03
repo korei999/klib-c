@@ -1,38 +1,33 @@
 #pragma once
 
-typedef struct k_SListNode k_SListNode;
-struct k_SListNode
+typedef struct k_SListNode
 {
-    k_SListNode* pNext;
+    struct k_SListNode* pNext;
     /* <T> data; */
-};
+} k_SListNode;
 
-typedef struct k_SList k_SList;
-struct k_SList
+typedef struct k_SList
 {
     k_SListNode* pFirst;
-};
+} k_SList;
 
-typedef struct k_SListRemoveOpts k_SListRemoveOpts;
-struct k_SListRemoveOpts
+typedef struct k_SListRemoveOpts
 {
     k_SListNode* pPrev;
     k_SListNode* pNode;
-};
+} k_SListRemoveOpts;
 
-typedef struct k_SListInsertAfterOpts k_SListInsertAfterOpts;
-struct k_SListInsertAfterOpts
+typedef struct k_SListInsertAfterOpts
 {
     k_SListNode* pAfter;
     k_SListNode* pNode;
-};
+} k_SListInsertAfterOpts;
 
-typedef struct k_SListInsertBeforeOpts k_SListInsertBeforeOpts;
-struct k_SListInsertBeforeOpts
+typedef struct k_SListInsertBeforeOpts
 {
     k_SListNode* pBefore;
     k_SListNode* pNode;
-};
+} k_SListInsertBeforeOpts;
 
 #define K_SLIST_FOR_EACH(s, pItName) for (k_SListNode* pItName = (s)->pFirst; pItName; pItName = pItName->pNext)
 #define K_SLIST_NODE_FOR_EACH(s, pItName) for (k_SListNode* pItName = s; pItName; pItName = pItName->pNext)
@@ -42,7 +37,8 @@ static inline void k_SListInsert(k_SList* s, k_SListNode* pNode); /* Prepend. */
 static inline void k_SListInsertTail(k_SList* s, k_SListNode* pNode); /* Append. */
 static inline void k_SListInsertAfter(k_SListInsertAfterOpts opts);
 static inline void k_SListInsertBefore(k_SList* s, k_SListInsertBeforeOpts opts);
-static inline k_SListNode* k_SListRemove(k_SList* s, k_SListNode* pNode); /* Returns previous node or NULL. */
+static inline void k_SListRemove(k_SList* s, k_SListNode* pNode);
+static inline k_SListNode* k_SListRemove1(k_SList* s, k_SListNode* pNode); /* Returns previous node or NULL. */
 static inline void k_SListRemove2(k_SListRemoveOpts opts);
 
 static inline k_SList
@@ -98,8 +94,23 @@ k_SListInsertBefore(k_SList* s, k_SListInsertBeforeOpts opts)
     }
 }
 
-static inline k_SListNode*
+static inline void
 k_SListRemove(k_SList* s, k_SListNode* pNode)
+{
+    k_SListNode** walk = &s->pFirst;
+    while (*walk)
+    {
+        if (*walk == pNode)
+        {
+            *walk = pNode->pNext;
+            return;
+        }
+        walk = &(*walk)->pNext;
+    }
+}
+
+static inline k_SListNode*
+k_SListRemove1(k_SList* s, k_SListNode* pNode)
 {
     k_SListNode** walk = &s->pFirst;
     while (*walk)
