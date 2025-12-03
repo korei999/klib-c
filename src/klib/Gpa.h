@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-typedef struct
+typedef struct k_Gpa
 {
     k_IAllocator base;
 } k_Gpa;
@@ -61,6 +61,7 @@ k_GpaAlloc(void* s, void* p, ssize_t size)
 {
     (void)s;
     void* ret = malloc(size);
+    if (!ret) return NULL;
     memcpy(ret, p, size);
     return ret;
 }

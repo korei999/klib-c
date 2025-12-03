@@ -13,7 +13,7 @@
     #define K_ASAN_UNPOISON(...) (void)0
 #endif
 
-typedef struct
+typedef struct k_IAllocatorVTable
 {
     void* (*malloc)(void* pSelf, ssize_t nBytes);
     void* (*zalloc)(void* pSelf, ssize_t nBytes);
@@ -21,7 +21,7 @@ typedef struct
     void (*free)(void* pSelf, void* p);
 } k_IAllocatorVTable;
 
-typedef struct
+typedef struct k_IAllocator
 {
     const k_IAllocatorVTable* pVTable;
 } k_IAllocator;
@@ -54,6 +54,7 @@ K_NO_DISCARD static inline void*
 k_IAllocatorAlloc(void* pSelf, void* p, ssize_t size)
 {
     void* ret = ((k_IAllocator*)pSelf)->pVTable->malloc(pSelf, size);
+    if (!ret) return NULL;
     memcpy(ret, p, size);
     return ret;
 }

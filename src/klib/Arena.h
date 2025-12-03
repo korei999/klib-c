@@ -20,7 +20,7 @@ typedef struct k_ArenaPtrAllocOpts
     k_ArenaDeleterPfn pfnDeleter; /* k_nullDeleter if NULL. */
 } k_ArenaPtrAllocOpts;
 
-typedef struct
+typedef struct k_Arena
 {
     k_IAllocator base;
 
