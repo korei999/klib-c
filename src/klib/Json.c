@@ -664,7 +664,7 @@ k_JsonArrayPrint(const k_JsonArray* pArr, k_print_Builder* pBuilder, int depth)
 }
 
 void
-k_JsonObjectPrint(k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
+k_JsonObjectPrint(const k_JsonObject* pObj, k_print_Builder* pBuilder, int depth)
 {
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
     fmtArgs.padSize = depth;
