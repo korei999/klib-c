@@ -74,7 +74,7 @@ test(void)
         {
             k_JsonArray json = {0};
             const ssize_t firstI = k_JsonArrayPush(&json, &pArena->base, &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
-            k_JsonObject* pObj = k_VecGetP(&json.vValues, sizeof(k_JsonObject), firstI);
+            k_JsonObject* pObj = &((k_JsonValue*)k_VecGetP(&json.vValues, sizeof(k_JsonValue), firstI))->object;
 
             {
                 k_JsonValue val = k_JsonCreateIntSv(K_SV("666"));
