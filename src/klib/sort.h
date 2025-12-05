@@ -93,6 +93,7 @@ k_sort_quick2(
         {
             if ((r - l + 1) <= 32)
             {
+                /* Much faster for small arrays. */
                 k_sort_insertion2(p, memberSize, pSwap, l, r, pfnCmp, pArg);
             }
             else
@@ -108,7 +109,6 @@ k_sort_quick2(
 
                     if (i <= j)
                     {
-                        /* Swap. */
                         memcpy(pSwap, p + i*memberSize, memberSize);
                         memcpy(p + i*memberSize, p + j*memberSize, memberSize);
                         memcpy(p + j*memberSize, pSwap, memberSize);
