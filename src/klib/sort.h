@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Span.h"
+#include "Ctx.h"
 
 static inline ssize_t k_sort_median3(ssize_t x, ssize_t y, ssize_t z);
 static inline void k_sort_quick(
@@ -82,37 +83,55 @@ k_sort_quick2(
     void* pArg
 )
 {
-    uint8_t* p = pData;
-
-    if (l < r)
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
     {
-        if ((r - l + 1) <= 32)
+        uint8_t* p = pData;
+        int* pStack = k_ArenaMalloc(pArena, sizeof(int) * (r - l + 1));
+        int top = 0;
+        pStack[top++] = l;
+        pStack[top++] = r;
+
+        while (top > 0)
         {
-            k_sort_insertion2(p, memberSize, pSwap, l, r, pfnCmp, pArg);
-            return;
-        }
+            r = pStack[--top];
+            l = pStack[--top];
 
-        ssize_t pivotI = k_sort_median3(l, (l + r) / 2, r);
-        memcpy(pPivot, p + pivotI*memberSize, memberSize);
-        ssize_t i = l, j = r;
-
-        while (i <= j)
-        {
-            while (pfnCmp(p + i*memberSize, pPivot, pArg) < 0) ++i;
-            while (pfnCmp(p + j*memberSize, pPivot, pArg) > 0) --j;
-
-            if (i <= j)
+            if (l < r)
             {
-                /* Swap. */
-                memcpy(pSwap, p + i*memberSize, memberSize);
-                memcpy(p + i*memberSize, p + j*memberSize, memberSize);
-                memcpy(p + j*memberSize, pSwap, memberSize);
-                ++i, --j;
+                if ((r - l + 1) <= 32)
+                {
+                    k_sort_insertion2(p, memberSize, pSwap, l, r, pfnCmp, pArg);
+                }
+                else
+                {
+                    ssize_t pivotI = k_sort_median3(l, (l + r) / 2, r);
+                    memcpy(pPivot, p + pivotI*memberSize, memberSize);
+                    ssize_t i = l, j = r;
+
+                    while (i <= j)
+                    {
+                        while (pfnCmp(p + i*memberSize, pPivot, pArg) < 0) ++i;
+                        while (pfnCmp(p + j*memberSize, pPivot, pArg) > 0) --j;
+
+                        if (i <= j)
+                        {
+                            /* Swap. */
+                            memcpy(pSwap, p + i*memberSize, memberSize);
+                            memcpy(p + i*memberSize, p + j*memberSize, memberSize);
+                            memcpy(p + j*memberSize, pSwap, memberSize);
+                            ++i, --j;
+                        }
+                    }
+
+                    pStack[top++] = l;
+                    pStack[top++] = j;
+
+                    pStack[top++] = i;
+                    pStack[top++] = r;
+                }
             }
         }
-
-        k_sort_quick2(p, memberSize, pPivot, pSwap, l, j, pfnCmp, pArg);
-        k_sort_quick2(p, memberSize, pPivot, pSwap, i, r, pfnCmp, pArg);
     }
 }
 
