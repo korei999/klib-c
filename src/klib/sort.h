@@ -87,8 +87,8 @@ k_sort_quick2(
     K_ARENA_SCOPE(pArena)
     {
         uint8_t* p = pData;
-        int* pStack = k_ArenaMalloc(pArena, sizeof(int) * (r - l + 1));
-        int top = 0;
+        ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t) * (r - l + 1));
+        ssize_t top = 0;
         pStack[top++] = l;
         pStack[top++] = r;
 
