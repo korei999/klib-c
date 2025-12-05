@@ -2,6 +2,7 @@
 
 #include "klib/Ctx.h"
 #include "klib/time.h"
+#include "klib/assert.h"
 
 static ssize_t
 intCmp(const void* pL, const void* pR, void* pArg)
@@ -45,6 +46,8 @@ test(void)
         t0 = k_time_now();
         qsort(pAqsort, BIG, sizeof(*pAqsort), intCmpQSort);
         K_CTX_LOG_DEBUG("(qsort) sorted in {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
+
+        K_ASSERT_ALWAYS(memcmp(pA, pAqsort, BIG * sizeof(*pA)) == 0, "");
     }
 }
 
