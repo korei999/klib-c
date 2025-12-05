@@ -1,6 +1,7 @@
 #include "klib/sort.h"
 
 #include "klib/Ctx.h"
+#include "klib/time.h"
 
 static ssize_t
 intCmp(const void* pL, const void* pR, void* pArg)
@@ -9,14 +10,42 @@ intCmp(const void* pL, const void* pR, void* pArg)
     return *(const int*)pL - *(const int*)pR;
 }
 
+static int
+intCmpQSort(const void* pL, const void* pR)
+{
+    return *(const int*)pL - *(const int*)pR;
+}
+
 static void
 test(void)
 {
-    int a[] = {1, 5, 2, 4, -1, 3, -23, 100, 60, -50, 120, -70};
-    K_SORT_QUICK(a, K_ASIZE(a), intCmp, NULL);
+    {
+        int a[] = {1, 5, 2, 4, -1, 3, -23, 100, 60, -50, 120, -70};
 
-    for (ssize_t i = 0; i < K_ASIZE(a); ++i)
-        K_CTX_LOG_DEBUG("{sz}: {i}", i, a[i]);
+        K_SORT_QUICK(a, K_ASIZE(a), intCmp, NULL);
+        for (ssize_t i = 0; i < K_ASIZE(a); ++i)
+            K_CTX_LOG_DEBUG("{sz}: {i}", i, a[i]);
+    }
+
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
+    {
+        const ssize_t BIG = 10000000;
+        int* pA = k_ArenaMalloc(pArena, sizeof(int) * BIG);
+        int* pAqsort = k_ArenaMalloc(pArena, sizeof(int) * BIG);
+
+        for (ssize_t i = 0; i < BIG; ++i)
+            pA[i] = rand();
+        memcpy(pAqsort, pA, sizeof(*pA) * BIG);
+
+        k_time_Type t0 = k_time_now();
+        K_SORT_QUICK(pA, BIG, intCmp, NULL);
+        K_CTX_LOG_DEBUG("(k_sort_quick) sorted in {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
+
+        t0 = k_time_now();
+        qsort(pAqsort, BIG, sizeof(*pAqsort), intCmpQSort);
+        K_CTX_LOG_DEBUG("(qsort) sorted in {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
+    }
 }
 
 int
@@ -30,7 +59,7 @@ main(void)
             .ringBufferSize = K_SIZE_1K*4,
         },
         (k_ThreadPoolInitOpts){
-            .arenaReserve = K_SIZE_1M*64,
+            .arenaReserve = K_SIZE_1M*256,
         }
     );
 
