@@ -73,7 +73,7 @@ k_sort_quick2(
     ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t) * size + memberSize*2);
     if (!pStack)
     {
-        k_ArenaStateRestore(&arenaState);
+        /* No need to restore arena state. */
         return;
     }
 
