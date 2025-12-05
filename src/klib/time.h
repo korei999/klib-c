@@ -2,7 +2,14 @@
 
 #include "common.h"
 
+#if defined __x86_64
+    #include <x86intrin.h>
+#else
+    #warning "no __rdtcs()"
+#endif
+
 typedef ssize_t k_time_Type;
+typedef uint64_t k_time_Clocks;
 
 #define K_TIME_USEC 1ll
 #define K_TIME_MSEC 1000ll
@@ -18,6 +25,8 @@ k_time_Type k_time_frequency(void);
 static inline k_time_Type k_time_diff(k_time_Type timeNow, k_time_Type startTime); /* Microseconds. */
 static inline double k_time_diffSec(k_time_Type time, k_time_Type startTime);
 static inline double k_time_diffMSec(k_time_Type time, k_time_Type startTime);
+
+static inline k_time_Clocks k_time_stamp(void);
 
 static inline k_time_Type
 k_time_diff(k_time_Type endTime, k_time_Type startTime)
@@ -45,4 +54,18 @@ static inline double
 k_time_diffMSec(k_time_Type endTime, k_time_Type startTime) /* Millisecond. */
 {
     return (double)(endTime - startTime) * (1000.0 / (double)k_time_frequency());
+}
+
+static inline k_time_Clocks
+k_time_stamp(void)
+{
+#ifdef __x86_64
+
+    return __rdtsc();
+
+#else
+
+    return (k_time_Clocks)k_time_now();
+
+#endif
 }

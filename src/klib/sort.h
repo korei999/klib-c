@@ -3,13 +3,13 @@
 #include "Ctx.h"
 
 static inline ssize_t k_sort_median3(ssize_t x, ssize_t y, ssize_t z);
-static inline void k_sort_quick(
+static inline bool k_sort_quick(
     k_Span sp,
     ssize_t memberSize,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
     void* pArg
-);
-static inline void k_sort_quick2(
+); /* Can fail if allocator fails. */
+static inline bool k_sort_quick2(
     void* pData,
     ssize_t memberSize,
     ssize_t l,
@@ -42,7 +42,7 @@ k_sort_median3(ssize_t x, ssize_t y, ssize_t z)
     else return z;
 }
 
-static inline void
+static inline bool
 k_sort_quick(
     k_Span sp,
     ssize_t memberSize,
@@ -50,11 +50,11 @@ k_sort_quick(
     void* pArg
 )
 {
-    if (sp.size <= 1) return;
-    k_sort_quick2(sp.pData, memberSize, 0, sp.size - 1, pfnCmp, pArg);
+    if (sp.size <= 1) return true;
+    return k_sort_quick2(sp.pData, memberSize, 0, sp.size - 1, pfnCmp, pArg);
 }
 
-static inline void
+static inline bool
 k_sort_quick2(
     void* pData,
     ssize_t memberSize,
@@ -71,10 +71,10 @@ k_sort_quick2(
     uint8_t* p = pData;
     const ssize_t size = (r - l + 1);
     ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t) * size + memberSize*2);
-    if (!pStack)
+    if K_UNLIKELY(!pStack)
     {
         /* No need to restore arena state. */
-        return;
+        return false;
     }
 
     void* pPivot = (uint8_t*)pStack + sizeof(ssize_t) * size;
@@ -126,6 +126,7 @@ k_sort_quick2(
     } /* while (stackI > 0) */
 
     k_ArenaStateRestore(&arenaState);
+    return true;
 }
 
 static inline void
