@@ -25,18 +25,15 @@ static bool
 commit(void* p, ssize_t size)
 {
 #ifdef K_ARENA_MMAP
+
     int err = mprotect(p, size, PROT_READ | PROT_WRITE);
-    if (err == -1)
-    {
-        abort();
-        return false;
-    }
+    if (err == -1) return false;
+
 #elif defined K_ARENA_WIN32
+
     if (!VirtualAlloc(p, size, MEM_COMMIT, PAGE_READWRITE))
-    {
-        abort();
         return false;
-    }
+
 #else
 #endif
 
@@ -44,28 +41,28 @@ commit(void* p, ssize_t size)
 }
 
 static void
-decommit(k_Arena* s, void* p, ssize_t size)
+decommit(void* p, ssize_t size)
 {
-    (void)s;
 #ifdef K_ARENA_MMAP
+
     int err = mprotect(p, size, PROT_NONE);
-    (void)err;
-    if (err == - 1)
-    {
-        abort();
-    }
+    if K_UNLIKELY(err == - 1) goto fail;
+
     err = madvise(p, size, MADV_DONTNEED);
-    if (err == - 1)
-    {
-        abort();
-    }
+    if K_UNLIKELY(err == - 1) goto fail;
+
 #elif defined K_ARENA_WIN32
-    if (!VirtualFree(p, size, MEM_DECOMMIT))
-    {
-        abort();
-    }
+
+    if K_UNLIKELY(!VirtualFree(p, size, MEM_DECOMMIT))
+        goto fail;
+
 #else
 #endif
+
+    return;
+
+fail:
+    assert(false && "very unexpected decommit failure");
 }
 
 bool
@@ -78,11 +75,13 @@ growIfNeeded(k_Arena* pSelf, ssize_t newPos)
         const ssize_t pageSize = k_getPageSize();
         ssize_t aligned = K_ALIGN_UP_PO2(newPos, pageSize);
         const ssize_t newCommited = K_MAX(aligned, s->commited * 2);
+
         if K_UNLIKELY(newCommited > s->reserved)
-        {
             return false;
-        }
-        commit((uint8_t*)s->pData + s->commited, newCommited - s->commited);
+
+        if K_UNLIKELY(!commit((uint8_t*)s->pData + s->commited, newCommited - s->commited))
+            return false;
+
         s->commited = newCommited;
     }
 
@@ -139,11 +138,8 @@ k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
     if (commitSize > 0)
     {
         const ssize_t realCommit = K_ALIGN_UP_PO2(commitSize, pageSize);
-        if (!commit(s->priv.pData, realCommit))
-        {
-            abort();
+        if K_UNLIKELY(!commit(s->priv.pData, realCommit))
             return false;
-        }
         s->priv.commited = realCommit;
     }
 
@@ -228,7 +224,7 @@ k_ArenaResetDecommit(k_Arena* s)
 {
     k_ArenaRunDeleters(s);
 
-    decommit(s, s->priv.pData, s->priv.commited);
+    decommit(s->priv.pData, s->priv.commited);
 
     K_ASAN_POISON(s->priv.pData, s->priv.pos);
 
@@ -248,9 +244,14 @@ k_ArenaResetToPage(k_Arena* pSelf, ssize_t nthPage)
     k_ArenaRunDeleters(pSelf);
 
     if (s->commited > commitSize)
-        decommit(pSelf, (uint8_t*)s->pData + commitSize, s->commited - commitSize);
+    {
+        decommit((uint8_t*)s->pData + commitSize, s->commited - commitSize);
+    }
     else if (s->commited < commitSize)
-        commit((uint8_t*)s->pData + s->commited, commitSize - s->commited);
+    {
+        if K_UNLIKELY(!commit((uint8_t*)s->pData + s->commited, commitSize - s->commited))
+            assert(false && "this commit shouldn't have failed, terminating...");
+    }
 
     K_ASAN_POISON(s->pData, s->reserved);
 
