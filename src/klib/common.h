@@ -29,7 +29,6 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
 
 #define K_GLUE(x, y) K_GLUE0(x, y)
 #define K_GLUE0(x, y) x##y
-#define K_GLUE1(x, y) K_GLUE0(x, y)
 
 #define K_SCOPE_END(...) for (int _adt_defer_ = 0; !_adt_defer_; _adt_defer_ = 1, (__VA_ARGS__))
 
