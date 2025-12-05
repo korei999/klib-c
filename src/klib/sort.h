@@ -41,9 +41,11 @@ static inline void k_sort_insertion2(
 #define K_SORT_QUICK(a, aSize, pfnCmp, pArg)                                                                           \
     do                                                                                                                 \
     {                                                                                                                  \
-        K_TYPEOF(*a) _pivot_;                                                                                          \
-        K_TYPEOF(*a) _swap_;                                                                                           \
-        k_sort_quick((k_Span) {a, aSize}, sizeof(*a), &_pivot_, &_swap_, pfnCmp, pArg);                                \
+        K_TYPEOF(*a) K_GLUE(_pivot_, __LINE__);                                                                        \
+        K_TYPEOF(*a) K_GLUE(_swap_, __LINE__);                                                                         \
+        k_sort_quick(                                                                                                  \
+            (k_Span) {a, aSize}, sizeof(*a), &K_GLUE(_pivot_, __LINE__), &K_GLUE(_swap_, __LINE__), pfnCmp, pArg       \
+        );                                                                                                             \
     } while (0)
 
 static inline ssize_t
