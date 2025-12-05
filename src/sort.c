@@ -34,6 +34,7 @@ test(void)
         const ssize_t BIG = 10000000;
         int* pA = k_ArenaMalloc(pArena, sizeof(int) * BIG);
         int* pAqsort = k_ArenaMalloc(pArena, sizeof(int) * BIG);
+        srand(777);
 
         for (ssize_t i = 0; i < BIG; ++i)
             pA[i] = rand();
