@@ -22,7 +22,7 @@ test(void)
     {
         int a[] = {1, 5, 2, 4, -1, 3, -23, 100, 60, -50, 120, -70};
 
-        K_SORT_QUICK(a, K_ASIZE(a), intCmp, NULL);
+        k_sort_quick((k_Span){a, K_ASIZE(a)}, sizeof(a[0]), intCmp, NULL);
         for (ssize_t i = 0; i < K_ASIZE(a); ++i)
             K_CTX_LOG_DEBUG("{sz}: {i}", i, a[i]);
     }
@@ -39,7 +39,7 @@ test(void)
         memcpy(pAqsort, pA, sizeof(*pA) * BIG);
 
         k_time_Type t0 = k_time_now();
-        K_SORT_QUICK(pA, BIG, intCmp, NULL);
+        k_sort_quick((k_Span){pA, BIG}, sizeof(pA[0]), intCmp, NULL);
         K_CTX_LOG_DEBUG("(k_sort_quick) sorted in {:.3:d} ms", k_time_diffMSec(k_time_now(), t0));
 
         t0 = k_time_now();

@@ -1,22 +1,17 @@
 #pragma once
 
-#include "Span.h"
 #include "Ctx.h"
 
 static inline ssize_t k_sort_median3(ssize_t x, ssize_t y, ssize_t z);
 static inline void k_sort_quick(
     k_Span sp,
     ssize_t memberSize,
-    void* pPivot, /* Of memberSize size. */
-    void* pSwap, /* Of memberSize size. */
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
     void* pArg
 );
 static inline void k_sort_quick2(
     void* pData,
     ssize_t memberSize,
-    void* pPivot, /* Of memberSize size. */
-    void* pSwap, /* Of memberSize size. */
     ssize_t l,
     ssize_t r,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
@@ -25,29 +20,19 @@ static inline void k_sort_quick2(
 static inline void k_sort_insertion(
     k_Span sp,
     ssize_t memberSize,
-    void* pSwap, /* Of memberSize size. */
+    void* pSwap, /* Of memberSize size (temp variable placeholder). */
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
     void* pArg
 );
 static inline void k_sort_insertion2(
     void* pData,
     ssize_t memberSize,
-    void* pSwap, /* Of memberSize size. */
+    void* pSwap, /* Of memberSize size. (temp variable placeholder). */
     ssize_t l,
     ssize_t r,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
     void* pArg
 );
-
-#define K_SORT_QUICK(a, aSize, pfnCmp, pArg)                                                                           \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        K_TYPEOF(*a) K_GLUE(_pivot_, __LINE__);                                                                        \
-        K_TYPEOF(*a) K_GLUE(_swap_, __LINE__);                                                                         \
-        k_sort_quick(                                                                                                  \
-            (k_Span) {a, aSize}, sizeof(*a), &K_GLUE(_pivot_, __LINE__), &K_GLUE(_swap_, __LINE__), pfnCmp, pArg       \
-        );                                                                                                             \
-    } while (0)
 
 static inline ssize_t
 k_sort_median3(ssize_t x, ssize_t y, ssize_t z)
@@ -61,22 +46,18 @@ static inline void
 k_sort_quick(
     k_Span sp,
     ssize_t memberSize,
-    void* pPivot,
-    void* pSwap,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
     void* pArg
 )
 {
     if (sp.size <= 1) return;
-    k_sort_quick2(sp.pData, memberSize, pPivot, pSwap, 0, sp.size - 1, pfnCmp, pArg);
+    k_sort_quick2(sp.pData, memberSize, 0, sp.size - 1, pfnCmp, pArg);
 }
 
 static inline void
 k_sort_quick2(
     void* pData,
     ssize_t memberSize,
-    void* pPivot,
-    void* pSwap,
     ssize_t l,
     ssize_t r,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
@@ -84,62 +65,74 @@ k_sort_quick2(
 )
 {
     k_Arena* pArena = k_CtxArena();
-    K_ARENA_SCOPE(pArena)
+    k_ArenaState arenaState;
+    k_ArenaStatePush(&arenaState, pArena);
+
+    uint8_t* p = pData;
+    const ssize_t size = (r - l + 1);
+    ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t) * size + memberSize*2);
+    if (!pStack)
     {
-        uint8_t* p = pData;
-        ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t) * (r - l + 1));
-        ssize_t top = 0;
-        pStack[top++] = l;
-        pStack[top++] = r;
-
-        while (top > 0)
-        {
-            r = pStack[--top];
-            l = pStack[--top];
-
-            if (l < r)
-            {
-                if ((r - l + 1) <= 32)
-                {
-                    k_sort_insertion2(p, memberSize, pSwap, l, r, pfnCmp, pArg);
-                }
-                else
-                {
-                    ssize_t pivotI = k_sort_median3(l, (l + r) / 2, r);
-                    memcpy(pPivot, p + pivotI*memberSize, memberSize);
-                    ssize_t i = l, j = r;
-
-                    while (i <= j)
-                    {
-                        while (pfnCmp(p + i*memberSize, pPivot, pArg) < 0) ++i;
-                        while (pfnCmp(p + j*memberSize, pPivot, pArg) > 0) --j;
-
-                        if (i <= j)
-                        {
-                            /* Swap. */
-                            memcpy(pSwap, p + i*memberSize, memberSize);
-                            memcpy(p + i*memberSize, p + j*memberSize, memberSize);
-                            memcpy(p + j*memberSize, pSwap, memberSize);
-                            ++i, --j;
-                        }
-                    }
-
-                    pStack[top++] = l;
-                    pStack[top++] = j;
-
-                    pStack[top++] = i;
-                    pStack[top++] = r;
-                }
-            }
-        }
+        k_ArenaStateRestore(&arenaState);
+        return;
     }
+
+    void* pPivot = (uint8_t*)pStack + sizeof(ssize_t) * size;
+    void* pSwap = (uint8_t*)pPivot + memberSize;
+
+    ssize_t stackI = 0;
+    pStack[stackI++] = l;
+    pStack[stackI++] = r;
+
+    while (stackI > 0)
+    {
+        r = pStack[--stackI];
+        l = pStack[--stackI];
+
+        if (l < r)
+        {
+            if ((r - l + 1) <= 32)
+            {
+                k_sort_insertion2(p, memberSize, pSwap, l, r, pfnCmp, pArg);
+            }
+            else
+            {
+                ssize_t pivotI = k_sort_median3(l, (l + r) / 2, r);
+                memcpy(pPivot, p + pivotI*memberSize, memberSize);
+                ssize_t i = l, j = r;
+
+                while (i <= j)
+                {
+                    while (pfnCmp(p + i*memberSize, pPivot, pArg) < 0) ++i;
+                    while (pfnCmp(p + j*memberSize, pPivot, pArg) > 0) --j;
+
+                    if (i <= j)
+                    {
+                        /* Swap. */
+                        memcpy(pSwap, p + i*memberSize, memberSize);
+                        memcpy(p + i*memberSize, p + j*memberSize, memberSize);
+                        memcpy(p + j*memberSize, pSwap, memberSize);
+                        ++i, --j;
+                    }
+                }
+
+                pStack[stackI++] = l;
+                pStack[stackI++] = j;
+
+                pStack[stackI++] = i;
+                pStack[stackI++] = r;
+            }
+        } /* if (l < r) */
+    } /* while (stackI > 0) */
+
+    k_ArenaStateRestore(&arenaState);
 }
 
 static inline void
 k_sort_insertion(
     k_Span sp,
     ssize_t memberSize,
-    void* pSwap, /* Of memberSize size. */
+    void* pSwap,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
     void* pArg
 )
@@ -152,7 +145,7 @@ static inline void
 k_sort_insertion2(
     void* pData,
     ssize_t memberSize,
-    void* pSwap, /* Of memberSize size. */
+    void* pSwap,
     ssize_t l,
     ssize_t r,
     ssize_t (*pfnCmp)(const void* pL, const void* pR, void* pArg),
