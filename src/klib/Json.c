@@ -275,9 +275,9 @@ setStringType(k_JsonValue* pVal)
     if (pVal->svValue.size > 0)
     {
         if (k_StringViewEq(pVal->svValue, K_SV("false")))
-            pVal->eType = K_JSON_TYPE_FALSE;
+            pVal->eType = K_JSON_TYPE_BOOL;
         else if (k_StringViewEq(pVal->svValue, K_SV("true")))
-            pVal->eType = K_JSON_TYPE_TRUE;
+            pVal->eType = K_JSON_TYPE_BOOL;
         else if (k_StringViewEq(pVal->svValue, K_SV("null")))
             pVal->eType = K_JSON_TYPE_NULL;
     }

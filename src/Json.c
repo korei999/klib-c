@@ -87,12 +87,12 @@ test(void)
             }
 
             {
-                k_JsonValue val = k_JsonCreateTrue();
+                k_JsonValue val = k_JsonCreateBool(true);
                 k_JsonObjectPushSv(pObj, &pArena->base, K_SV("boolTrue"), &val);
             }
 
             {
-                k_JsonValue val = k_JsonCreateFalse();
+                k_JsonValue val = k_JsonCreateBool(false);
                 k_JsonObjectPushSv(pObj, &pArena->base, K_SV("boolFalse"), &val);
             }
 

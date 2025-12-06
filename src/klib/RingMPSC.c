@@ -15,7 +15,7 @@ k_RingMPSCInit(k_RingMPSC* s, k_IAllocator* pAlloc, size_t capPo2)
 {
     const size_t cap = k_nextPowerofTwo64(capPo2);
     void* pNew = k_IAllocatorZalloc(pAlloc, cap);
-    if (!pNew) return false;
+    if K_UNLIKELY(!pNew) return false;
 
     s->headI.volNum = 0;
     s->tailI.volNum = 0;

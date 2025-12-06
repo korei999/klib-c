@@ -16,9 +16,8 @@ typedef uint8_t K_JSON_TYPE;
 #define K_JSON_TYPE_STRING 3
 #define K_JSON_TYPE_INT 4
 #define K_JSON_TYPE_FLOAT 5
-#define K_JSON_TYPE_TRUE 6
-#define K_JSON_TYPE_FALSE 7
-#define K_JSON_TYPE_NULL 8
+#define K_JSON_TYPE_BOOL 6
+#define K_JSON_TYPE_NULL 7
 
 typedef struct k_JsonToken
 {
@@ -90,8 +89,7 @@ static inline k_JsonValue k_JsonCreateInt(k_IAllocator* pAlloc, uint64_t i);
 static inline k_JsonValue k_JsonCreateIntSv(const k_StringView svInt);
 static inline k_JsonValue k_JsonCreateFloat(k_IAllocator* pAlloc, double d);
 static inline k_JsonValue k_JsonCreateFloatSv(const k_StringView svFloat);
-static inline k_JsonValue k_JsonCreateTrue(void);
-static inline k_JsonValue k_JsonCreateFalse(void);
+static inline k_JsonValue k_JsonCreateBool(bool bTrue);
 static inline k_JsonValue k_JsonCreateNull(void);
 
 void k_JsonObjectDestroy(k_JsonObject* s, k_IAllocator* pAlloc);
@@ -183,20 +181,11 @@ k_JsonCreateFloatSv(const k_StringView svFloat)
 }
 
 static inline k_JsonValue
-k_JsonCreateTrue(void)
+k_JsonCreateBool(bool bTrue)
 {
     return (k_JsonValue){
-        .svValue = K_SV("true"),
-        .eType = K_JSON_TYPE_TRUE,
-    };
-}
-
-static inline k_JsonValue
-k_JsonCreateFalse(void)
-{
-    return (k_JsonValue){
-        .svValue = K_SV("false"),
-        .eType = K_JSON_TYPE_FALSE,
+        .svValue = bTrue ? K_SV("true") : K_SV("false"),
+        .eType = K_JSON_TYPE_BOOL,
     };
 }
 

@@ -94,7 +94,7 @@ K_METHOD(Init)(K_NAME* pSelf, k_IAllocator* pAlloc, ssize_t prealloc)
     const ssize_t cap = k_nextPowerofTwo64(K_MAX(prealloc, 8));
 
     pSelf->pBuckets = k_IAllocatorZalloc(pAlloc, (sizeof(K_BUCKET) + sizeof(K_MAP_BUCKET_FLAG))*cap);
-    if (!pSelf->pBuckets) return false;
+    if K_UNLIKELY(!pSelf->pBuckets) return false;
     pSelf->cap = cap;
     pSelf->size = 0;
 
@@ -135,7 +135,7 @@ K_DECL_MOD bool
 K_METHOD(Rehash)(K_NAME* pSelf, k_IAllocator* pAlloc, ssize_t newCap)
 {
     K_NAME mNew = K_METHOD(Create)(pAlloc, newCap);
-    if (!mNew.pBuckets) return false;
+    if K_UNLIKELY(!mNew.pBuckets) return false;
 
     K_MAP_BUCKET_FLAG* pEFlags = K_METHOD(Flags)(pSelf);
     for (ssize_t i = 0; i < pSelf->cap; ++i)
@@ -169,12 +169,12 @@ K_METHOD(InsertHashed)(K_NAME* pSelf, k_IAllocator* pAlloc, const K_KEY_T* pKey,
 {
     if (pSelf->cap <= 0)
     {
-        if (!K_METHOD(Init)(pSelf, pAlloc, 8))
+        if K_UNLIKELY(!K_METHOD(Init)(pSelf, pAlloc, 8))
             return (K_MAP_RESULT){.eStatus = K_MAP_RESULT_STATUS_FAILED, .hash = hash};
     }
     else if (K_METHOD(LoadFactor)(pSelf) >= K_MAP_LOAD_FACTOR)
     {
-        if (!K_METHOD(Rehash)(pSelf, pAlloc, K_MAX(8, pSelf->cap * 2)))
+        if K_UNLIKELY(!K_METHOD(Rehash)(pSelf, pAlloc, K_MAX(8, pSelf->cap * 2)))
             return (K_MAP_RESULT){.eStatus = K_MAP_RESULT_STATUS_FAILED, .hash = hash};
     }
 
