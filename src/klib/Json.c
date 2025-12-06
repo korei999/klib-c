@@ -564,6 +564,35 @@ k_JsonTraverse(
     return (k_JsonTraverseResult){0};
 }
 
+void
+k_JsonPrint(k_JsonValue* pVal, k_print_Builder* pBuilder)
+{
+    if (!pVal)
+    {
+        k_print_BuilderPushSv(pBuilder, K_SV("null"));
+        return;
+    }
+
+    switch (pVal->eType)
+    {
+        case K_JSON_TYPE_OBJECT:
+        k_JsonObjectPrint(&pVal->object, pBuilder, 0);
+        break;
+
+        case K_JSON_TYPE_ARRAY:
+        k_JsonArrayPrint(&pVal->array, pBuilder, 0);
+        break;
+
+        case K_JSON_TYPE_UNKNOWN:
+        k_print_BuilderPushSv(pBuilder, K_SV("UNKNOWN"));
+        break;
+
+        default:
+        k_print_BuilderPushSv(pBuilder, pVal->svValue);
+        break;
+    }
+}
+
 bool
 k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText)
 {

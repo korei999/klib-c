@@ -145,9 +145,11 @@ test(void)
         if (s_svQuery.size > 0)
         {
             k_JsonTraverseResult res = k_JsonTraverse((k_JsonValue*)p.root.vValues.pData, (k_StringView){0}, traverse, &s_svQuery);
-            if (res.pValOrNull)
-                K_CTX_LOG_DEBUG("query: '{PSv}': '{PSv}'", &res.svNameOrEmpty, &res.pValOrNull->svValue);
-            else K_CTX_LOG_DEBUG("query: null");
+            k_print_Builder pb = {0};
+            if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base}))
+                k_JsonPrint(res.pValOrNull, &pb);
+            const k_StringView svPrinted = k_print_BuilderToSv(&pb);
+            K_CTX_LOG_DEBUG("query: '{PSv}': {PSv}", &res.svNameOrEmpty, &svPrinted);
         }
 
         if (s_bPrint)
