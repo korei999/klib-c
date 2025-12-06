@@ -26,6 +26,9 @@ test(void)
         k_sort_quick((k_Span){a, K_ASIZE(a)}, sizeof(a[0]), intCmp, NULL);
         for (ssize_t i = 0; i < K_ASIZE(a); ++i)
             K_CTX_LOG_DEBUG("{sz}: {i}", i, a[i]);
+
+        for (ssize_t i = 1; i < K_ASIZE(a); ++i)
+            K_ASSERT_ALWAYS(a[i] >= a[i - 1], "{i}, {i}", a[i], a[i - 1]);
     }
 
     k_Arena* pArena = k_CtxArena();
