@@ -99,13 +99,13 @@ growIfNeeded(k_Arena* pSelf, ssize_t newPos)
 bool
 k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
 {
-    static k_IAllocatorVTable s_arenaVTable = {
+    static const k_IAllocatorVTable s_vtArena = {
         .malloc = k_ArenaMalloc,
         .zalloc = k_ArenaZalloc,
         .realloc = k_ArenaRealloc,
         .free = k_ArenaFree,
     };
-    s->base.pVTable = &s_arenaVTable;
+    s->base.pVTable = &s_vtArena;
     s->priv.pData = NULL;
 
     int err = 0;

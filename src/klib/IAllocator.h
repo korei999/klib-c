@@ -54,7 +54,7 @@ K_NO_DISCARD static inline void*
 k_IAllocatorAlloc(void* pSelf, void* p, ssize_t size)
 {
     void* ret = ((k_IAllocator*)pSelf)->pVTable->malloc(pSelf, size);
-    if (!ret) return NULL;
+    if K_UNLIKELY(!ret) return NULL;
     memcpy(ret, p, size);
     return ret;
 }

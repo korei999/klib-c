@@ -26,7 +26,8 @@ static const k_IAllocatorVTable k_s_vtGpa = {
     .free = k_GpaFree,
 };
 
-static k_Gpa k_s_gpa = {.base = {.pVTable = &k_s_vtGpa}};
+/* We can devirtualize all virtual gpa methods by making this const (gcc/clang). */
+static const k_Gpa k_s_gpa = {.base = {.pVTable = &k_s_vtGpa}};
 
 static inline void*
 k_GpaMalloc(void* s, ssize_t nBytes)
@@ -75,13 +76,11 @@ k_GpaInit(k_Gpa* s)
 static inline k_Gpa
 k_GpaCreate(void)
 {
-    k_Gpa ret;
-    k_GpaInit(&ret);
-    return ret;
+    return (k_Gpa){.base = {.pVTable = &k_s_vtGpa}};
 }
 
 static inline k_Gpa*
 k_GpaInst(void)
 {
-    return &k_s_gpa;
+    return (k_Gpa*)&k_s_gpa;
 }
