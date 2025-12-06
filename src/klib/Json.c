@@ -97,13 +97,7 @@ tokString(k_JsonParser* s)
     s->tok.y = s->y;
 
     while (s->i < s->svText.size &&
-        s->svText.pData[s->i] != ' ' &&
-        s->svText.pData[s->i] != '\n' &&
-        s->svText.pData[s->i] != '\r' &&
-        s->svText.pData[s->i] != '\t' &&
-        s->svText.pData[s->i] != ',' &&
-        s->svText.pData[s->i] != '}' &&
-        s->svText.pData[s->i] != ']'
+        k_noneOfChars(s->svText.pData[s->i], K_SV(" \n\r\t,}]"))
     )
     {
         ++s->i;

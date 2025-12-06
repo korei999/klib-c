@@ -53,6 +53,16 @@ k_oneOfChars(char c, const k_StringView svChars)
     return false;
 }
 
+static inline bool
+k_noneOfChars(char c, const k_StringView svChars)
+{
+    for (ssize_t i = 0; i < svChars.size; ++i)
+        if (c == svChars.pData[i])
+            return false;
+
+    return true;
+}
+
 static inline uint64_t
 k_StringViewHash(const k_StringView* pSv)
 {
