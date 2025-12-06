@@ -129,7 +129,6 @@ test(void)
                 if (s_bWriteToStdout) fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
                 else K_CTX_LOG_DEBUG("\n{PSv}", &svPrinted);
             }
-            k_print_BuilderDestroy(&pb);
         }
     }
 
@@ -157,7 +156,7 @@ test(void)
             k_JsonTraverseResult res = k_JsonTraverse((k_JsonValue*)p.root.vValues.pData, (k_StringView){0}, traverse, &s_svQuery);
             k_print_Builder pb = {0};
             if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base}))
-                k_JsonPrint(res.pValOrNull, &pb);
+                k_JsonValuePrint(res.pValOrNull, &pb);
             const k_StringView svPrinted = k_print_BuilderToSv(&pb);
             K_CTX_LOG_DEBUG("query: '{PSv}': {PSv}", &res.svNameOrEmpty, &svPrinted);
         }

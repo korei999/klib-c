@@ -559,7 +559,7 @@ k_JsonTraverse(
 }
 
 void
-k_JsonPrint(k_JsonValue* pVal, k_print_Builder* pBuilder)
+k_JsonValuePrint(k_JsonValue* pVal, k_print_Builder* pBuilder)
 {
     if (!pVal)
     {
@@ -583,6 +583,23 @@ k_JsonPrint(k_JsonValue* pVal, k_print_Builder* pBuilder)
 
         default:
         k_print_BuilderPushSv(pBuilder, pVal->svValue);
+        break;
+    }
+}
+
+void
+k_JsonValueDestroy(k_JsonValue* pVal, k_IAllocator* pAlloc)
+{
+    if (!pVal) return;
+
+    switch (pVal->eType)
+    {
+        case K_JSON_TYPE_OBJECT:
+        k_JsonObjectDestroy(&pVal->object, pAlloc);
+        break;
+
+        case K_JSON_TYPE_ARRAY:
+        k_JsonArrayDestroy(&pVal->array, pAlloc);
         break;
     }
 }

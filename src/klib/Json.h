@@ -77,7 +77,8 @@ k_JsonTraverseResult k_JsonTraverse(
     void* pArg
 );
 
-void k_JsonPrint(k_JsonValue* pVal, k_print_Builder* pBuilder);
+void k_JsonValuePrint(k_JsonValue* pVal, k_print_Builder* pBuilder);
+void k_JsonValueDestroy(k_JsonValue* pVal, k_IAllocator* pAlloc);
 
 static inline k_JsonParser k_JsonParserCreate(void);
 bool k_JsonParserParse(k_JsonParser* s, k_IAllocator* pAlloc, const k_StringView svText);
