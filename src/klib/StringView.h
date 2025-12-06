@@ -3,6 +3,7 @@
 #include "hash.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct
 {
@@ -65,7 +66,8 @@ k_StringViewHash(const k_StringView* pSv)
 static inline bool
 k_StringViewEq(const k_StringView s, const k_StringView r)
 {
-    return !k_StringViewCmp(&s, &r);
+    if (s.size != r.size) return false;
+    else return strncmp(s.pData, r.pData, K_MIN(s.size, r.size)) == 0;
 }
 
 static inline k_StringView

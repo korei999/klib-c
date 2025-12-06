@@ -257,7 +257,7 @@ k_JsonAsFloat(k_JsonValue* pVal)
 static inline bool
 k_JsonAsBool(k_JsonValue* pVal)
 {
-    assert(pVal->eType == K_JSON_TYPE_TRUE || pVal->eType == K_JSON_TYPE_FALSE);
+    assert(pVal->eType == K_JSON_TYPE_BOOL);
     if (k_StringViewEq(pVal->svValue, K_SV("true")))
         return true;
     else return false;

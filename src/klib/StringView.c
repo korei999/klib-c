@@ -1,7 +1,5 @@
 #include "StringView.h"
 
-#include <string.h>
-
 ssize_t
 k_StringViewCmp(const k_StringView* l, const k_StringView* r)
 {

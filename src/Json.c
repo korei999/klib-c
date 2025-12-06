@@ -8,6 +8,7 @@
 
 static bool s_bCreatingExample = false;
 static bool s_bPrint = false;
+static bool s_bWriteToStdout = false;
 static k_StringView s_svFile;
 static k_StringView s_svQuery;
 
@@ -50,6 +51,14 @@ queryKeyArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svVal
 {
     (void)pCmdLine, (void)pCmdArg;
     s_svQuery = svValue;
+    return K_CMD_LINE_RESULT_NEXT;
+}
+
+static K_CMD_LINE_RESULT
+writeToStdoutArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
+{
+    (void)pCmdLine, (void)pCmdArg;
+    s_bWriteToStdout = true;
     return K_CMD_LINE_RESULT_NEXT;
 }
 
@@ -117,7 +126,8 @@ test(void)
                 k_JsonArrayPrint(&json, &pb, 0);
                 k_print_BuilderPushChar(&pb, '\n');
                 const k_StringView svPrinted = k_print_BuilderToSv(&pb);
-                fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
+                if (s_bWriteToStdout) fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
+                else K_CTX_LOG_DEBUG("\n{PSv}", &svPrinted);
             }
             k_print_BuilderDestroy(&pb);
         }
@@ -159,7 +169,8 @@ test(void)
             {
                 k_JsonParserPrint(&p, &pb);
                 const k_StringView svPrinted = k_print_BuilderToSv(&pb);
-                fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
+                if (s_bWriteToStdout) fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
+                else K_CTX_LOG_DEBUG("\n{PSv}", &svPrinted);
             }
             k_print_BuilderDestroy(&pb);
         }
@@ -212,6 +223,12 @@ main(int argc, char** argv)
                 .cShortName = 'c',
                 .pfnHandler = createArg,
                 .svDescription = K_SV("print manually created json tree"),
+            },
+            (k_CmdLineArg){
+                .cShortName = 'w',
+                .svLongName = K_SV("write"),
+                .pfnHandler = writeToStdoutArg,
+                .svDescription = K_SV("write to stdout"),
             },
             (k_CmdLineArg){
                 .cShortName = 'f',

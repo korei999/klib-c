@@ -111,7 +111,6 @@ parseShort(k_CmdLine* s, int* pI, int argc, char** argv)
                 {
                     k_StringView svVal = k_StringViewSubString1(svArg, charI + 2);
                     k_VecPush(&s->vCmdCommands, s->pAlloc, sizeof(CmdCommand), &(CmdCommand){s, pCmdArg, svVal});
-                    ++(*pI);
                     break;
                 }
                 else if (svArg.size > 1)
