@@ -15,6 +15,7 @@ typedef struct
 #define K_SV(nts) (k_StringView){(char*)nts, (ssize_t)(sizeof(nts) - 1)}
 
 static inline bool k_oneOfChars(char c, const k_StringView svChars);
+static inline bool k_noneOfChars(char c, const k_StringView svChars);
 
 ssize_t k_StringViewCmp(const k_StringView* l, const k_StringView* r);
 ssize_t k_StringViewCmpRev(const k_StringView* l, const k_StringView* r);
