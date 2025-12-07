@@ -559,7 +559,7 @@ k_JsonTraverse(
 }
 
 void
-k_JsonValuePrint(k_JsonValue* pVal, k_print_Builder* pBuilder)
+k_JsonValuePrint(k_JsonValue* pVal, k_print_Builder* pBuilder, int depth)
 {
     if (!pVal)
     {
@@ -570,11 +570,11 @@ k_JsonValuePrint(k_JsonValue* pVal, k_print_Builder* pBuilder)
     switch (pVal->eType)
     {
         case K_JSON_TYPE_OBJECT:
-        k_JsonObjectPrint(&pVal->object, pBuilder, 0);
+        k_JsonObjectPrint(&pVal->object, pBuilder, depth);
         break;
 
         case K_JSON_TYPE_ARRAY:
-        k_JsonArrayPrint(&pVal->array, pBuilder, 0);
+        k_JsonArrayPrint(&pVal->array, pBuilder, depth);
         break;
 
         case K_JSON_TYPE_UNKNOWN:

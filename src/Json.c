@@ -81,9 +81,8 @@ test(void)
     {
         K_ARENA_SCOPE(pArena)
         {
-            k_JsonArray json = {0};
-            const ssize_t firstI = k_JsonArrayPush(&json, &pArena->base, &(k_JsonValue){.eType = K_JSON_TYPE_OBJECT});
-            k_JsonObject* pObj = &((k_JsonValue*)k_VecGetP(&json.vValues, sizeof(k_JsonValue), firstI))->object;
+            k_JsonValue json = k_JsonCreateObject();
+            k_JsonObject* pObj = &json.object;
 
             {
                 k_JsonValue val = k_JsonCreateIntSv(K_SV("666"));
@@ -123,7 +122,7 @@ test(void)
             k_print_Builder pb = {0};
             if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base, .preallocOrBufferSize = 256}))
             {
-                k_JsonArrayPrint(&json, &pb, 0);
+                k_JsonValuePrint(&json, &pb, 0);
                 k_print_BuilderPushChar(&pb, '\n');
                 const k_StringView svPrinted = k_print_BuilderToSv(&pb);
                 if (s_bWriteToStdout) fwrite(svPrinted.pData, svPrinted.size, 1, stdout);
@@ -156,7 +155,7 @@ test(void)
             k_JsonTraverseResult res = k_JsonTraverse((k_JsonValue*)p.root.vValues.pData, (k_StringView){0}, traverse, &s_svQuery);
             k_print_Builder pb = {0};
             if (k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base}))
-                k_JsonValuePrint(res.pValOrNull, &pb);
+                k_JsonValuePrint(res.pValOrNull, &pb, 0);
             const k_StringView svPrinted = k_print_BuilderToSv(&pb);
             K_CTX_LOG_DEBUG("query: '{PSv}': {PSv}", &res.svNameOrEmpty, &svPrinted);
         }
