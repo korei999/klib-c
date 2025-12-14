@@ -21,7 +21,6 @@ set(TestBinaries
     Logger
     CmdLine
     Pool
-    SOAGen
     Json
     SList
     sort
