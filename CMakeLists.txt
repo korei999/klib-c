@@ -172,7 +172,8 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
     endif()
 endif()
 
-if (CMAKE__COMPILER_ID STREQUAL "GNU")
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    # add_compile_options(-fno-strict-aliasing)
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
 endif()
 

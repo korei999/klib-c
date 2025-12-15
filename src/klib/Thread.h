@@ -31,7 +31,7 @@
     #define K_THREAD_LOCAL _Thread_local
     #include <pthread.h>
     #include <semaphore.h>
-    #include <errno.h>
+    #include <errno.h>  /* IWYU pragma: keep */
     typedef uint32_t K_THREAD_RESULT;
 
 #endif
@@ -173,9 +173,12 @@ typedef struct
 static inline bool k_MutexInit(k_Mutex* s, K_MUTEX_TYPE eType);
 static inline bool k_MutexInitPlain(k_Mutex* s);
 static inline void k_MutexDestroy(k_Mutex* s);
-static inline void k_MutexLock(k_Mutex* s);
+static inline k_Mutex* k_MutexLock(k_Mutex* s); /* Returns s. */
 static inline void k_MutexUnlock(k_Mutex* s);
 static inline bool k_MutexTryLock(k_Mutex* s);
+static inline void k_MutexUnlockP(k_Mutex** ps);
+
+#define K_MUTEX_LOCK_GUARD(s) __attribute__((cleanup(k_MutexUnlockP))) k_Mutex* K_GLUE(K_GLUE(_pMtxLockGuard, __COUNTER__), _) = k_MutexLock(s);
 
 static inline bool
 k_MutexInit(k_Mutex* s, K_MUTEX_TYPE eType)
@@ -238,7 +241,7 @@ k_MutexDestroy(k_Mutex* s)
 #endif
 }
 
-static inline void
+static inline k_Mutex*
 k_MutexLock(k_Mutex* s)
 {
 #if defined K_THREAD_WIN32
@@ -252,6 +255,8 @@ k_MutexLock(k_Mutex* s)
     (void)err;
 
 #endif
+
+    return s;
 }
 
 static inline void
@@ -282,6 +287,12 @@ k_MutexTryLock(k_Mutex* s)
     return pthread_mutex_trylock(&s->priv.mtx) != EBUSY;
 
 #endif
+}
+
+static inline void
+k_MutexUnlockP(k_Mutex** ps)
+{
+    k_MutexUnlock(*ps);
 }
 
 typedef struct k_CndVar
@@ -503,8 +514,15 @@ typedef struct k_TicketMutex
     k_atomic_U64 servingId;
 } k_TicketMutex;
 
+static inline k_TicketMutex k_TicketMutexCreate(void);
 static inline void k_TicketMutexLock(k_TicketMutex* s);
 static inline void k_TicketMutexUnlock(k_TicketMutex* s);
+
+static inline k_TicketMutex
+k_TicketMutexCreate(void)
+{
+    return (k_TicketMutex){0};
+}
 
 static inline void
 k_TicketMutexLock(k_TicketMutex* s)
