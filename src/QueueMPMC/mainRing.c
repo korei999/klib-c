@@ -74,15 +74,14 @@ pushRBTask(void* pArg)
         uint8_t* pBuff = k_ArenaMalloc(pArena, pTask->size);
         for (ssize_t i = 0; i < pTask->size; ++i) pBuff[i] = i;
 
-        while (true)
+        bool bRetry = true;
+        while (bRetry)
         {
-            k_MutexLock(pTask->pMtx);
-            if (k_RingBufferPush(pTask->pRB, pBuff, pTask->size))
+            K_MUTEX_LOCK_SCOPE(pTask->pMtx)
             {
-                k_MutexUnlock(pTask->pMtx);
-                break;
+                if (k_RingBufferPush(pTask->pRB, pBuff, pTask->size))
+                    bRetry = false;
             }
-            k_MutexUnlock(pTask->pMtx);
         }
     }
 }

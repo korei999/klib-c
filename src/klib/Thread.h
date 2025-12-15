@@ -176,9 +176,12 @@ static inline void k_MutexDestroy(k_Mutex* s);
 static inline k_Mutex* k_MutexLock(k_Mutex* s); /* Returns s. */
 static inline void k_MutexUnlock(k_Mutex* s);
 static inline bool k_MutexTryLock(k_Mutex* s);
-static inline void k_MutexUnlockP(k_Mutex** ps);
 
-#define K_MUTEX_LOCK_GUARD(s) __attribute__((cleanup(k_MutexUnlockP))) k_Mutex* K_GLUE(K_GLUE(_pMtxLockGuard, __COUNTER__), _) = k_MutexLock(s);
+#define K_MUTEX_LOCK_SCOPE2(s, name)                                                                                   \
+    for (int name = (k_MutexLock(s), 0); !name; name = (k_MutexUnlock(s), 1))
+
+// #define K_MUTEX_LOCK_SCOPE(s) K_MUTEX_LOCK_SCOPE2((s), K_GLUE(_kMtxLockScopeVar, __COUNTER__))
+#define K_MUTEX_LOCK_SCOPE(s) K_SCOPE_BEGIN_END(k_MutexLock(s), k_MutexUnlock(s))
 
 static inline bool
 k_MutexInit(k_Mutex* s, K_MUTEX_TYPE eType)
@@ -287,12 +290,6 @@ k_MutexTryLock(k_Mutex* s)
     return pthread_mutex_trylock(&s->priv.mtx) != EBUSY;
 
 #endif
-}
-
-static inline void
-k_MutexUnlockP(k_Mutex** ps)
-{
-    k_MutexUnlock(*ps);
 }
 
 typedef struct k_CndVar

@@ -199,7 +199,7 @@ k_ArenaDestroy(k_Arena* s)
         int err = munmap(s->priv.pData, s->priv.reserved);
         (void)err;
         assert(err != - 1);
-#elif defined ADT_ARENA_WIN32
+#elif defined K_ARENA_WIN32
         VirtualFree(s->pData, 0, MEM_RELEASE);
 #else
 #endif
@@ -283,42 +283,4 @@ k_ArenaPtrAlloc(k_Arena* s, k_ArenaPtrAllocOpts opts)
     *s->priv.pLCurrentDeleters = opts.pNode;
 
     return true;
-}
-
-void
-k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena)
-{
-    s->state.pArena = pArena;
-    s->state.pos = pArena->priv.pos;
-    s->state.pLastAlloc = pArena->priv.pLastAlloc;
-}
-
-void
-k_ArenaStateRestore(k_ArenaState* s)
-{
-    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
-    s->state.pArena->priv.pos = s->state.pos;
-    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
-}
-
-void
-k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena)
-{
-    s->state.pArena = pArena;
-    s->state.pos = pArena->priv.pos;
-    s->state.pLastAlloc = pArena->priv.pLastAlloc;
-    s->state.pLCurrentDeleters = pArena->priv.pLCurrentDeleters;
-
-    s->lDeleters = NULL;
-    s->state.pArena->priv.pLCurrentDeleters = &s->lDeleters;
-}
-
-void
-k_ArenaStateRestoreDeleters(k_ArenaState* s)
-{
-    k_ArenaRunDeleters(s->state.pArena);
-    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
-    s->state.pArena->priv.pos = s->state.pos;
-    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
-    s->state.pArena->priv.pLCurrentDeleters = s->state.pLCurrentDeleters;
 }

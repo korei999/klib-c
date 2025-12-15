@@ -30,9 +30,12 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
 #define K_GLUE(x, y) K_GLUE0(x, y)
 #define K_GLUE0(x, y) x##y
 
-#define K_SCOPE_END(...) for (int _adt_defer_ = 0; !_adt_defer_; _adt_defer_ = 1, (__VA_ARGS__))
+#define K_SCOPE_END(...)                                                                                               \
+    for (int K_GLUE(_k_defer, __LINE__) = 0; !K_GLUE(_k_defer, __LINE__); K_GLUE(_k_defer, __LINE__) = 1, (__VA_ARGS__))
 
-#define K_SCOPE_BEGIN_END(begin, end) for (int _adt_defer_ = ((begin), 0); !_adt_defer_; _adt_defer_ = 1, (end))
+#define K_SCOPE_BEGIN_END(begin, end)                                                                                  \
+    for (int K_GLUE(_k_defer, __LINE__) = ((begin), 0); !K_GLUE(_k_defer, __LINE__);                                   \
+         K_GLUE(_k_defer, __LINE__) = 1, (end))
 
 #define K_ASIZE(a) ((ssize_t)sizeof(a) / (ssize_t)sizeof((a)[0]))
 
@@ -44,7 +47,7 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
         K_TYPEOF(x) _k_tmp_ = x;                                                                                       \
         x = y;                                                                                                         \
         y = _k_tmp_;                                                                                                   \
-    } while (0)\
+    } while (0)
 
 #ifdef _MSC_VER
 

@@ -85,12 +85,12 @@ typedef struct
     k_ArenaPtr* lDeleters; /* New list. */
 } k_ArenaState;
 
-void k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena);
-void k_ArenaStateRestore(k_ArenaState* s);
+static inline void k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena);
+static inline void k_ArenaStateRestore(k_ArenaState* s);
 
 /* Also push new deleters list. */
-void k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena);
-void k_ArenaStateRestoreDeleters(k_ArenaState* s);
+static inline void k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena);
+static inline void k_ArenaStateRestoreDeleters(k_ArenaState* s);
 
 #define K_ARENA_SCOPE_VAR(pArena, name)                                                                                \
     for (k_ArenaState name, *K_GLUE(_pState, name) = (k_ArenaStatePush(&name, pArena), NULL); !K_GLUE(_pState, name);  \
@@ -110,3 +110,41 @@ void k_ArenaStateRestoreDeleters(k_ArenaState* s);
 
 #define K_ARENA_SCOPE(pArena) K_ARENA_SCOPE_AUTO_VAR(pArena, __COUNTER__)
 #define K_ARENA_SCOPE_DELETERS(pArena) K_ARENA_SCOPE_AUTO_VAR_DELETERS(pArena, __COUNTER__)
+
+static inline void
+k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena)
+{
+    s->state.pArena = pArena;
+    s->state.pos = pArena->priv.pos;
+    s->state.pLastAlloc = pArena->priv.pLastAlloc;
+}
+
+static inline void
+k_ArenaStateRestore(k_ArenaState* s)
+{
+    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
+    s->state.pArena->priv.pos = s->state.pos;
+    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
+}
+
+static inline void
+k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena)
+{
+    s->state.pArena = pArena;
+    s->state.pos = pArena->priv.pos;
+    s->state.pLastAlloc = pArena->priv.pLastAlloc;
+    s->state.pLCurrentDeleters = pArena->priv.pLCurrentDeleters;
+
+    s->lDeleters = NULL;
+    s->state.pArena->priv.pLCurrentDeleters = &s->lDeleters;
+}
+
+static inline void
+k_ArenaStateRestoreDeleters(k_ArenaState* s)
+{
+    k_ArenaRunDeleters(s->state.pArena);
+    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
+    s->state.pArena->priv.pos = s->state.pos;
+    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
+    s->state.pArena->priv.pLCurrentDeleters = s->state.pLCurrentDeleters;
+}
