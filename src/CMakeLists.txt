@@ -24,6 +24,7 @@ set(TestBinaries
     Json
     SList
     sort
+    soa
 )
 
 foreach(Executable IN LISTS TestBinaries)
