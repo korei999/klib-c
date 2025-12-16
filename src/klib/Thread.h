@@ -32,7 +32,7 @@
     #include <pthread.h>
     #include <semaphore.h>
     #include <errno.h>  /* IWYU pragma: keep */
-    typedef uint32_t K_THREAD_RESULT;
+    typedef unsigned K_THREAD_RESULT;
 
 #endif
 
