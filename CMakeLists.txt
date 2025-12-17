@@ -208,7 +208,11 @@ include_directories("include")
 add_executable(${projName})
 
 if (CMAKE_BUILD_TYPE MATCHES "Release")
-    add_custom_command(TARGET ${projName} POST_BUILD COMMAND ${CMAKE_STRIP} ${projName})
+    if (CMAKE_SYSTEM_NAME MATCHES "Windows")
+        add_custom_command(TARGET ${projName} POST_BUILD COMMAND ${CMAKE_STRIP} ${projName}.exe)
+    else()
+        add_custom_command(TARGET ${projName} POST_BUILD COMMAND ${CMAKE_STRIP} ${projName})
+    endif()
 endif()
 
 add_subdirectory(src)
