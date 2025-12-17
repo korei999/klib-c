@@ -4,8 +4,9 @@
 
 #if defined __x86_64
     #include <x86intrin.h>
+#elif defined _WIN64
 #else
-    #warning "no __rdtcs()"
+    #error "no __rdtcs()"
 #endif
 
 typedef ssize_t k_time_Type;

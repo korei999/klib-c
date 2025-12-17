@@ -18,7 +18,7 @@
 
     #include <windows.h>
 #else
-    #warning "Arena is not implemented"
+    #error "Arena is not implemented"
 #endif
 
 static bool
@@ -200,7 +200,7 @@ k_ArenaDestroy(k_Arena* s)
         (void)err;
         assert(err != - 1);
 #elif defined K_ARENA_WIN32
-        VirtualFree(s->pData, 0, MEM_RELEASE);
+        VirtualFree(s->priv.pData, 0, MEM_RELEASE);
 #else
 #endif
         K_ASAN_UNPOISON(s->priv.pData, s->priv.reserved);
