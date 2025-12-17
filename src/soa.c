@@ -47,22 +47,31 @@ test(void)
     SOAPush(&v, LANE_V2S, &(V2){4.1f, 4.2f});
     SOAPush(&v, LANE_V2S, &(V2){5.1f, 5.2f});
 
-    for (ssize_t i = 0; i < v.aLanes[LANE_INTS].size; ++i)
     {
-        int* pI = (int*)v.aLanes[LANE_INTS].pData + i;
-        K_CTX_LOG_DEBUG("int({sz}): {i}", i, *pI);
+        SOALane* pvInts = &v.aLanes[LANE_INTS];
+        for (ssize_t i = 0; i < pvInts->size; ++i)
+        {
+            int* pI = (int*)pvInts->pData + i;
+            K_CTX_LOG_DEBUG("int({sz}): {i}", i, *pI);
+        }
     }
 
-    for (ssize_t i = 0; i < v.aLanes[LANE_FLOATS].size; ++i)
     {
-        float* pF = (float*)v.aLanes[LANE_FLOATS].pData + i;
-        K_CTX_LOG_DEBUG("float({sz}): {:.3:f}", i, *pF);
+        SOALane* pvFloats = &v.aLanes[LANE_FLOATS];
+        for (ssize_t i = 0; i < pvFloats->size; ++i)
+        {
+            float* pF = (float*)pvFloats->pData + i;
+            K_CTX_LOG_DEBUG("int({sz}): {:.1:f}", i, *pF);
+        }
     }
 
-    for (ssize_t i = 0; i < v.aLanes[LANE_V2S].size; ++i)
     {
-        V2* pV2 = (V2*)v.aLanes[LANE_V2S].pData + i;
-        K_CTX_LOG_DEBUG("v2s({sz}): [{:.3:f}, {:.3:f}]", i, pV2->x, pV2->y);
+        SOALane* pvV2s = &v.aLanes[LANE_V2S];
+        for (ssize_t i = 0; i < pvV2s->size; ++i)
+        {
+            V2* pV2 = (V2*)pvV2s->pData + i;
+            K_CTX_LOG_DEBUG("int({sz}): [{:.1:f}, {:.1:f}]", i, pV2->x, pV2->y);
+        }
     }
 
     SOADestroy(&v);

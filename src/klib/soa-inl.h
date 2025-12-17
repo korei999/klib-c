@@ -1,4 +1,5 @@
 #include "IAllocator.h"
+#include "Vec.h"
 
 #include <assert.h>
 
@@ -24,12 +25,7 @@
 
 #ifdef K_GEN_DECLS
 
-typedef struct K_LANE
-{
-    void* pData;
-    ssize_t size;
-    ssize_t cap;
-} K_LANE;
+typedef k_Vec K_LANE;
 
 typedef struct K_NAME
 {
@@ -51,14 +47,8 @@ K_METHOD(Init)(K_NAME* s, k_IAllocator* pAlloc, ssize_t cap)
     *s = (K_NAME){0};
 
     for (ssize_t i = 0; i < K_ASIZE(K_SIZE_MAP); ++i)
-    {
-        void* pNewLane = k_IAllocatorMalloc(pAlloc, sizeof(K_SIZE_MAP[i]) * cap);
-        if (!pNewLane) goto fail;
-
-        K_LANE* pLane = s->aLanes + i;
-        pLane->pData = pNewLane;
-        pLane->cap = cap;
-    }
+        if (!k_VecInit(s->aLanes + i, pAlloc, K_SIZE_MAP[i], cap))
+            goto fail;
 
     s->pAlloc = pAlloc;
     return true;
@@ -81,18 +71,7 @@ K_METHOD(Push)(K_NAME* s, int iLane, const void* pData)
     K_LANE* pLane = s->aLanes + iLane;
     const size_t memberSize = K_SIZE_MAP[iLane];
 
-    if (pLane->size >= pLane->cap)
-    {
-        const ssize_t newCap = K_MAX(2, pLane->size*2);
-        void* pNew = k_IAllocatorRealloc(s->pAlloc, pLane->pData, pLane->cap*memberSize, newCap*memberSize);
-        if (!pNew) return -1;
-        pLane->pData = pNew;
-        pLane->cap = newCap;
-    }
-
-    memcpy((uint8_t*)pLane->pData + pLane->size*memberSize, pData, memberSize);
-    ++pLane->size;
-    return 0;
+    return k_VecPush(pLane, s->pAlloc, memberSize, pData);
 }
 
 K_DECL_MOD void
