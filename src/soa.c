@@ -61,7 +61,7 @@ test(void)
         for (ssize_t i = 0; i < pvFloats->size; ++i)
         {
             float* pF = (float*)pvFloats->pData + i;
-            K_CTX_LOG_DEBUG("int({sz}): {:.1:f}", i, *pF);
+            K_CTX_LOG_DEBUG("float({sz}): {:.1:f}", i, *pF);
         }
     }
 
@@ -70,7 +70,7 @@ test(void)
         for (ssize_t i = 0; i < pvV2s->size; ++i)
         {
             V2* pV2 = (V2*)pvV2s->pData + i;
-            K_CTX_LOG_DEBUG("int({sz}): [{:.1:f}, {:.1:f}]", i, pV2->x, pV2->y);
+            K_CTX_LOG_DEBUG("v2({sz}): [{:.1:f}, {:.1:f}]", i, pV2->x, pV2->y);
         }
     }
 
