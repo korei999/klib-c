@@ -218,8 +218,7 @@ K_METHOD(RemoveI)(K_NAME* pSelf, ssize_t i)
     K_BUCKET* pBucket = &pSelf->pBuckets[i];
     K_MAP_BUCKET_FLAG* pEFlag = K_METHOD(Flags)(pSelf) + i;
 
-    pBucket->key = (K_KEY_T){0};
-    pBucket->value = (K_VALUE_T){0};
+    *pBucket = (K_BUCKET){0};
     *pEFlag = K_MAP_BUCKET_FLAG_DELETED;
 
     --pSelf->size;
