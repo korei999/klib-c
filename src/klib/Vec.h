@@ -111,7 +111,6 @@ static inline void
 k_VecRemove(k_Vec* s, ssize_t i, ssize_t mSize)
 {
     memcpy((uint8_t*)s->pData + i*mSize, (uint8_t*)s->pData + --s->size*mSize, mSize);
-    --s->size;
 }
 
 static inline bool
