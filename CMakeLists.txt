@@ -113,6 +113,16 @@ if (CMAKE_BUILD_TYPE MATCHES "Release")
     endif()
 endif()
 
+if (CMAKE_BUILD_TYPE MATCHES "ReleaseWithDebInfo")
+    if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+    else()
+        add_compile_options(-flto=auto)
+        add_link_options(-flto=auto)
+
+        add_compile_options(-O3 -g3)
+    endif()
+endif()
+
 if (CMAKE_BUILD_TYPE MATCHES "Asan")
     set(CMAKE_BUILD_TYPE "Debug")
     # add_definitions("-DMI_TRACK_ASAN=ON")

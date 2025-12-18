@@ -8,7 +8,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug",
-            "program": "${workspaceFolder}/build/src/Json",
+            "program": "${workspaceFolder}/build/src/soa",
             "args": ["../adtlib-cc/JSONTests/t3.json"],
             "cwd": "${workspaceFolder}",
             "initCommands": [
