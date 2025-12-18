@@ -18,6 +18,7 @@ static inline ssize_t k_VecPush(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, c
 static inline ssize_t k_VecPushMany(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, const void* p, ssize_t size);
 static inline void* k_VecPop(k_Vec* s, ssize_t mSize);
 static inline void k_VecPopAsLast(k_Vec* s, ssize_t i, ssize_t mSize, void* pPopDestOrNull);
+static inline void k_VecRemove(k_Vec* s, ssize_t i, ssize_t mSize);
 static inline bool k_VecShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newCap);
 static inline bool k_VecPopShrink(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize);
 static inline bool k_VecSetSize(k_Vec* s, k_IAllocator* pAlloc, ssize_t mSize, ssize_t newSize);
@@ -104,6 +105,13 @@ k_VecPopAsLast(k_Vec* s, ssize_t i, ssize_t mSize, void* pPopDestOrNull)
     assert(s->size > 0);
     if (pPopDestOrNull) memcpy(pPopDestOrNull, (uint8_t*)s->pData + i*mSize, mSize);
     memcpy((uint8_t*)s->pData + i*mSize, (uint8_t*)s->pData + --s->size*mSize, mSize);
+}
+
+static inline void
+k_VecRemove(k_Vec* s, ssize_t i, ssize_t mSize)
+{
+    memcpy((uint8_t*)s->pData + i*mSize, (uint8_t*)s->pData + --s->size*mSize, mSize);
+    --s->size;
 }
 
 static inline bool
