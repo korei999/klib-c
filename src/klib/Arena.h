@@ -75,6 +75,16 @@ k_ArenaMemoryUsed(k_Arena* s)
 
 typedef struct
 {
+    k_Arena* pArena;
+    ssize_t pos;
+    void* pLastAlloc;
+} k_ArenaState;
+
+static inline k_ArenaState k_ArenaStatePush(k_Arena* pArena);
+static inline void k_ArenaStateRestore(k_ArenaState* s);
+
+typedef struct
+{
     struct
     {
         k_Arena* pArena;
@@ -83,52 +93,50 @@ typedef struct
         k_ArenaPtr** pLCurrentDeleters;
     } state;
     k_ArenaPtr* lDeleters; /* New list. */
-} k_ArenaState;
-
-static inline void k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena);
-static inline void k_ArenaStateRestore(k_ArenaState* s);
+} k_ArenaState2;
 
 /* Also push new deleters list. */
-static inline void k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena);
-static inline void k_ArenaStateRestoreDeleters(k_ArenaState* s);
+static inline void k_ArenaStatePushDeleters(k_ArenaState2* s, k_Arena* pArena);
+static inline void k_ArenaStateRestoreDeleters(k_ArenaState2* s);
 
 #define K_ARENA_SCOPE_VAR(pArena, name)                                                                                \
-    for (k_ArenaState name, *K_GLUE(_pState, name) = (k_ArenaStatePush(&name, pArena), NULL); !K_GLUE(_pState, name);  \
+    for (k_ArenaState name = k_ArenaStatePush(pArena), *K_GLUE(_pState, name) = NULL; !K_GLUE(_pState, name);          \
          K_GLUE(_pState, name) = (k_ArenaStateRestore(&name), (k_ArenaState*)K_NPOS64))
 
 #define K_ARENA_SCOPE_AUTO_VAR(pArena, name)                                                                           \
-    for (k_ArenaState K_GLUE(_state__, name),                                                                          \
-         *K_GLUE(_pState__, name) = (k_ArenaStatePush(&K_GLUE(_state__, name), pArena), NULL);                         \
+    for (k_ArenaState K_GLUE(_state__, name) = k_ArenaStatePush(pArena), *K_GLUE(_pState__, name) = NULL;              \
          !K_GLUE(_pState__, name);                                                                                     \
          K_GLUE(_pState__, name) = (k_ArenaStateRestore(&K_GLUE(_state__, name)), (k_ArenaState*)K_NPOS64))
 
 #define K_ARENA_SCOPE_AUTO_VAR_DELETERS(pArena, name)                                                                  \
-    for (k_ArenaState K_GLUE(_state__, name),                                                                          \
+    for (k_ArenaState2 K_GLUE(_state__, name),                                                                          \
          *K_GLUE(_pState__, name) = (k_ArenaStatePushDeleters(&K_GLUE(_state__, name), pArena), NULL);                 \
          !K_GLUE(_pState__, name);                                                                                     \
-         K_GLUE(_pState__, name) = (k_ArenaStateRestoreDeleters(&K_GLUE(_state__, name)), (k_ArenaState*)K_NPOS64))
+         K_GLUE(_pState__, name) = (k_ArenaStateRestoreDeleters(&K_GLUE(_state__, name)), (k_ArenaState2*)K_NPOS64))
 
 #define K_ARENA_SCOPE(pArena) K_ARENA_SCOPE_AUTO_VAR(pArena, __COUNTER__)
 #define K_ARENA_SCOPE_DELETERS(pArena) K_ARENA_SCOPE_AUTO_VAR_DELETERS(pArena, __COUNTER__)
 
-static inline void
-k_ArenaStatePush(k_ArenaState* s, k_Arena* pArena)
+static inline k_ArenaState
+k_ArenaStatePush(k_Arena* pArena)
 {
-    s->state.pArena = pArena;
-    s->state.pos = pArena->priv.pos;
-    s->state.pLastAlloc = pArena->priv.pLastAlloc;
+    return (k_ArenaState){
+        .pArena = pArena,
+        .pos = pArena->priv.pos,
+        .pLastAlloc = pArena->priv.pLastAlloc,
+    };
 }
 
 static inline void
 k_ArenaStateRestore(k_ArenaState* s)
 {
     K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
-    s->state.pArena->priv.pos = s->state.pos;
-    s->state.pArena->priv.pLastAlloc = s->state.pLastAlloc;
+    s->pArena->priv.pos = s->pos;
+    s->pArena->priv.pLastAlloc = s->pLastAlloc;
 }
 
 static inline void
-k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena)
+k_ArenaStatePushDeleters(k_ArenaState2* s, k_Arena* pArena)
 {
     s->state.pArena = pArena;
     s->state.pos = pArena->priv.pos;
@@ -140,7 +148,7 @@ k_ArenaStatePushDeleters(k_ArenaState* s, k_Arena* pArena)
 }
 
 static inline void
-k_ArenaStateRestoreDeleters(k_ArenaState* s)
+k_ArenaStateRestoreDeleters(k_ArenaState2* s)
 {
     k_ArenaRunDeleters(s->state.pArena);
     K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);

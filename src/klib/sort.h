@@ -65,15 +65,14 @@ k_sort_quick2(
 )
 {
     k_Arena* pArena = k_CtxArena();
-    k_ArenaState arenaState;
-    k_ArenaStatePush(&arenaState, pArena);
+    k_ArenaState arenaState = k_ArenaStatePush(pArena);
 
     uint8_t* p = pData;
     const ssize_t size = (r - l + 1);
-    ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t) * size + memberSize*2);
+    ssize_t* pStack = k_ArenaMalloc(pArena, sizeof(ssize_t)*size + memberSize*2);
     if K_UNLIKELY(!pStack)
     {
-        /* No need to restore arena state. */
+        /* No need to restore the arena. */
         return false;
     }
 
