@@ -46,4 +46,5 @@ K_NO_DISCARD k_CmdLine* k_CmdLineAlloc(
 k_IAllocator* k_CmdLineGetAllocator(k_CmdLine* s);
 K_CMD_LINE_RESULT k_CmdLineParse(k_CmdLine* s, int argc, char** argv);
 void k_CmdLinePrintDescriptions(k_CmdLine* s, k_IAllocator* pAlloc, FILE* pFile);
+void k_CmdLinePrintUsage(k_CmdLine* s, k_IAllocator* pAlloc, FILE* pFile);
 void k_CmdLineDealloc(k_CmdLine** ps);

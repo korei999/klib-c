@@ -236,12 +236,18 @@ k_CmdLinePrintDescriptions(k_CmdLine* s, k_IAllocator* pAlloc, FILE* pFile)
 {
     if (s->nArgs <= 0) return;
 
-    k_print(pAlloc, pFile, "Usage: {PSv}{s}{PSv}\n\n", &s->svName, s->svName.size > 0 ? " " : "", &s->svUsageDescription);
+    k_CmdLinePrintUsage(s, pAlloc, pFile);
     for (ssize_t i = 0; i < s->nArgs; ++i)
     {
         k_CmdLineArgPrintDescription(s->pArgs + i, pAlloc, pFile);
         if (i < s->nArgs - 1) k_print(pAlloc, pFile, "\n");
     }
+}
+
+void
+k_CmdLinePrintUsage(k_CmdLine* s, k_IAllocator* pAlloc, FILE* pFile)
+{
+    k_print(pAlloc, pFile, "Usage: {PSv}{s}{PSv}\n\n", &s->svName, s->svName.size > 0 ? " " : "", &s->svUsageDescription);
 }
 
 void
