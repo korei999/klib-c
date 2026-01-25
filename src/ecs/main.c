@@ -43,18 +43,18 @@ static const int COMPONENT_SIZE_MAP[] = {
 };
 
 static ssize_t
-PosPFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* p)
+PosPFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* p)
 {
-    Pos* pPos = p;
+    const Pos* pPos = p;
     return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
         "({f}, {f})", pPos->x, pPos->y
     ).size;
 }
 
 static ssize_t
-OtherThingsPFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* p)
+OtherThingsPFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* p)
 {
-    OtherThings* ps = p;
+    const OtherThings* ps = p;
     return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
         "({i}, '{s}', {d}, {PPos})", ps->i, ps->nts, ps->d, &ps->pos2
     ).size;

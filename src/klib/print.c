@@ -776,15 +776,15 @@ formatInteger(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg, bool 
 }
 
 ssize_t
-k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
-    bool b = (bool)(ssize_t)arg;
+    bool b = (size_t)arg & 1;
     static const char* map[] = {"false", "true"};
-    return k_print_formatNts(pCtx, pFmtArgs, (void*)map[b]);
+    return k_print_formatNts(pCtx, pFmtArgs, (const void*)map[b]);
 }
 
 ssize_t
-k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     const int64_t c = (int64_t)arg;
 
@@ -804,7 +804,7 @@ k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 }
 
 ssize_t
-k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     wchar_t wc = (wchar_t)(uint64_t)arg;
     char aBuff[8] = {0};
@@ -813,70 +813,70 @@ k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 }
 
 ssize_t
-k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     int64_t i = (int)((int64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)i, false);
 }
 
 ssize_t
-k_print_formatI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     int64_t i = (int8_t)((int64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)i, false);
 }
 
 ssize_t
-k_print_formatU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     uint64_t u = (uint8_t)((uint64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)u, true);
 }
 
 ssize_t
-k_print_formatI16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatI16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     int64_t i = (int16_t)((int64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)i, false);
 }
 
 ssize_t
-k_print_formatU16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatU16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     uint64_t u = (uint16_t)((uint64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)u, true);
 }
 
 ssize_t
-k_print_formatI32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatI32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     int64_t i = (int32_t)((int64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)i, false);
 }
 
 ssize_t
-k_print_formatU32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatU32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     uint64_t u = (uint32_t)((uint64_t)arg);
     return formatInteger(pCtx, pFmtArgs, (void*)u, true);
 }
 
 ssize_t
-k_print_formatI64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatI64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     int64_t i = (int64_t)arg;
     return formatInteger(pCtx, pFmtArgs, (void*)i, false);
 }
 
 ssize_t
-k_print_formatU64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatU64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     uint64_t u = (uint64_t)arg;
     return formatInteger(pCtx, pFmtArgs, (void*)u, true);
 }
 
 ssize_t
-k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     const double d = *(double*)arg;
 
@@ -904,7 +904,7 @@ k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg
 }
 
 ssize_t
-k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     k_StringView sv = *(k_StringView*)arg;
     ssize_t nWritten = k_print_BuilderPushSvPaddedFmtArgs(
@@ -915,14 +915,14 @@ k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void
 }
 
 ssize_t
-k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     k_StringView sv = k_StringToSv((k_String*)arg);
     return k_print_formatPStringView(pCtx, pFmtArgs, &sv);
 }
 
 ssize_t
-k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     char* nts = (char*)arg;
     const ssize_t size = strlen(nts);
@@ -930,7 +930,7 @@ k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
 }
 
 ssize_t
-k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     uint64_t v = (uint64_t)arg;
     pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;

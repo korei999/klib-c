@@ -32,7 +32,7 @@ typedef struct k_print_FmtArgs k_print_FmtArgs;
 k_print_FmtArgs k_print_FmtArgsCreate(void);
 ssize_t k_print_eatFmtArg(k_print_FmtArgs* pFmtArgs, int64_t num); /* Returns K_PRINT_FMT_ARG_EATEN. Used to set FmtArgs with real arg instead of printing the actual arg. */
 
-typedef ssize_t (*k_print_PfnFormat)(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
+typedef ssize_t (*k_print_PfnFormat)(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 
 k_print_Map* k_print_MapAlloc(k_IAllocator* pAlloc);
 void k_print_MapSetGlobal(k_print_Map* pPrinter);
@@ -108,23 +108,23 @@ ssize_t k_print_VaList(k_IAllocator* pAlloc, FILE* pFile, char* pBuff, ssize_t b
 ssize_t k_print_Sv(k_IAllocator* pAlloc, FILE* pFile, const k_StringView svFmt, ...);
 ssize_t k_print(k_IAllocator* pAlloc, FILE* pFile, const char* nts, ...);
 
-ssize_t k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatI16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatU16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatI32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatU32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatI64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatU64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
-ssize_t k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg);
+ssize_t k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatI16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatU16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatI32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatU32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatI64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatU64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPStringView(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 
 static inline void
 k_print_MapAddDefaultFormatters(k_print_Map* s)

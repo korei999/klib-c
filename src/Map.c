@@ -11,7 +11,7 @@
 #include "klib/MapGen-inl.h"
 
 static ssize_t
-PMapSvToIntFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+PMapSvToIntFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     MapSvToInt* s = (MapSvToInt*)arg;
     ssize_t n = 0;

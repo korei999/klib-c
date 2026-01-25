@@ -9,7 +9,7 @@ typedef struct
 } Shield;
 
 static ssize_t
-formatPShield(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg)
+formatPShield(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     Shield* s = (Shield*)arg;
     return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
