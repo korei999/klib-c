@@ -109,7 +109,7 @@ static inline void k_ArenaStateRestoreDeleters(k_ArenaState2* s);
          K_GLUE(_pState__, name) = (k_ArenaStateRestore(&K_GLUE(_state__, name)), (k_ArenaState*)K_NPOS64))
 
 #define K_ARENA_SCOPE_AUTO_VAR_DELETERS(pArena, name)                                                                  \
-    for (k_ArenaState2 K_GLUE(_state__, name),                                                                          \
+    for (k_ArenaState2 K_GLUE(_state__, name),                                                                         \
          *K_GLUE(_pState__, name) = (k_ArenaStatePushDeleters(&K_GLUE(_state__, name), pArena), NULL);                 \
          !K_GLUE(_pState__, name);                                                                                     \
          K_GLUE(_pState__, name) = (k_ArenaStateRestoreDeleters(&K_GLUE(_state__, name)), (k_ArenaState2*)K_NPOS64))
