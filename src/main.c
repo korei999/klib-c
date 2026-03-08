@@ -2,16 +2,17 @@
 #include "klib/Gpa.h"
 #include "klib/time.h"
 
-typedef struct
+typedef struct Shield Shield;
+struct Shield
 {
     int defence;
     int durability;
-} Shield;
+};
 
 static ssize_t
 formatPShield(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
-    Shield* s = (Shield*)arg;
+    const Shield* s = arg;
     return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
         "(defence: {i}, durability: {i})",
         s->defence, s->durability
@@ -28,6 +29,18 @@ main(int argc, char** argv)
     if (argc < 2)
     {
         {
+            k_print(&k_GpaInst()->base, stdout,
+                "nts: '{:{i} >{i} f&:s}'\n", 4, 15, "HELLO BIDEN"
+            );
+        }
+
+        {
+            k_print(&k_GpaInst()->base, stdout,
+                "shield: {:10 > f\\:PShield}\n", &(Shield){.defence = 99999, .durability = 10000}
+            );
+        }
+
+        {
             k_print(&k_GpaInst()->base, stdout, "int: '{:+>8 f{c}:i}', float: '{:+.{i}:f}'\n", '^', 6666, 3, -32.123456789f);
             ssize_t cafeBabe = 0xCafeBabe;
             k_print(&k_GpaInst()->base, stdout, "cafeBabe: '{:#x:sz}'\n", cafeBabe);
@@ -42,7 +55,7 @@ main(int argc, char** argv)
 
         k_print(&k_GpaInst()->base, stdout,
             "fPad: '{:6.2 > f0:d}', double: '{:{i}.{i}:d}', shield: {:10 > f\\:PShield}, intAfterReused: '{:2 >{i} f-:i}', nts: '{:{i} >{i} f&:s}'\n",
-            22.22, 9, 1, -12345.12345, &(Shield){.defence = 99999, .durability = 10000}, 10, 54321, 4, 15, "HELLO BIDEN"
+            22.22, 9, 1, -12345.12345, &(Shield){.defence = 99999, .durability = 10000}, 10, 54321, 4, 15, "HELLO"
         );
     }
     else if (argc >= 2 && !strcmp(argv[1], "--microbench"))

@@ -434,7 +434,10 @@ parseCharOrArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
             ++pCtx->fmtI;
             parseFmtArg(pCtx, pFmtArgs, pArgs);
         }
-        else pFmtArgs->filler = pCtx->svFmt.pData[pCtx->fmtI];
+        else
+        {
+            pFmtArgs->filler = pCtx->svFmt.pData[pCtx->fmtI];
+        }
     }
 }
 
@@ -465,50 +468,52 @@ parseFmtArgs(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
         switch (pCtx->svFmt.pData[pCtx->fmtI])
         {
             case ' ':
-                break;
+            break;
 
             case '{':
-                ++pCtx->fmtI;
-                parseFmtArg(pCtx, pFmtArgs, pArgs);
-                break;
+            ++pCtx->fmtI;
+            parseFmtArg(pCtx, pFmtArgs, pArgs);
+            break;
 
             case '<':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_LEFT;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_LEFT;
+            break;
 
             case '>':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT;
+            break;
 
             case 'f':
+            {
                 ++pCtx->fmtI;
                 pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
                 parseCharOrArg(pCtx, pFmtArgs, pArgs);
-                break;
+            }
+            break;
 
             case '+':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_SHOW_SIGN;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_SHOW_SIGN;
+            break;
 
             case '.':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION;
+            break;
 
             case '#':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
+            break;
 
             case 'b':
-                pFmtArgs->eBase = K_PRINT_BASE_TWO;
-                break;
+            pFmtArgs->eBase = K_PRINT_BASE_TWO;
+            break;
 
             case 'o':
-                pFmtArgs->eBase = K_PRINT_BASE_EIGHT;
-                break;
+            pFmtArgs->eBase = K_PRINT_BASE_EIGHT;
+            break;
 
             case 'x':
-                pFmtArgs->eBase = K_PRINT_BASE_SIXTEEN;
-                break;
+            pFmtArgs->eBase = K_PRINT_BASE_SIXTEEN;
+            break;
         }
 
         ++pCtx->fmtI;
