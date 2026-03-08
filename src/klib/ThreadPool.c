@@ -196,7 +196,7 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
     const int memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header) : opts.queueSlotSize + (int)sizeof(Header);
     if (opts.nThreads > 0)
     {
-        pNewThreads = K_IZALLOC_T(pGpa, k_Thread, opts.nThreads);
+        pNewThreads = K_IZALLOC_T(&pGpa->base, k_Thread, opts.nThreads);
         if (!pNewThreads) return false;
 
         if (!k_QueueMPMCInit(&s->qTasks, &pGpa->base, (k_QueueMPMCInitOpts){
@@ -223,7 +223,7 @@ fail0:
 fail1:
     k_QueueMPMCDestroy(&s->qTasks, &pGpa->base);
 fail2:
-    k_IAllocatorFree(&pGpa, pNewThreads);
+    k_GpaFree(pGpa, pNewThreads);
     return false;
 }
 

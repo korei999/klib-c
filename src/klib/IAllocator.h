@@ -13,12 +13,13 @@
     #define K_ASAN_UNPOISON(...) (void)0
 #endif
 
+typedef struct k_IAllocator k_IAllocator;
 typedef struct k_IAllocatorVTable
 {
-    void* (*malloc)(void* pSelf, ssize_t nBytes);
-    void* (*zalloc)(void* pSelf, ssize_t nBytes);
-    void* (*realloc)(void* pSelf, void* p, ssize_t nBytesOld, ssize_t nBytesNew);
-    void (*free)(void* pSelf, void* p);
+    void* (*malloc)(k_IAllocator* pSelf, ssize_t nBytes);
+    void* (*zalloc)(k_IAllocator* pSelf, ssize_t nBytes);
+    void* (*realloc)(k_IAllocator* pSelf, void* p, ssize_t nBytesOld, ssize_t nBytesNew);
+    void (*free)(k_IAllocator* pSelf, void* p);
 } k_IAllocatorVTable;
 
 typedef struct k_IAllocator
@@ -27,33 +28,33 @@ typedef struct k_IAllocator
 } k_IAllocator;
 
 K_NO_DISCARD static inline void*
-k_IAllocatorMalloc(void* pSelf, ssize_t nBytes)
+k_IAllocatorMalloc(k_IAllocator* s, ssize_t nBytes)
 {
-    return ((k_IAllocator*)pSelf)->pVTable->malloc(pSelf, nBytes);
+    return s->pVTable->malloc(s, nBytes);
 }
 
 K_NO_DISCARD static inline void*
-k_IAllocatorZalloc(void* pSelf, ssize_t nBytes)
+k_IAllocatorZalloc(k_IAllocator* s, ssize_t nBytes)
 {
-    return ((k_IAllocator*)pSelf)->pVTable->zalloc(pSelf, nBytes);
+    return s->pVTable->zalloc(s, nBytes);
 }
 
 K_NO_DISCARD static inline void*
-k_IAllocatorRealloc(void* pSelf, void* p, ssize_t nBytesOld, ssize_t nBytesNew)
+k_IAllocatorRealloc(k_IAllocator* s, void* p, ssize_t nBytesOld, ssize_t nBytesNew)
 {
-    return ((k_IAllocator*)pSelf)->pVTable->realloc(pSelf, p, nBytesOld, nBytesNew);
+    return s->pVTable->realloc(s, p, nBytesOld, nBytesNew);
 }
 
 static inline void
-k_IAllocatorFree(void* pSelf, void* p)
+k_IAllocatorFree(k_IAllocator* s, void* p)
 {
-    ((k_IAllocator*)pSelf)->pVTable->free(pSelf, p);
+    s->pVTable->free(s, p);
 }
 
 K_NO_DISCARD static inline void*
-k_IAllocatorAlloc(void* pSelf, void* p, ssize_t size)
+k_IAllocatorAlloc(k_IAllocator* s, void* p, ssize_t size)
 {
-    void* ret = ((k_IAllocator*)pSelf)->pVTable->malloc(pSelf, size);
+    void* ret = s->pVTable->malloc(s, size);
     if K_UNLIKELY(!ret) return NULL;
     memcpy(ret, p, size);
     return ret;
