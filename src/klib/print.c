@@ -4,6 +4,7 @@
 #include "ThirdParty/ryu/ryu.h"
 
 #include <ctype.h>
+#include <math.h>
 
 #define K_NAME MapSigToPfn
 #define K_KEY_T k_StringView
@@ -465,50 +466,50 @@ parseFmtArgs(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
         switch (pCtx->svFmt.pData[pCtx->fmtI])
         {
             case ' ':
-                break;
+            break;
 
             case '{':
-                ++pCtx->fmtI;
-                parseFmtArg(pCtx, pFmtArgs, pArgs);
-                break;
+            ++pCtx->fmtI;
+            parseFmtArg(pCtx, pFmtArgs, pArgs);
+            break;
 
             case '<':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_LEFT;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_LEFT;
+            break;
 
             case '>':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT;
+            break;
 
             case 'f':
-                ++pCtx->fmtI;
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
-                parseCharOrArg(pCtx, pFmtArgs, pArgs);
-                break;
+            ++pCtx->fmtI;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
+            parseCharOrArg(pCtx, pFmtArgs, pArgs);
+            break;
 
             case '+':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_SHOW_SIGN;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_SHOW_SIGN;
+            break;
 
             case '.':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION;
+            break;
 
             case '#':
-                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
-                break;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
+            break;
 
             case 'b':
-                pFmtArgs->eBase = K_PRINT_BASE_TWO;
-                break;
+            pFmtArgs->eBase = K_PRINT_BASE_TWO;
+            break;
 
             case 'o':
-                pFmtArgs->eBase = K_PRINT_BASE_EIGHT;
-                break;
+            pFmtArgs->eBase = K_PRINT_BASE_EIGHT;
+            break;
 
             case 'x':
-                pFmtArgs->eBase = K_PRINT_BASE_SIXTEEN;
-                break;
+            pFmtArgs->eBase = K_PRINT_BASE_SIXTEEN;
+            break;
         }
 
         ++pCtx->fmtI;
@@ -775,6 +776,40 @@ formatInteger(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, void* arg, bool 
     return nn;
 }
 
+static ssize_t
+formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, double f)
+{
+    int exp;
+    double fr = frexp(f, &exp);
+    int64_t v = fr * (1ll << 53ll);
+    int64_t e = exp - 53;
+
+    ssize_t startPos = pCtx->pBuilder->size;
+    ssize_t nn = formatInteger(pCtx, pFmtArgs, (void*)v, false);
+
+    char* pBuff = pCtx->pBuilder->pData + startPos;
+    for (; e > 0; --e)
+    {
+        int sigma = 0;
+        if (pBuff[0] >= '5') sigma = 1;
+        char x = 0;
+        for (ssize_t i = nn - 1; i >= 0; --i)
+        {
+            x += 2 * (pBuff[i] - '0');
+            pBuff[i + sigma] = (x % 10) + '0';
+            x /= 10;
+        }
+
+        if (sigma == 1)
+        {
+            pBuff[0] = '1';
+            ++nn;
+        }
+    }
+
+    return nn;
+}
+
 ssize_t
 k_print_formatBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
@@ -879,6 +914,7 @@ ssize_t
 k_print_formatDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     const double d = *(double*)arg;
+    return formatDouble(pCtx, pFmtArgs, d);
 
     if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_FMT)
         return k_print_eatFmtArg(pFmtArgs, (ssize_t)d);

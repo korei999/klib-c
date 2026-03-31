@@ -1,4 +1,6 @@
+#include "klib/Ctx.h"
 #include "klib/Gpa.h"
+#include "klib/assert.h"
 #include "klib/print.h"
 
 #include "klib/ThreadPool.h"
@@ -58,73 +60,108 @@ funcBigLoad(void* p)
     }
 }
 
+static k_atomic_Int s_atomRecursiveCounter = {0};
+
+static void
+recursiveTask(void* p)
+{
+    k_ThreadPool* pPool = k_CtxThreadPool();
+    int64_t arg = (int64_t)p;
+
+    if (arg > 0)
+    {
+        k_atomic_IntAddRelaxed(&s_atomRecursiveCounter, 1);
+        Sleep(10);
+
+        k_Future fut = k_FutureCreate(pPool);
+        k_ThreadPoolAddPFuture(pPool, &fut, recursiveTask, (void*)(arg - 1));
+        k_FutureWait(&fut);
+    }
+}
+
 int
 main(void)
 {
-    k_Gpa gpa = k_GpaCreate();
-    k_print_Map* pFormattersMap = k_print_MapAlloc(&gpa.base);
-    if (!pFormattersMap) return 1;
-    k_print_MapSetGlobal(pFormattersMap);
+    k_CtxAllocGlobal(
+        (k_LoggerInitOpts){
+            .eFlags = K_LOGGER_FLAG_SOURCE | K_LOGGER_FLAG_TIME,
+            .eLogLevel = K_LOGGER_LEVEL_DEBUG,
+            .fd = 2,
+            .ringBufferSize = K_SIZE_1K*4,
+        },
+        (k_ThreadPoolInitOpts){
+            .arenaReserve = K_SIZE_1M*60,
+            .nThreads = k_optimalThreadCount(),
+            .queueSlotSize = 128,
+            .queueCap = K_THREAD_POOL_DEFAULT_QUEUE_CAP,
+        }
+    );
 
-    k_ThreadPool tp = {0};
-    if (!k_ThreadPoolInit(&tp, (k_ThreadPoolInitOpts){
-        .nThreads = k_optimalThreadCount(),
-        .arenaReserve = K_SIZE_1K*60,
-        .queueSlotSize = 128,
-        .queueCap = 256
-    }))
-    {
-        k_print(&gpa.base, stdout, "FAILED\n");
-        return 1;
-    }
+    k_Gpa gpa = k_GpaCreate();
+    k_ThreadPool* pTp = k_CtxThreadPool();
 
     {
         Payload pl0 = {.i = 111};
-        k_ThreadPoolAdd(&tp, func, &pl0, sizeof(pl0));
+        k_ThreadPoolAdd(pTp, func, &pl0, sizeof(pl0));
     }
 
     {
         Payload pl1 = {.i = 222};
-        k_ThreadPoolAdd(&tp, func, &pl1, sizeof(pl1));
+        k_ThreadPoolAdd(pTp, func, &pl1, sizeof(pl1));
     }
 
     Payload pl2 = {.i = 333};
-    k_ThreadPoolAddP(&tp, func, &pl2);
+    k_ThreadPoolAddP(pTp, func, &pl2);
 
     Payload pl3 = {.i = 444};
-    k_ThreadPoolAddP(&tp, func, &pl3);
+    k_ThreadPoolAddP(pTp, func, &pl3);
 
     Payload pl4 = {.i = 555};
-    k_ThreadPoolAddP(&tp, func, &pl4);
+    k_ThreadPoolAddP(pTp, func, &pl4);
 
     Payload pl5 = {.i = 666};
-    k_ThreadPoolAddP(&tp, func, &pl5);
+    k_ThreadPoolAddP(pTp, func, &pl5);
 
     BigPayload bp0;
     for (ssize_t i = 0; i < K_ASIZE(bp0.aBig); ++i) bp0.aBig[i] = i;
-    k_ThreadPoolAdd(&tp, funcBig, &bp0, sizeof(bp0));
+    k_ThreadPoolAdd(pTp, funcBig, &bp0, sizeof(bp0));
 
     {
-        k_Future fut = k_FutureCreate(&tp);
+        k_Future fut = k_FutureCreate(pTp);
         double dd = 0;
-        k_ThreadPoolAddPFuture(&tp, &fut, futureFunc, &dd);
+        k_ThreadPoolAddPFuture(pTp, &fut, futureFunc, &dd);
 
         k_FutureWait(&fut);
         k_print(&gpa.base, stdout, "dd: {d}\n", dd);
         assert(dd == 111.222);
 
-        k_ThreadPoolAddFuture(&tp, &fut, futureFunc2, &dd, sizeof(dd));
+        k_ThreadPoolAddFuture(pTp, &fut, futureFunc2, &dd, sizeof(dd));
         k_FutureWait(&fut);
         assert(dd == 111.222);
     }
 
     const ssize_t BIG = 1000;
     for (ssize_t i = 0; i < BIG; ++i)
-        k_ThreadPoolAddP(&tp, funcBigLoad, NULL);
+        k_ThreadPoolAddP(pTp, funcBigLoad, NULL);
 
-    k_ThreadPoolDestroy(&tp);
+    k_ThreadPoolWait(pTp);
 
     int counter = k_atomic_IntLoadRelaxed(&s_atomCounter);
     k_print(&gpa.base, stderr, "s_atomCounter: {i}\n", counter);
     assert(counter == BIG);
+
+    const ssize_t BIG2 = 1000;
+    recursiveTask((void*)BIG2);
+
+    k_ThreadPoolWait(pTp);
+    k_print(&gpa.base, stderr, "s_atomRecursiveCounter: {i}", k_atomic_IntLoadRelaxed(&s_atomRecursiveCounter));
+    K_ASSERT(k_atomic_IntLoadRelaxed(&s_atomRecursiveCounter) == BIG2);
+
+quitNice:
+    k_CtxDestroyGlobal();
+    return 0;
+
+quitBad:
+    k_CtxDestroyGlobal();
+    return 1;
 }

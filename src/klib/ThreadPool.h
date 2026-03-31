@@ -48,7 +48,7 @@ typedef struct k_ThreadPool
 
 typedef struct k_ThreadPoolInitArgs
 {
-    ssize_t nThreads; /* 0 for 1 main thread arena. */
+    ssize_t nThreads; /* 0 for 1 main thread arena, or use k_optimalThreadCount(). */
     int queueSlotSize; /* Maximum payload size. K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE by default. */
     int queueCap; /* K_THREAD_POOL_DEFAULT_QUEUE_CAP by default. */
     ssize_t arenaReserve; /* NOTE: Reserve virtual address space when using k_Arena, or malloc if k_ArenaList is used. */
