@@ -37,10 +37,10 @@ typedef struct k_Arena
 } k_Arena;
 
 bool k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize);
-K_NO_DISCARD void* k_ArenaMalloc(void* s, ssize_t nBytes);
-K_NO_DISCARD void* k_ArenaZalloc(void* s, ssize_t nBytes);
-K_NO_DISCARD void* k_ArenaRealloc(void* s, void* p, ssize_t oldNBytes, ssize_t newNBytes);
-static inline void k_ArenaFree(void* s, void* ptr) { (void)s, (void)ptr; /* noop */ }
+K_NO_DISCARD void* k_ArenaMalloc(k_Arena* s, ssize_t nBytes);
+K_NO_DISCARD void* k_ArenaZalloc(k_Arena* s, ssize_t nBytes);
+K_NO_DISCARD void* k_ArenaRealloc(k_Arena* s, void* p, ssize_t oldNBytes, ssize_t newNBytes);
+static inline void k_ArenaFree(k_Arena* s, void* ptr) { (void)s, (void)ptr; /* noop */ }
 void k_ArenaDestroy(k_Arena* s);
 void k_ArenaReset(k_Arena* s);
 void k_ArenaResetDecommit(k_Arena* s);
@@ -51,9 +51,9 @@ static inline ssize_t k_ArenaMemoryReserved(k_Arena* s);
 static inline ssize_t k_ArenaMemoryUsed(k_Arena* s);
 
 static inline void*
-k_ArenaAlloc(void* pSelf, void* p, ssize_t size)
+k_ArenaAlloc(k_Arena* s, void* p, ssize_t size)
 {
-    void* ret = ((k_IAllocator*)pSelf)->pVTable->malloc(pSelf, size);
+    void* ret = k_ArenaMalloc(s, size);
     if (!ret) return NULL;
     memcpy(ret, p, size);
     return ret;

@@ -18,7 +18,7 @@ main(void)
     k_Arena arena;
     if (k_ArenaInit(&arena, K_SIZE_1M * 60, k_getPageSize()))
     {
-        char* pBytes = K_IMALLOC_T(&arena, char, 100);
+        char* pBytes = K_IMALLOC_T(&arena.base, char, 100);
         ssize_t n = k_print_toBuffer(pBytes, 100, "what?: '{nts}'", "HELLO");
 
         k_print(&k_GpaInst()->base, stdout, "print: '{PSv}'\n", &(k_StringView){pBytes, n});

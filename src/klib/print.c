@@ -435,7 +435,10 @@ parseCharOrArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
             ++pCtx->fmtI;
             parseFmtArg(pCtx, pFmtArgs, pArgs);
         }
-        else pFmtArgs->filler = pCtx->svFmt.pData[pCtx->fmtI];
+        else
+        {
+            pFmtArgs->filler = pCtx->svFmt.pData[pCtx->fmtI];
+        }
     }
 }
 
@@ -482,9 +485,11 @@ parseFmtArgs(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
             break;
 
             case 'f':
-            ++pCtx->fmtI;
-            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
-            parseCharOrArg(pCtx, pFmtArgs, pArgs);
+            {
+                ++pCtx->fmtI;
+                pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
+                parseCharOrArg(pCtx, pFmtArgs, pArgs);
+            }
             break;
 
             case '+':

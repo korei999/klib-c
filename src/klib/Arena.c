@@ -96,14 +96,19 @@ growIfNeeded(k_Arena* pSelf, ssize_t newPos)
     return true;
 }
 
+static inline void* ArenaMallocStub(k_IAllocator* s, ssize_t nBytes) { return k_ArenaMalloc((k_Arena*)s, nBytes); }
+static inline void* ArenaZallocStub(k_IAllocator* s, ssize_t nBytes) { return k_ArenaZalloc((k_Arena*)s, nBytes); }
+static inline void* ArenaReallocStub(k_IAllocator* s, void* p, ssize_t nBytesOld, ssize_t nBytesNew) { return k_ArenaRealloc((k_Arena*)s, p, nBytesOld, nBytesNew); }
+static inline void ArenaFreeStub(k_IAllocator* s, void* p) { k_ArenaFree((k_Arena*)s, p); }
+
 bool
 k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
 {
     static const k_IAllocatorVTable s_vtArena = {
-        .malloc = k_ArenaMalloc,
-        .zalloc = k_ArenaZalloc,
-        .realloc = k_ArenaRealloc,
-        .free = k_ArenaFree,
+        .malloc = ArenaMallocStub,
+        .zalloc = ArenaZallocStub,
+        .realloc = ArenaReallocStub,
+        .free = ArenaFreeStub,
     };
     s->base.pVTable = &s_vtArena;
     s->priv.pData = NULL;
@@ -147,9 +152,8 @@ k_ArenaInit(k_Arena* s, ssize_t reserveSize, ssize_t commitSize)
 }
 
 void*
-k_ArenaMalloc(void* pSelf, ssize_t nBytes)
+k_ArenaMalloc(k_Arena* s, ssize_t nBytes)
 {
-    k_Arena* s = (k_Arena*)pSelf;
     const ssize_t realSize = K_ALIGN_UP8(nBytes);
     void* pRet = (void*)((uint8_t*)s->priv.pData + s->priv.pos);
     if K_UNLIKELY(!growIfNeeded(s, s->priv.pos + realSize)) return NULL;
@@ -159,7 +163,7 @@ k_ArenaMalloc(void* pSelf, ssize_t nBytes)
 }
 
 void*
-k_ArenaZalloc(void* s, ssize_t nBytes)
+k_ArenaZalloc(k_Arena* s, ssize_t nBytes)
 {
     void* pMem = k_ArenaMalloc(s, nBytes);
     memset(pMem, 0, nBytes);
@@ -167,10 +171,9 @@ k_ArenaZalloc(void* s, ssize_t nBytes)
 }
 
 void*
-k_ArenaRealloc(void* pSelf, void* p, ssize_t oldNBytes, ssize_t newNBytes)
+k_ArenaRealloc(k_Arena* s, void* p, ssize_t oldNBytes, ssize_t newNBytes)
 {
-    k_Arena* s = (k_Arena*)pSelf;
-    if (!p) return k_ArenaMalloc(pSelf, newNBytes);
+    if (!p) return k_ArenaMalloc(s, newNBytes);
 
     /* bump case */
     if (p == s->priv.pLastAlloc)
@@ -183,7 +186,7 @@ k_ArenaRealloc(void* pSelf, void* p, ssize_t oldNBytes, ssize_t newNBytes)
 
     if (newNBytes <= oldNBytes) return p;
 
-    void* pMem = k_ArenaMalloc(pSelf, newNBytes);
+    void* pMem = k_ArenaMalloc(s, newNBytes);
     if (p) memcpy(pMem, p, K_MIN(oldNBytes, newNBytes));
     return pMem;
 }
