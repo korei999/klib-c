@@ -71,7 +71,12 @@ recursiveTask(void* p)
     if (arg > 0)
     {
         k_atomic_IntAddRelaxed(&s_atomRecursiveCounter, 1);
-        Sleep(10);
+
+        for (int i = 0; i < 1000000; i++)
+        {
+            static volatile int what = 0;
+            ++what;
+        }
 
         k_Future fut = k_FutureCreate(pPool);
         k_ThreadPoolAddPFuture(pPool, &fut, recursiveTask, (void*)(arg - 1));
