@@ -130,7 +130,7 @@ k_ArenaStatePush(k_Arena* pArena)
 static inline void
 k_ArenaStateRestore(k_ArenaState* s)
 {
-    K_ASAN_POISON((uint8_t*)s->state.pArena->priv.pData + s->state.pArena->priv.pos, s->state.pArena->priv.pos - s->state.pos);
+    K_ASAN_POISON((uint8_t*)s->pArena->priv.pData + s->pArena->priv.pos, s->pArena->priv.pos - s->pos);
     s->pArena->priv.pos = s->pos;
     s->pArena->priv.pLastAlloc = s->pLastAlloc;
 }

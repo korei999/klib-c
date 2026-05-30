@@ -160,13 +160,8 @@ main(void)
 
     k_ThreadPoolWait(pTp);
     k_print(&gpa.base, stderr, "s_atomRecursiveCounter: {i}", k_atomic_IntLoadRelaxed(&s_atomRecursiveCounter));
-    K_ASSERT(k_atomic_IntLoadRelaxed(&s_atomRecursiveCounter) == BIG2);
+    K_ASSERT(k_atomic_IntLoadRelaxed(&s_atomRecursiveCounter) == BIG2, "");
 
-quitNice:
     k_CtxDestroyGlobal();
     return 0;
-
-quitBad:
-    k_CtxDestroyGlobal();
-    return 1;
 }
