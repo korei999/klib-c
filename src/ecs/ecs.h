@@ -11,9 +11,7 @@ typedef struct ecs_Component
     int* pDense;
     int size;
     int cap;
-    int freeListSize;
-    int* pSparse; /* Of ecs_Map::cap capacity and allocated alongside with the ecs_Map. */
-    int* pFreeList; /* Same as pSparse. */
+    int* pSparse; /* Of ecs_Map::cap capacity and allocated alongside with ecs_Map. */
 } ecs_Component;
 
 typedef struct ecs_Map
@@ -22,10 +20,11 @@ typedef struct ecs_Map
 
     uint8_t* pDense;
 
-    ECS_ENTITY* pSparse;
-    int* pFreeList;
+    ECS_ENTITY* pSparse; /* Entity handle is a sparse index to ecs_Map. TODO: add generations to entity handle. */
+    int* pFreeList; /* Add removed sparse indices to this freeList. */
     ecs_Component* pSOAComponents;
 
+    int sparseSize;
     int denseStride;
     int size;
     int cap;

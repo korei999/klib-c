@@ -109,6 +109,9 @@ test(void)
     }
 
     ecs_MapRemoveEntity(&s, aH[4]);
+    aH[4] = ecs_MapAddEntity(&s);
+    ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &(Health){4});
+
     ecs_MapRemoveEntity(&s, aH[16]);
 
     ecs_MapRemove(&s, aH[11], COMPONENT_HEALTH);
@@ -121,7 +124,7 @@ test(void)
         for (int posI = 0; posI < s.pSOAComponents[COMPONENT_POS].size; ++posI)
         {
             K_CTX_LOG_DEBUG("({i}) pos: {:.3:PPos}",
-                s.pSOAComponents[COMPONENT_POS].pDense[posI], pPos
+                s.pSOAComponents[COMPONENT_POS].pDense[posI], pPos + posI
             );
         }
         K_CTX_LOG_DEBUG("");

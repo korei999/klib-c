@@ -3,6 +3,9 @@
 #include "klib/assert.h"
 #include "klib/IAllocator.h"
 
+
+/* Entity stores info about what components it has in array of DenseEnums.
+ * Using uint8_t we have up to 254 (0 for invalid sparse index) components per entity. */
 typedef struct DenseEnum
 {
     uint8_t dense;
@@ -11,9 +14,9 @@ typedef struct DenseEnum
 
 typedef struct DenseDesc
 {
-    int sparseI;
+    int sparseI; /* Back to sparse mapping. */
     int enumsSize;
-    DenseEnum pEnums[];
+    DenseEnum pEnums[]; /* The capacity of this array must be equal to ecs_Map::sizeMapSize. */
 } DenseDesc;
 
 static bool MapGrow(ecs_Map* s, int newCap);
@@ -58,8 +61,7 @@ MapGrow(ecs_Map* s, int newCap)
         s->denseStride +
         sizeof(*s->pSparse) +
         sizeof(*s->pFreeList) +
-        sizeof(*s->pSOAComponents[0].pSparse)*s->sizeMapSize +
-        sizeof(*s->pSOAComponents[0].pFreeList)*s->sizeMapSize
+        sizeof(*s->pSOAComponents[0].pSparse)*s->sizeMapSize
     );
     uint8_t* pNew = k_IAllocatorZalloc(s->pAlloc, totalCap);
     if (!pNew) return false;
@@ -99,12 +101,6 @@ MapGrow(ecs_Map* s, int newCap)
         off += sizeof(*s->pSOAComponents[0].pSparse)*newCap;
         for (int i = s->cap; i < newCap; ++i)
             s->pSOAComponents[compI].pSparse[i] = -1;
-
-        if (s->pSOAComponents[compI].pFreeList)
-            memcpy(pNew + off, s->pSOAComponents[compI].pFreeList, sizeof(*s->pSOAComponents[0].pFreeList)*s->cap);
-
-        s->pSOAComponents[compI].pFreeList = (void*)(pNew + off);
-        off += sizeof(*s->pSOAComponents[0].pFreeList)*newCap;
     }
 
     k_IAllocatorFree(s->pAlloc, pOld);
@@ -122,16 +118,15 @@ ecs_MapAddEntity(ecs_Map* s)
             return -1;
     }
 
-    int i = s->freeListSize > 0 ? s->pFreeList[--s->freeListSize] : s->size;
-
-    s->pSparse[s->size] = i;
-    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->denseStride*i);
-    pDense->sparseI = s->size;
+    int sparseI = s->freeListSize > 0 ? s->pFreeList[--s->freeListSize] : s->sparseSize++;
+    s->pSparse[sparseI] = s->size;
+    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->denseStride*s->size);
+    pDense->sparseI = sparseI;
     pDense->enumsSize = 0;
-
+    memset(pDense->pEnums, 0, s->sizeMapSize*sizeof(DenseEnum)); /* FIXME: Necessary?. */
     ++s->size;
 
-    return i;
+    return sparseI;
 }
 
 void
@@ -144,10 +139,12 @@ ecs_MapRemove(ecs_Map* s, ECS_ENTITY h, int eComp)
         h, pDense->pEnums[eComp].sparse, ((uint8_t*)pDense - s->pDense)/s->denseStride, s->pSparse[h]
     );
 
-    const int enumDenseI = pDense->pEnums[eComp].sparse - 1;
-    pDense->pEnums[enumDenseI].dense = pDense->pEnums[--pDense->enumsSize].dense; /* Swap with last. */
-    pDense->pEnums[pDense->pEnums[enumDenseI].dense].sparse = enumDenseI + 1;
-    pDense->pEnums[eComp].sparse = 0;
+    DenseEnum* pEnums = pDense->pEnums;
+
+    const int enumDenseI = pEnums[eComp].sparse - 1;
+    pEnums[enumDenseI].dense = pEnums[--pDense->enumsSize].dense; /* Swap with last. */
+    pEnums[pEnums[enumDenseI].dense].sparse = enumDenseI + 1;
+    pEnums[eComp].sparse = 0;
 
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     const ssize_t compSize = s->pSizeMap[eComp];
@@ -162,7 +159,6 @@ ecs_MapRemove(ecs_Map* s, ECS_ENTITY h, int eComp)
     pComp->pDense[denseI] = moveSparseI;
     pComp->pSparse[moveSparseI] = denseI;
     pComp->pSparse[h] = -1;
-    pComp->pFreeList[pComp->freeListSize++] = denseI;
     --pComp->size;
 }
 
@@ -184,7 +180,7 @@ ecs_MapRemoveEntity(ecs_Map* s, ECS_ENTITY h)
 
     s->pSparse[pMoveDense->sparseI] = s->pSparse[h];
     s->pSparse[h] = -1;
-    s->pFreeList[s->freeListSize++] = s->pSparse[h];
+    s->pFreeList[s->freeListSize++] = h;
     --s->size;
 }
 
@@ -192,12 +188,13 @@ bool
 ecs_MapAdd(ecs_Map* s, ECS_ENTITY h, int eComp, void* pVal)
 {
     DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h]*s->denseStride);
+    DenseEnum* pEnums = pDense->pEnums;
 
-    K_ASSERT(pDense->pEnums[eComp].sparse == 0, "adding component({i}) twice", eComp);
-    pDense->pEnums[pDense->enumsSize].dense = eComp;
-    pDense->pEnums[eComp].sparse = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
+    K_ASSERT(pEnums[eComp].sparse == 0, "adding component({i}) twice, sparse: {i}, h: {i}, enumsSize: {i}, ({p})", eComp, pEnums[eComp].sparse, h, pDense->enumsSize, pEnums);
+    pEnums[pDense->enumsSize].dense = eComp;
+    pEnums[eComp].sparse = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
 
-    /* Now we need to add this entity to the SOAComponents[eComp] map. */
+    /* Now add this entity to SOAComponents[eComp] map. */
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     const ssize_t compSize = s->pSizeMap[eComp];
 
@@ -217,12 +214,14 @@ ecs_MapAdd(ecs_Map* s, ECS_ENTITY h, int eComp, void* pVal)
         pComp->cap = newCap;
     }
 
-    const int compDenseI = pComp->freeListSize > 0 ? pComp->pFreeList[--pComp->freeListSize] : pComp->size;
-    pComp->pSparse[h] = compDenseI;
-    pComp->pDense[compDenseI] = h;
+    /* Push latest. */
+    pComp->pSparse[h] = pComp->size;
+    pComp->pDense[pComp->size] = h;
 
-    if (pVal) memcpy((uint8_t*)pComp->pData + compDenseI*compSize, pVal, compSize);
-    else memset((uint8_t*)pComp->pData + compDenseI*compSize, 0, compSize);
+    uint8_t* pCompData = (uint8_t*)pComp->pData + (compSize*pComp->size);
+
+    if (pVal) memcpy(pCompData, pVal, compSize);
+    else memset(pCompData, 0, compSize);
 
     ++pComp->size;
 
