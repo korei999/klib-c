@@ -54,7 +54,7 @@ struct k_print_FmtArgs
     char filler;
 };
 
-typedef struct k_print_Builder
+typedef struct
 {
     k_IAllocator* pAlloc;
     char* pData;
@@ -71,22 +71,29 @@ struct k_print_Context
     ssize_t fmtI;
 };
 
-typedef struct k_print_BuilderInitOpts
+typedef struct
 {
     k_IAllocator* pAllocOrNull; /* If null pBuffer of bufferSize will be used. Otherwise builder will be filled using this allocator. */
     char* pBufferOrNull;
     ssize_t preallocOrBufferSize;
 } k_print_BuilderInitOpts;
 
-typedef struct k_print_paddingOpts
+typedef struct
 {
     ssize_t size;
     bool bJustifyRight;
     char filler;
 } k_print_paddingOpts;
 
+typedef struct
+{
+    ssize_t off;
+    ssize_t size;
+} k_print_BuilderSV;
+
 bool k_print_BuilderInit(k_print_Builder* pSelf, k_print_BuilderInitOpts opts);
 static inline k_StringView k_print_BuilderToSv(k_print_Builder* s) { return (k_StringView){.pData = s->pData, .size = s->size}; }
+static inline k_StringView k_print_BuilderSVToSV(const k_print_Builder* s, k_print_BuilderSV sv);
 void k_print_BuilderDestroy(k_print_Builder* pSelf);
 ssize_t k_print_BuilderPushSvPadded(k_print_Builder* pSelf, const k_StringView sv, k_print_paddingOpts opts);
 ssize_t k_print_BuilderPushSvPaddedFmtArgs(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const k_StringView sv);
@@ -96,11 +103,11 @@ ssize_t k_print_BuilderPushChar(k_print_Builder* pSelf, const char c);
 
 void k_print_BuilderFlush(k_print_Builder* pSelf, FILE* pFile);
 /* FIXME: Unstable char*. Change to indices maybe?. */
-k_StringView k_print_BuilderPrintVaList(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const k_StringView svFmt, va_list* pArgs);
-k_StringView k_print_BuilderPrintSv(k_print_Builder* pSelf, const k_StringView svFmt, ...);
-k_StringView k_print_BuilderPrint(k_print_Builder* pSelf, const char* ntsFmt, ...);
-k_StringView k_print_BuilderPrintFmtArgs(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const char* ntsFmt, ...);
-k_StringView k_print_BuilderPrintSvFmtArgs(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, k_StringView svFmt, ...);
+k_print_BuilderSV k_print_BuilderPrintVaList(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const k_StringView svFmt, va_list* pArgs);
+k_print_BuilderSV k_print_BuilderPrintSv(k_print_Builder* pSelf, const k_StringView svFmt, ...);
+k_print_BuilderSV k_print_BuilderPrint(k_print_Builder* pSelf, const char* ntsFmt, ...);
+k_print_BuilderSV k_print_BuilderPrintFmtArgs(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const char* ntsFmt, ...);
+k_print_BuilderSV k_print_BuilderPrintSvFmtArgs(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, k_StringView svFmt, ...);
 
 ssize_t k_print_toBufferVaList(char* pBuff, ssize_t bufferSize, const k_StringView svFmt, va_list* pArgs);
 ssize_t k_print_toBufferSv(char* pBuff, ssize_t bufferSize, const k_StringView svFmt, ...);
@@ -162,4 +169,10 @@ k_print_MapAddDefaultFormatters(k_print_Map* s)
     k_print_MapAddFormatter(s, "nts", k_print_formatNts);
     k_print_MapAddFormatter(s, "s", k_print_formatNts);
     k_print_MapAddFormatter(s, "p", k_print_formatPtr);
+}
+
+static inline k_StringView
+k_print_BuilderSVToSV(const k_print_Builder* s, k_print_BuilderSV sv)
+{
+    return (k_StringView){.pData = s->pData + sv.off, .size = sv.size};
 }

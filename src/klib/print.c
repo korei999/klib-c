@@ -292,10 +292,10 @@ k_print_BuilderFlush(k_print_Builder* s, FILE* pFile)
     fwrite(svPrinted.pData, svPrinted.size, 1, pFile);
 }
 
-k_StringView
+k_print_BuilderSV
 k_print_BuilderPrintVaList(k_print_Builder* s, k_print_FmtArgs* pFmtArgs, const k_StringView svFmt, va_list* pArgs)
 {
-    k_StringView sv = {.pData = s->pData + s->size, .size = 0};
+    k_print_BuilderSV sv = {.off = s->size, .size = 0};
     k_print_Map* pPrinter = k_print_MapInst();
     if (!pPrinter || svFmt.size <= 0 || !svFmt.pData) return sv;
 
@@ -304,44 +304,44 @@ k_print_BuilderPrintVaList(k_print_Builder* s, k_print_FmtArgs* pFmtArgs, const 
     return sv;
 }
 
-k_StringView
+k_print_BuilderSV
 k_print_BuilderPrintSv(k_print_Builder* s, const k_StringView svFmt, ...)
 {
     va_list args;
     va_start(args, svFmt);
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
-    k_StringView sv = k_print_BuilderPrintVaList(s, &fmtArgs, svFmt, &args);
+    k_print_BuilderSV sv = k_print_BuilderPrintVaList(s, &fmtArgs, svFmt, &args);
     va_end(args);
     return sv;
 }
 
-k_StringView
+k_print_BuilderSV
 k_print_BuilderPrint(k_print_Builder* s, const char* ntsFmt, ...)
 {
     va_list args;
     va_start(args, ntsFmt);
     k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
-    k_StringView sv = k_print_BuilderPrintVaList(s, &fmtArgs, K_NTS(ntsFmt), &args);
+    k_print_BuilderSV sv = k_print_BuilderPrintVaList(s, &fmtArgs, K_NTS(ntsFmt), &args);
     va_end(args);
     return sv;
 }
 
-k_StringView
+k_print_BuilderSV
 k_print_BuilderPrintFmtArgs(k_print_Builder* s, k_print_FmtArgs* pFmtArgs, const char* ntsFmt, ...)
 {
     va_list args;
     va_start(args, ntsFmt);
-    k_StringView sv = k_print_BuilderPrintVaList(s, pFmtArgs, K_NTS(ntsFmt), &args);
+    k_print_BuilderSV sv = k_print_BuilderPrintVaList(s, pFmtArgs, K_NTS(ntsFmt), &args);
     va_end(args);
     return sv;
 }
 
-k_StringView
+k_print_BuilderSV
 k_print_BuilderPrintSvFmtArgs(k_print_Builder* s, k_print_FmtArgs* pFmtArgs, k_StringView svFmt, ...)
 {
     va_list args;
     va_start(args, svFmt);
-    k_StringView sv = k_print_BuilderPrintVaList(s, pFmtArgs, svFmt, &args);
+    k_print_BuilderSV sv = k_print_BuilderPrintVaList(s, pFmtArgs, svFmt, &args);
     va_end(args);
     return sv;
 }

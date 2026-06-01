@@ -149,7 +149,7 @@ k_JsonCreateInt(k_IAllocator* pAlloc, uint64_t i)
     k_print_Builder pb;
     k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = pAlloc, .preallocOrBufferSize = 8});
     return (k_JsonValue){
-        .svValue = k_print_BuilderPrint(&pb, "{i64}", i),
+        .svValue = k_print_BuilderSVToSV(&pb, k_print_BuilderPrint(&pb, "{i64}", i)),
         .eType = K_JSON_TYPE_INT,
     };
 }
@@ -169,7 +169,7 @@ k_JsonCreateFloat(k_IAllocator* pAlloc, double d)
     k_print_Builder pb;
     k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = pAlloc, .preallocOrBufferSize = 8});
     return (k_JsonValue){
-        .svValue = k_print_BuilderPrint(&pb, "{d}", d),
+        .svValue = k_print_BuilderSVToSV(&pb, k_print_BuilderPrint(&pb, "{d}", d)),
         .eType = K_JSON_TYPE_FLOAT,
     };
 }
