@@ -65,10 +65,11 @@ test(void)
 {
     k_print_MapAddFormatter(k_CtxPrintMap(), "PPos", PosPFormatter);
     k_print_MapAddFormatter(k_CtxPrintMap(), "POtherThings", OtherThingsPFormatter);
+    k_print_MapAddFormatter(k_CtxPrintMap(), "entity", ecs_EntityFormatter);
 
     ecs_Map s = {0};
     ecs_MapInit(&s, &k_GpaInst()->base, 8, COMPONENT_SIZE_MAP, K_ASIZE(COMPONENT_SIZE_MAP));
-    ECS_ENTITY aH[17] = {0};
+    ecs_Entity aH[17] = {0};
 
     for (ssize_t i = 0; i < K_ASIZE(aH) - 1; ++i)
         aH[i] = ecs_MapAddEntity(&s);
@@ -108,8 +109,12 @@ test(void)
         ecs_MapAdd(&s, aH[13], COMPONENT_NAME, &(Name){"entity13"});
     }
 
+    K_CTX_LOG_DEBUG("removing ah[4]: {entity}", aH[4]);
     ecs_MapRemoveEntity(&s, aH[4]);
+
     aH[4] = ecs_MapAddEntity(&s);
+    K_CTX_LOG_DEBUG("adding ah[4] again: {entity}", aH[4]);
+
     ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &(Health){4});
 
     ecs_MapRemoveEntity(&s, aH[16]);
