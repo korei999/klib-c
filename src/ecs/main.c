@@ -143,6 +143,11 @@ test(void)
     ecs_MapAdd(&s, aH[4], COMPONENT_OTHER_THINGS, &(OtherThings){.i = 4, .nts = "entity4", .d = 4.4, .pos2 = {.x = 4, .y = -4}});
     ecs_MapAdd(&s, aH[4], COMPONENT_NAME, &(Name){"removed and added again 4"});
 
+    K_ASSERT_ALWAYS(ecs_MapEntityAlive(&s, aH[4]), "");
+
+    ecs_MapRemoveEntity(&s, aH[4]);
+    K_ASSERT_ALWAYS(!ecs_MapEntityAlive(&s, aH[4]), "");
+
     {
         Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;
         for (int posI = 0; posI < s.pSOAComponents[COMPONENT_POS].size; ++posI)

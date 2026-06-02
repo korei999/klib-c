@@ -181,6 +181,7 @@ ecs_MapRemove(ecs_Map* s, ecs_Entity h, int eComp)
 void
 ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
 {
+    K_ASSERT(h.gen == s->pGenerations[h.id], "generational mismatch: {entity}", h);
     K_ASSERT(h.id >= 0 && h.id < s->cap, "h.id: {i}, cap: {i}", h.id, s->cap);
     K_ASSERT(s->pSparse[h.id] != -1, "already deleted");
     ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
@@ -201,9 +202,13 @@ ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
 bool
 ecs_MapAdd(ecs_Map* s, ecs_Entity h, int eComp, void* pVal)
 {
+    K_ASSERT(h.gen == s->pGenerations[h.id], "generational mismatch: {entity}", h);
+
     ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
     uint8_t* pCompSparse = ComponentDescSparseIndices(pDesc);
     uint8_t* pCompDense = ComponentDescDenseIndices(pDesc, s);
+
+    K_ASSERT(pDesc->sparseI == h.id, "dense isn't mapped back to sparse correctly, {i} -> {i}", h.id, pDesc->sparseI);
 
     pCompSparse[eComp] = pDesc->nComponents + 1;
     pCompDense[pDesc->nComponents] = eComp;
@@ -266,10 +271,11 @@ ecs_DBG_PrintDenseComponents(ecs_Map* s, ecs_Entity h)
     ComponentDesc* pDense = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
     uint8_t* pCompDense = ComponentDescDenseIndices(pDense, s);
 
-    K_ARENA_SCOPE(k_CtxArena())
+    k_Arena* pArena = k_CtxArena();
+    K_ARENA_SCOPE(pArena)
     {
         k_print_Builder pb = {0};
-        k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &k_CtxArena()->base});
+        k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base});
         if (pDense->nComponents > 0)
             k_print_BuilderPrint(&pb, "{u8}", pCompDense[0]);
         for (int i = 1; i < pDense->nComponents; ++i)
