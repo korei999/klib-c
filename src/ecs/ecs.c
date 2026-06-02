@@ -1,22 +1,30 @@
 #include "ecs.h"
 
-#include "klib/assert.h"
-#include "klib/IAllocator.h"
+#include "klib/Ctx.h"
 
 /* Entity stores info about what components it has in array of DenseEnums.
- * Using uint8_t we have up to 254 (0 for invalid sparse index) components per entity. */
-typedef struct
-{
-    uint8_t dense;
-    uint8_t sparse; /* Holds dense index + 1, such that invalid index is 0. */
-} DenseEnum;
-
+ * Using uint8_t we have up to 254 (0 for invalid sparse index) components per entity.
+ * ComponentDescSparseIndices + ComponentDescDenseIndices are stored continuously in one allocation with ComponentDesc. */
 typedef struct
 {
     int sparseI; /* Back to sparse mapping. */
-    int enumsSize;
-    DenseEnum pEnums[]; /* The capacity of this array must be equal to ecs_Map::sizeMapSize. */
-} DenseDesc;
+    int nComponents;
+    /* ComponentDescSparseIndices of sizeMapSize capacity */
+    /* ComponentDescDenseIndices of sizeMapSize capacity */
+} ComponentDesc;
+
+static inline uint8_t*
+ComponentDescSparseIndices(ComponentDesc* s)
+{
+    return (uint8_t*)s + sizeof(ComponentDesc);
+}
+
+/* Back to ComponentDescSparseIndices */
+static inline uint8_t*
+ComponentDescDenseIndices(ComponentDesc* s, const ecs_Map* pMap)
+{
+    return ComponentDescSparseIndices(s) + sizeof(uint8_t)*pMap->sizeMapSize;
+}
 
 static bool MapGrow(ecs_Map* s, int newCap);
 
@@ -31,7 +39,7 @@ ecs_MapInit(ecs_Map* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int 
     if (!pSOA) return false;
     s->pSOAComponents = pSOA;
 
-    s->denseStride = sizeof(DenseDesc) + K_ALIGN_UP(sizeof(DenseEnum)*sizeMapSize, _Alignof(DenseDesc));
+    s->denseStride = sizeof(ComponentDesc) + K_ALIGN_UP(sizeof(uint8_t)*2*sizeMapSize, _Alignof(ComponentDesc));
 
     if (!MapGrow(s, cap))
     {
@@ -50,7 +58,7 @@ ecs_MapDestroy(ecs_Map* s)
         k_IAllocatorFree(s->pAlloc, s->pSOAComponents[i].pData);
 
     k_IAllocatorFree(s->pAlloc, s->pSOAComponents);
-    k_IAllocatorFree(s->pAlloc, s->pDense);
+    k_IAllocatorFree(s->pAlloc, s->pDenseDesc);
 }
 
 static bool
@@ -65,13 +73,13 @@ MapGrow(ecs_Map* s, int newCap)
     );
     uint8_t* pNew = k_IAllocatorZalloc(s->pAlloc, totalCap);
     if (!pNew) return false;
-    void* pOld = s->pDense;
+    void* pOld = s->pDenseDesc;
 
     ssize_t off = 0;
 
     {
-        if (s->pDense) memcpy(pNew, s->pDense, s->denseStride*s->size);
-        s->pDense = pNew;
+        if (s->pDenseDesc) memcpy(pNew, s->pDenseDesc, s->denseStride*s->size);
+        s->pDenseDesc = pNew;
         off += s->denseStride*newCap;
     }
 
@@ -126,10 +134,9 @@ ecs_MapAddEntity(ecs_Map* s)
 
     int sparseI = s->freeListSize > 0 ? s->pFreeList[--s->freeListSize] : s->sparseSize++;
     s->pSparse[sparseI] = s->size;
-    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->denseStride*s->size);
+    ComponentDesc* pDense = (ComponentDesc*)(s->pDenseDesc + s->denseStride*s->size);
+    memset(pDense, 0, s->denseStride);
     pDense->sparseI = sparseI;
-    pDense->enumsSize = 0;
-    memset(pDense->pEnums, 0, s->sizeMapSize*sizeof(DenseEnum)); /* FIXME: Necessary?. */
     ++s->size;
 
     return (ecs_Entity){.id = sparseI, ++s->pGenerations[sparseI]};
@@ -138,19 +145,22 @@ ecs_MapAddEntity(ecs_Map* s)
 void
 ecs_MapRemove(ecs_Map* s, ecs_Entity h, int eComp)
 {
-    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h.id]*s->denseStride);
+    ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
 
-    K_ASSERT(pDense->pEnums[eComp].sparse != 0,
-        "h: {i}, {i}, off: {sz}, sparse[h]: {i}",
-        h, pDense->pEnums[eComp].sparse, ((uint8_t*)pDense - s->pDense)/s->denseStride, s->pSparse[h.id]
-    );
+    uint8_t* pDescSparse = ComponentDescSparseIndices(pDesc);
+    uint8_t* pDescDense = ComponentDescDenseIndices(pDesc, s);
+    K_ASSERT(pDescSparse[eComp] != 0, "already removed");
 
-    DenseEnum* pEnums = pDense->pEnums;
+    /* SparseI is eComp. */
+    const uint8_t thisDenseI = pDescSparse[eComp] - 1;
 
-    const int enumDenseI = pEnums[eComp].sparse - 1;
-    pEnums[enumDenseI].dense = pEnums[--pDense->enumsSize].dense; /* Swap with last. */
-    pEnums[pEnums[enumDenseI].dense].sparse = enumDenseI + 1;
-    pEnums[eComp].sparse = 0;
+    /* Swap this dense with last dense, and update last dense sparse index (confusing af). */
+    pDescDense[thisDenseI] = pDescDense[pDesc->nComponents - 1];
+    pDescSparse[pDescDense[thisDenseI]] = thisDenseI + 1;
+
+    pDescSparse[eComp] = 0;
+
+    --pDesc->nComponents;
 
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     const ssize_t compSize = s->pSizeMap[eComp];
@@ -173,16 +183,14 @@ ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
 {
     K_ASSERT(h.id >= 0 && h.id < s->cap, "h.id: {i}, cap: {i}", h.id, s->cap);
     K_ASSERT(s->pSparse[h.id] != -1, "already deleted");
-    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h.id]*s->denseStride);
+    ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
 
-    while (pDense->enumsSize > 0)
-        ecs_MapRemove(s, h, pDense->pEnums[0].dense);
+    uint8_t* pDescDense = ComponentDescDenseIndices(pDesc, s);
+    while (pDesc->nComponents > 0)
+        ecs_MapRemove(s, h, pDescDense[0]);
 
-    DenseDesc* pMoveDense = (DenseDesc*)(s->pDense + (s->size - 1)*s->denseStride);
-
-    pDense->sparseI = pMoveDense->sparseI;
-    pDense->enumsSize = pMoveDense->enumsSize;
-    memcpy(pDense->pEnums, pMoveDense->pEnums, sizeof(*pMoveDense->pEnums)*pMoveDense->enumsSize);
+    ComponentDesc* pMoveDense = (ComponentDesc*)(s->pDenseDesc + (s->size - 1)*s->denseStride);
+    memcpy(pDesc, pMoveDense, sizeof(ComponentDesc) + s->sizeMapSize + pMoveDense->nComponents);
 
     s->pSparse[pMoveDense->sparseI] = s->pSparse[h.id];
     s->pSparse[h.id] = -1;
@@ -193,12 +201,13 @@ ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
 bool
 ecs_MapAdd(ecs_Map* s, ecs_Entity h, int eComp, void* pVal)
 {
-    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h.id]*s->denseStride);
-    DenseEnum* pEnums = pDense->pEnums;
+    ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
+    uint8_t* pCompSparse = ComponentDescSparseIndices(pDesc);
+    uint8_t* pCompDense = ComponentDescDenseIndices(pDesc, s);
 
-    K_ASSERT(pEnums[eComp].sparse == 0, "adding component({i}) twice, sparse: {i}, h.id: {i}, enumsSize: {i}, ({p})", eComp, pEnums[eComp].sparse, h.id, pDense->enumsSize, pEnums);
-    pEnums[pDense->enumsSize].dense = eComp;
-    pEnums[eComp].sparse = ++pDense->enumsSize; /* Sparse holds dense idx + 1. */
+    pCompSparse[eComp] = pDesc->nComponents + 1;
+    pCompDense[pDesc->nComponents] = eComp;
+    ++pDesc->nComponents;
 
     /* Now add this entity to SOAComponents[eComp] map. */
     ecs_Component* pComp = &s->pSOAComponents[eComp];
@@ -220,7 +229,7 @@ ecs_MapAdd(ecs_Map* s, ecs_Entity h, int eComp, void* pVal)
         pComp->cap = newCap;
     }
 
-    /* Push latest. */
+    /* Append. */
     pComp->pSparse[h.id] = pComp->size;
     pComp->pDense[pComp->size] = h.id;
 
@@ -237,18 +246,35 @@ ecs_MapAdd(ecs_Map* s, ecs_Entity h, int eComp, void* pVal)
 bool
 ecs_MapHas(ecs_Map* s, ecs_Entity h, int eComp)
 {
-    DenseDesc* pDense = (DenseDesc*)(s->pDense + s->pSparse[h.id]*s->denseStride);
-    return pDense->pEnums[eComp].sparse != 0;
+    ComponentDesc* pDense = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
+    return ComponentDescSparseIndices(pDense)[eComp] != 0;
 }
 
 ssize_t
 ecs_EntityFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* p)
 {
-    _Static_assert(sizeof(ecs_Entity) == 8, "");
-    uint64_t raw = (uint64_t)p;
     ecs_Entity en;
-    memcpy(&en, &raw, sizeof(raw));
+    memcpy(&en, &p, sizeof(p));
     return k_print_BuilderPrintFmtArgs(pCtx->pBuilder, pFmtArgs,
         "(id: {i}, gen: {u32})", en.id, en.gen
     ).size;
+}
+
+void
+ecs_DBG_PrintDenseComponents(ecs_Map* s, ecs_Entity h)
+{
+    ComponentDesc* pDense = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
+    uint8_t* pCompDense = ComponentDescDenseIndices(pDense, s);
+
+    K_ARENA_SCOPE(k_CtxArena())
+    {
+        k_print_Builder pb = {0};
+        k_print_BuilderInit(&pb, (k_print_BuilderInitOpts){.pAllocOrNull = &k_CtxArena()->base});
+        if (pDense->nComponents > 0)
+            k_print_BuilderPrint(&pb, "{u8}", pCompDense[0]);
+        for (int i = 1; i < pDense->nComponents; ++i)
+            k_print_BuilderPrint(&pb, ", {u8}", pCompDense[i]);
+        k_StringView sv = k_print_BuilderToSv(&pb);
+        K_CTX_LOG_DEBUG("entity{entity}, has these components: {PSv}", h, &sv);
+    }
 }

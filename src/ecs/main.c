@@ -83,9 +83,9 @@ test(void)
     {
         Pos p4 = {.x = 4, .y = -4};
         Health hl4 = {4};
-        ecs_MapAdd(&s, aH[4], COMPONENT_POS, &p4);
-        ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &hl4);
         ecs_MapAdd(&s, aH[4], COMPONENT_NAME, &(Name){"entity4"});
+        ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &hl4);
+        ecs_MapAdd(&s, aH[4], COMPONENT_POS, &p4);
     }
 
     {
@@ -109,12 +109,18 @@ test(void)
         ecs_MapAdd(&s, aH[13], COMPONENT_NAME, &(Name){"entity13"});
     }
 
-    K_CTX_LOG_DEBUG("removing ah[4]: {entity}", aH[4]);
+    ecs_DBG_PrintDenseComponents(&s, aH[16]);
+    ecs_DBG_PrintDenseComponents(&s, aH[4]);
+
+    K_CTX_LOG_DEBUG("removing entity{entity}", aH[4]);
     ecs_MapRemoveEntity(&s, aH[4]);
 
-    aH[4] = ecs_MapAddEntity(&s);
-    K_CTX_LOG_DEBUG("adding ah[4] again: {entity}", aH[4]);
+    ecs_DBG_PrintDenseComponents(&s, aH[16]);
 
+    K_CTX_LOG_DEBUG("adding ah[4]: {entity}", aH[4]);
+    aH[4] = ecs_MapAddEntity(&s);
+
+    K_CTX_LOG_DEBUG("adding ah[4] component({i}) again: {entity}", COMPONENT_HEALTH, aH[4]);
     ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &(Health){4});
 
     ecs_MapRemoveEntity(&s, aH[16]);
@@ -123,6 +129,19 @@ test(void)
     K_ASSERT_ALWAYS(!ecs_MapHas(&s, aH[11], COMPONENT_HEALTH), "");
     ecs_MapAdd(&s, aH[11], COMPONENT_HEALTH, &(Health){11});
     K_ASSERT_ALWAYS(ecs_MapHas(&s, aH[11], COMPONENT_HEALTH), "");
+
+    aH[16] = ecs_MapAddEntity(&s);
+    ecs_MapAdd(&s, aH[16], COMPONENT_POS, &(Pos){16, -16});
+    ecs_MapAdd(&s, aH[16], COMPONENT_HEALTH, &(Health){16});
+    ecs_MapAdd(&s, aH[16], COMPONENT_NAME, &(Name){"removed and added again 16"});
+
+    ecs_MapRemoveEntity(&s, aH[4]);
+
+    aH[4] = ecs_MapAddEntity(&s);
+    ecs_MapAdd(&s, aH[4], COMPONENT_POS, &(Pos){4, -4});
+    ecs_MapAdd(&s, aH[4], COMPONENT_HEALTH, &(Health){4});
+    ecs_MapAdd(&s, aH[4], COMPONENT_OTHER_THINGS, &(OtherThings){.i = 4, .nts = "entity4", .d = 4.4, .pos2 = {.x = 4, .y = -4}});
+    ecs_MapAdd(&s, aH[4], COMPONENT_NAME, &(Name){"removed and added again 4"});
 
     {
         Pos* pPos = s.pSOAComponents[COMPONENT_POS].pData;

@@ -23,7 +23,7 @@ typedef struct
 {
     k_IAllocator* pAlloc;
 
-    uint8_t* pDense;
+    uint8_t* pDenseDesc;
 
     int* pSparse; /* Entity handle is a sparse index to ecs_Map. */
     uint32_t* pGenerations;
@@ -42,7 +42,7 @@ typedef struct
 
 bool ecs_MapInit(ecs_Map* s, k_IAllocator* pAlloc, int cap, const int* pSizeMap, int sizeMapSize);
 void ecs_MapDestroy(ecs_Map* s);
-ecs_Entity ecs_MapAddEntity(ecs_Map* s);
+K_NO_DISCARD ecs_Entity ecs_MapAddEntity(ecs_Map* s);
 void ecs_MapRemove(ecs_Map* s, ecs_Entity h, int eComp);
 void ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h);
 bool ecs_MapAdd(ecs_Map* s, ecs_Entity h, int eComp, void* pVal); /* Add eComp component to the entity h. */
@@ -70,3 +70,5 @@ ecs_MapAt(ecs_Map* s, int denseI, int eComp)
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }
+
+void ecs_DBG_PrintDenseComponents(ecs_Map* s, ecs_Entity h);
