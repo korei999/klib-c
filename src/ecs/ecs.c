@@ -171,9 +171,14 @@ ecs_MapRemove(ecs_Map* s, ecs_Entity h, int eComp)
 
     K_ASSERT(pComp->pDense[denseI] == h.id, "sparseI: {i}, h.id: {i}", pComp->pDense[denseI], h.id);
 
-    memcpy((uint8_t*)pComp->pData + denseI*compSize, (uint8_t*)pComp->pData + moveDenseI*compSize, compSize);
+    if (moveDenseI != denseI)
+    {
+        memcpy((uint8_t*)pComp->pData + denseI*compSize, (uint8_t*)pComp->pData + moveDenseI*compSize, compSize);
+        pComp->pSparse[moveSparseI] = denseI;
+    }
+
     pComp->pDense[denseI] = moveSparseI;
-    pComp->pSparse[moveSparseI] = denseI;
+
     pComp->pSparse[h.id] = -1;
     --pComp->size;
 }
@@ -181,7 +186,7 @@ ecs_MapRemove(ecs_Map* s, ecs_Entity h, int eComp)
 void
 ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
 {
-    K_ASSERT(h.gen == s->pGenerations[h.id], "generational mismatch: {entity}", h);
+    K_ASSERT(h.gen == s->pGenerations[h.id], "generational mismatch: {id: {i}. gen: {i}}", h.id, h.gen);
     K_ASSERT(h.id >= 0 && h.id < s->cap, "h.id: {i}, cap: {i}", h.id, s->cap);
     K_ASSERT(s->pSparse[h.id] != -1, "already deleted");
     ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
@@ -191,9 +196,13 @@ ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
         ecs_MapRemove(s, h, pDescDense[0]);
 
     ComponentDesc* pMoveDense = (ComponentDesc*)(s->pDenseDesc + (s->size - 1)*s->denseStride);
-    memcpy(pDesc, pMoveDense, sizeof(ComponentDesc) + s->sizeMapSize + pMoveDense->nComponents);
 
-    s->pSparse[pMoveDense->sparseI] = s->pSparse[h.id];
+    if (pDesc != pMoveDense)
+    {
+        memcpy(pDesc, pMoveDense, sizeof(ComponentDesc) + s->sizeMapSize + pMoveDense->nComponents);
+        s->pSparse[pMoveDense->sparseI] = s->pSparse[h.id];
+    }
+
     s->pSparse[h.id] = -1;
     s->pFreeList[s->freeListSize++] = h.id;
     --s->size;
@@ -202,7 +211,7 @@ ecs_MapRemoveEntity(ecs_Map* s, ecs_Entity h)
 bool
 ecs_MapAdd(ecs_Map* s, ecs_Entity h, int eComp, void* pVal)
 {
-    K_ASSERT(h.gen == s->pGenerations[h.id], "generational mismatch: {entity}", h);
+    K_ASSERT(h.gen == s->pGenerations[h.id], "generational mismatch: {id: {i}. gen: {i}}", h.id, h.gen);
 
     ComponentDesc* pDesc = (ComponentDesc*)(s->pDenseDesc + s->pSparse[h.id]*s->denseStride);
     uint8_t* pCompSparse = ComponentDescSparseIndices(pDesc);
@@ -281,6 +290,19 @@ ecs_DBG_PrintDenseComponents(ecs_Map* s, ecs_Entity h)
         for (int i = 1; i < pDense->nComponents; ++i)
             k_print_BuilderPrint(&pb, ", {u8}", pCompDense[i]);
         k_StringView sv = k_print_BuilderToSv(&pb);
-        K_CTX_LOG_DEBUG("entity{entity}, has these components: {PSv}", h, &sv);
+        K_CTX_LOG_DEBUG("entity(id: {i}, gen: {i}), has these components: {PSv}", h.id, h.gen, &sv);
     }
+}
+
+void*
+ecs_MapAt(ecs_Map* s, int denseI, int eComp)
+{
+    K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
+    K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {i}, cap: {i}", denseI, s->cap);
+    ComponentDesc* pDense = (ComponentDesc*)(s->pDenseDesc + denseI*s->denseStride);
+    const int sparseI = pDense->sparseI;
+    K_ASSERT(sparseI != -1, "sparse index {i} (dense: {i}) is deleted", sparseI, denseI);
+
+    ecs_Component* pComp = &s->pSOAComponents[eComp];
+    return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }

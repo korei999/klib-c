@@ -50,25 +50,19 @@ bool ecs_MapHas(ecs_Map* s, ecs_Entity h, int eComp);
 ssize_t ecs_EntityFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* p);
 
 static inline void* ecs_MapGet(ecs_Map* s, ecs_Entity h, int eComp);
-static inline void* ecs_MapAt(ecs_Map* s, int denseI, int eComp);
 static inline bool ecs_MapEntityAlive(ecs_Map* s, ecs_Entity h);
+
+void ecs_DBG_PrintDenseComponents(ecs_Map* s, ecs_Entity h);
+void* ecs_MapAt(ecs_Map* s, int denseI, int eComp);
 
 static inline void*
 ecs_MapGet(ecs_Map* s, ecs_Entity h, int eComp)
 {
     K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
     K_ASSERT(h.id >= 0 && h.id < s->size, "h: {i}, size: {i}", h, s->size);
+    K_ASSERT(ecs_MapEntityAlive(s, h), "id: {i}, gen: {i}", h.id, h.gen);
     ecs_Component* pComp = &s->pSOAComponents[eComp];
     const int denseI = pComp->pSparse[h.id];
-    return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
-}
-
-static inline void*
-ecs_MapAt(ecs_Map* s, int denseI, int eComp)
-{
-    K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
-    K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {i}, cap: {i}", denseI, s->cap);
-    ecs_Component* pComp = &s->pSOAComponents[eComp];
     return (uint8_t*)pComp->pData + denseI*s->pSizeMap[eComp];
 }
 
@@ -77,5 +71,3 @@ ecs_MapEntityAlive(ecs_Map* s, ecs_Entity h)
 {
     return s->pSparse[h.id] != -1 && s->pGenerations[h.id] == h.gen;
 }
-
-void ecs_DBG_PrintDenseComponents(ecs_Map* s, ecs_Entity h);
