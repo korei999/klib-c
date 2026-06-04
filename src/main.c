@@ -29,7 +29,6 @@ main(int argc, char** argv)
     if (argc < 2)
     {
         k_print(&k_GpaInst()->base, stdout, "float: '{f}'\n", 22.444f);
-        return 0;
 
         {
             k_print(&k_GpaInst()->base, stdout,

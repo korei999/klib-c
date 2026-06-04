@@ -400,12 +400,16 @@ execArrayFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, k_print_Pfn
 
     uint8_t* pRange = va_arg(*pArgs, void*);
 
+    k_print_FmtArgs fmtArgs2 = *pFmtArgs;
+
     if (pFmtArgs->arraySize > 0)
-        nWritten += pfn(pCtx, pFmtArgs, &pRange[0]);
+        nWritten += pfn(pCtx, &fmtArgs2, &pRange[0]);
+
     for (ssize_t i = 1; i < pFmtArgs->arraySize; ++i)
     {
+        fmtArgs2 = *pFmtArgs;
         k_print_BuilderPushSv(pCtx->pBuilder, K_SV(", "));
-        nWritten += pfn(pCtx, pFmtArgs, pRange + i*pFmtArgs->memberSize);
+        nWritten += pfn(pCtx, &fmtArgs2, pRange + i*pFmtArgs->memberSize);
     }
 
     nWritten += k_print_BuilderPushChar(pCtx->pBuilder, ']');
@@ -426,14 +430,6 @@ k_print_eatFmtArg(k_print_FmtArgs* pFmtArgs, int64_t num)
         pFmtArgs->eFmtFlags &= ~K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
         pFmtArgs->filler = num;
     }
-    else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_JUSTIFY_LEFT)
-    {
-        pFmtArgs->padSize = num;
-    }
-    else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT)
-    {
-        pFmtArgs->padSize = num;
-    }
     else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_MEMBER_SIZE)
     {
         pFmtArgs->eFmtFlags &= ~K_PRINT_FMT_FLAGS_ARG_IS_MEMBER_SIZE;
@@ -442,6 +438,14 @@ k_print_eatFmtArg(k_print_FmtArgs* pFmtArgs, int64_t num)
     else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_RANGE)
     {
         pFmtArgs->arraySize = num;
+    }
+    else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_JUSTIFY_LEFT)
+    {
+        pFmtArgs->padSize = num;
+    }
+    else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT)
+    {
+        pFmtArgs->padSize = num;
     }
     else
     {
@@ -478,6 +482,7 @@ parseCharOrArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
         else
         {
             pFmtArgs->filler = pCtx->svFmt.pData[pCtx->fmtI];
+            pFmtArgs->eFmtFlags &= ~K_PRINT_FMT_FLAGS_ARG_IS_FILLER;
         }
     }
 }
