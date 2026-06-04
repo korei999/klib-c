@@ -27,7 +27,10 @@ static k_print_Map* s_pGlobalPrinter = NULL;
 static ssize_t parseVaList(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
 static ssize_t parseArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
 static void parseFmtArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
+static void parseRangeArgs(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
+static void parseMemberSizeArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs);
 static ssize_t execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const k_StringView* pSvKey, va_list* pArgs);
+static ssize_t execArrayFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, k_print_PfnFormat pfn, va_list* pArgs);
 ssize_t k_print_eatFmtArg(k_print_FmtArgs* pFmtArgs, int64_t num);
 
 static bool
@@ -59,7 +62,11 @@ k_print_FmtArgsCreate(void)
 {
     return (k_print_FmtArgs){
         .maxLen = K_NPOS,
+        .padSize = 0,
         .maxFloatLen = K_NPOS,
+        .memberSize = K_NPOS64,
+        .arraySize = K_NPOS64,
+
         .eBase = K_PRINT_BASE_TEN,
         .filler = ' ',
     };
@@ -371,13 +378,37 @@ execFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const k_StringVi
         }
         else
         {
-            nWritten = mapRes.pBucket->value(pCtx, pFmtArgs, va_arg(*pArgs, void*));
+            if (pFmtArgs->arraySize > 0 && pFmtArgs->memberSize > 0)
+                nWritten = execArrayFormatter(pCtx, pFmtArgs, mapRes.pBucket->value, pArgs);
+            else nWritten = mapRes.pBucket->value(pCtx, pFmtArgs, va_arg(*pArgs, void*));
         }
     }
     else
     {
         nWritten = sayNoFormatter(pCtx, pSvKey);
     }
+
+    return nWritten;
+}
+
+static ssize_t
+execArrayFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, k_print_PfnFormat pfn, va_list* pArgs)
+{
+    ssize_t nWritten = 0;
+
+    nWritten += k_print_BuilderPushChar(pCtx->pBuilder, '[');
+
+    uint8_t* pRange = va_arg(*pArgs, void*);
+
+    if (pFmtArgs->arraySize > 0)
+        nWritten += pfn(pCtx, pFmtArgs, &pRange[0]);
+    for (ssize_t i = 1; i < pFmtArgs->arraySize; ++i)
+    {
+        k_print_BuilderPushSv(pCtx->pBuilder, K_SV(", "));
+        nWritten += pfn(pCtx, pFmtArgs, pRange + i*pFmtArgs->memberSize);
+    }
+
+    nWritten += k_print_BuilderPushChar(pCtx->pBuilder, ']');
 
     return nWritten;
 }
@@ -402,6 +433,15 @@ k_print_eatFmtArg(k_print_FmtArgs* pFmtArgs, int64_t num)
     else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT)
     {
         pFmtArgs->padSize = num;
+    }
+    else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_MEMBER_SIZE)
+    {
+        pFmtArgs->eFmtFlags &= ~K_PRINT_FMT_FLAGS_ARG_IS_MEMBER_SIZE;
+        pFmtArgs->memberSize = num;
+    }
+    else if (pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_RANGE)
+    {
+        pFmtArgs->arraySize = num;
     }
     else
     {
@@ -453,6 +493,64 @@ parseFmtArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
     k_StringView svKey = {pCtx->svFmt.pData + startI, pCtx->fmtI - startI};
     assert(pFmtArgs->eFmtFlags & K_PRINT_FMT_FLAGS_ARG_IS_FMT && "must be a colon arg");
     execFormatter(pCtx, pFmtArgs, &svKey, pArgs);
+}
+
+static void
+parseRangeArgs(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
+{
+    while (pCtx->fmtI < pCtx->svFmt.size && pCtx->svFmt.pData[pCtx->fmtI] != ']')
+    {
+        if (pCtx->svFmt.pData[pCtx->fmtI] == '(')
+        {
+            ++pCtx->fmtI;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_MEMBER_SIZE;
+            parseMemberSizeArg(pCtx, pFmtArgs, pArgs);
+        }
+        else if (isdigit(pCtx->svFmt.pData[pCtx->fmtI]))
+        {
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_RANGE;
+            parseNumber(pCtx, pFmtArgs);
+            continue;
+        }
+        else if (pCtx->svFmt.pData[pCtx->fmtI] == '{')
+        {
+            ++pCtx->fmtI;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_RANGE;
+            parseFmtArg(pCtx, pFmtArgs, pArgs);
+            continue;
+        }
+
+        ++pCtx->fmtI;
+    }
+
+    if (pCtx->fmtI < pCtx->svFmt.size && pCtx->svFmt.pData[pCtx->fmtI] == ']')
+        ++pCtx->fmtI;
+
+    pFmtArgs->eFmtFlags &= ~K_PRINT_FMT_FLAGS_ARG_IS_FMT;
+    pFmtArgs->eFmtFlags &= ~K_PRINT_FMT_FLAGS_ARG_IS_RANGE;
+}
+
+static void
+parseMemberSizeArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
+{
+    while (pCtx->fmtI < pCtx->svFmt.size && pCtx->svFmt.pData[pCtx->fmtI] != ')')
+    {
+        if (isdigit(pCtx->svFmt.pData[pCtx->fmtI]))
+        {
+            parseNumber(pCtx, pFmtArgs);
+            continue;
+        }
+        else if (pCtx->svFmt.pData[pCtx->fmtI] == '{')
+        {
+            ++pCtx->fmtI;
+            parseFmtArg(pCtx, pFmtArgs, pArgs);
+        }
+
+        ++pCtx->fmtI;
+    }
+
+    if (pCtx->fmtI < pCtx->svFmt.size && pCtx->svFmt.pData[pCtx->fmtI] == ')')
+        ++pCtx->fmtI;
 }
 
 static void
@@ -541,6 +639,14 @@ parseArg(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, va_list* pArgs)
             ++pCtx->fmtI;
             pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FMT;
             parseFmtArgs(pCtx, pFmtArgs, pArgs);
+            keyI = pCtx->fmtI;
+        }
+
+        if (pCtx->svFmt.pData[pCtx->fmtI] == '[')
+        {
+            ++pCtx->fmtI;
+            pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_ARG_IS_FMT;
+            parseRangeArgs(pCtx, pFmtArgs, pArgs);
             keyI = pCtx->fmtI;
         }
 
@@ -942,4 +1048,17 @@ k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* 
     pFmtArgs->eFmtFlags |= K_PRINT_FMT_FLAGS_HASH;
     pFmtArgs->eBase = K_PRINT_BASE_SIXTEEN;
     return formatInteger(pCtx, pFmtArgs, (void*)v, true);
+}
+
+ssize_t
+k_print_formatPInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    int64_t i = *(int*)arg;
+    return formatInteger(pCtx, pFmtArgs, (void*)i, false);
+}
+
+ssize_t
+k_print_formatPDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    return k_print_formatDouble(pCtx, pFmtArgs, arg);
 }

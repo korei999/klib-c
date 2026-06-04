@@ -25,6 +25,7 @@ set(TestBinaries
     SList
     sort
     soa
+    print
 )
 
 foreach(Executable IN LISTS TestBinaries)

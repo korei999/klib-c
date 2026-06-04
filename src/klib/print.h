@@ -7,19 +7,21 @@
 #include <stdio.h>
 
 typedef uint8_t K_PRINT_BASE;
-static const K_PRINT_BASE K_PRINT_BASE_TWO = 2;
-static const K_PRINT_BASE K_PRINT_BASE_EIGHT = 8;
-static const K_PRINT_BASE K_PRINT_BASE_TEN = 10;
-static const K_PRINT_BASE K_PRINT_BASE_SIXTEEN = 16;
+#define K_PRINT_BASE_TWO 2u
+#define K_PRINT_BASE_EIGHT 8u
+#define K_PRINT_BASE_TEN 10u
+#define K_PRINT_BASE_SIXTEEN 16u
 
-typedef uint8_t K_PRINT_FMT_FLAGS;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_HASH = 1;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_SHOW_SIGN = 1 << 1;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_ARG_IS_FMT = 1 << 2;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION = 1 << 3;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_ARG_IS_FILLER = 1 << 4;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_JUSTIFY_LEFT = 1 << 5;
-static const K_PRINT_FMT_FLAGS K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT = 1 << 6;
+typedef uint16_t K_PRINT_FMT_FLAGS;
+#define K_PRINT_FMT_FLAGS_HASH 1u
+#define K_PRINT_FMT_FLAGS_SHOW_SIGN (1u << 1)
+#define K_PRINT_FMT_FLAGS_ARG_IS_FMT (1u << 2)
+#define K_PRINT_FMT_FLAGS_ARG_IS_FLOAT_PRECISION (1u << 3)
+#define K_PRINT_FMT_FLAGS_ARG_IS_FILLER (1u << 4)
+#define K_PRINT_FMT_FLAGS_JUSTIFY_LEFT (1u << 5)
+#define K_PRINT_FMT_FLAGS_JUSTIFY_RIGHT (1u << 6)
+#define K_PRINT_FMT_FLAGS_ARG_IS_RANGE (1u << 7)
+#define K_PRINT_FMT_FLAGS_ARG_IS_MEMBER_SIZE (1u << 8)
 
 static const ssize_t K_PRINT_FMT_ARG_EATEN = -666999;
 
@@ -49,6 +51,9 @@ struct k_print_FmtArgs
     ssize_t maxLen;
     ssize_t padSize;
     ssize_t maxFloatLen;
+    ssize_t memberSize;
+    ssize_t arraySize;
+
     K_PRINT_FMT_FLAGS eFmtFlags;
     K_PRINT_BASE eBase;
     char filler;
@@ -135,6 +140,9 @@ ssize_t k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, 
 ssize_t k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 ssize_t k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 
+ssize_t k_print_formatPInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+
 static inline void
 k_print_MapAddDefaultFormatters(k_print_Map* s)
 {
@@ -169,6 +177,9 @@ k_print_MapAddDefaultFormatters(k_print_Map* s)
     k_print_MapAddFormatter(s, "nts", k_print_formatNts);
     k_print_MapAddFormatter(s, "s", k_print_formatNts);
     k_print_MapAddFormatter(s, "p", k_print_formatPtr);
+
+    k_print_MapAddFormatter(s, "PInt", k_print_formatPInt);
+    k_print_MapAddFormatter(s, "PDouble", k_print_formatPDouble);
 }
 
 static inline k_StringView
