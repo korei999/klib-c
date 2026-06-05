@@ -1,10 +1,25 @@
 #include "klib/Ctx.h"
 #include "klib/Vec.h"
+#include "klib/SList.h"
+
+typedef struct
+{
+    k_SListNode link;
+    int i;
+} SListNodeInt;
+
+
+#define K_NAME formatPSListInt
+#define K_PFORMATTER k_print_formatPInt
+#include "klib/SListPrint-inc.h"
 
 bool
 test(void)
 {
     k_Arena* pArena = k_CtxArena();
+
+    k_print_Map* pPrintMap = k_CtxPrintMap();
+    k_print_MapAddFormatter(pPrintMap, "PSListInt", formatPSListInt);
 
     K_ARENA_SCOPE(pArena)
     {
@@ -22,6 +37,17 @@ test(void)
                 k_VecPush(&vecInt, &pArena->base, sizeof(int), &(int){-i - 1});
 
             K_CTX_LOG_DEBUG("vecInt: {[({i}) {i}]PInt}", sizeof(int), vecInt.size, vecInt.pData);
+        }
+
+        {
+            k_SList l = k_SListCreate();
+            for (ssize_t i = 0; i < 10; ++i)
+            {
+                k_SListNode* pNode = k_ArenaAlloc(pArena, &(SListNodeInt){.i = i}, sizeof(SListNodeInt));
+                k_SListInsert(&l, pNode);
+            }
+
+            K_CTX_LOG_DEBUG("l: {PSListInt}", &l);
         }
     }
 

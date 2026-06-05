@@ -107,7 +107,6 @@ ssize_t k_print_BuilderPushSv(k_print_Builder* pSelf, const k_StringView sv);
 ssize_t k_print_BuilderPushChar(k_print_Builder* pSelf, const char c);
 
 void k_print_BuilderFlush(k_print_Builder* pSelf, FILE* pFile);
-/* FIXME: Unstable char*. Change to indices maybe?. */
 k_print_BuilderSV k_print_BuilderPrintVaList(k_print_Builder* pSelf, k_print_FmtArgs* pFmtArgs, const k_StringView svFmt, va_list* pArgs);
 k_print_BuilderSV k_print_BuilderPrintSv(k_print_Builder* pSelf, const k_StringView svFmt, ...);
 k_print_BuilderSV k_print_BuilderPrint(k_print_Builder* pSelf, const char* ntsFmt, ...);
@@ -140,6 +139,17 @@ ssize_t k_print_formatPString(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, 
 ssize_t k_print_formatNts(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 ssize_t k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 
+ssize_t k_print_formatPBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPI16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPU16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPI32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPU32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPI64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
+ssize_t k_print_formatPU64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 ssize_t k_print_formatPInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 ssize_t k_print_formatPDouble(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg);
 
@@ -178,6 +188,17 @@ k_print_MapAddDefaultFormatters(k_print_Map* s)
     k_print_MapAddFormatter(s, "s", k_print_formatNts);
     k_print_MapAddFormatter(s, "p", k_print_formatPtr);
 
+    k_print_MapAddFormatter(s, "PBool", k_print_formatPBool);
+    k_print_MapAddFormatter(s, "PChar", k_print_formatPChar);
+    k_print_MapAddFormatter(s, "PWChar", k_print_formatPWChar);
+    k_print_MapAddFormatter(s, "PI8", k_print_formatPI8);
+    k_print_MapAddFormatter(s, "PU8", k_print_formatPU8);
+    k_print_MapAddFormatter(s, "PI16", k_print_formatPI16);
+    k_print_MapAddFormatter(s, "PU16", k_print_formatPU16);
+    k_print_MapAddFormatter(s, "PI32", k_print_formatPI32);
+    k_print_MapAddFormatter(s, "PU32", k_print_formatPU32);
+    k_print_MapAddFormatter(s, "PI64", k_print_formatPI64);
+    k_print_MapAddFormatter(s, "PU64", k_print_formatPU64);
     k_print_MapAddFormatter(s, "PInt", k_print_formatPInt);
     k_print_MapAddFormatter(s, "PDouble", k_print_formatPDouble);
 }

@@ -1056,10 +1056,86 @@ k_print_formatPtr(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* 
 }
 
 ssize_t
+k_print_formatPBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    bool b = *(bool*)arg;
+    return k_print_formatBool(pCtx, pFmtArgs, (void*)b);
+}
+
+ssize_t
+k_print_formatPChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    char c = *(char*)arg;
+    return k_print_formatChar(pCtx, pFmtArgs, (void*)(uint64_t)c);
+}
+
+ssize_t
+k_print_formatPWChar(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    wchar_t wc = *(wchar_t*)arg;
+    return k_print_formatWChar(pCtx, pFmtArgs, (void*)(uint64_t)wc);
+}
+
+ssize_t
 k_print_formatPInt(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     int64_t i = *(int*)arg;
     return formatInteger(pCtx, pFmtArgs, (void*)i, false);
+}
+
+ssize_t
+k_print_formatPI8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    int8_t i = *(int8_t*)arg;
+    return k_print_formatI8(pCtx, pFmtArgs, (void*)(uint64_t)i);
+}
+
+ssize_t
+k_print_formatPU8(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    uint8_t i = *(uint8_t*)arg;
+    return k_print_formatU8(pCtx, pFmtArgs, (void*)(uint64_t)i);
+}
+
+ssize_t
+k_print_formatPI16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    int16_t i = *(int16_t*)arg;
+    return k_print_formatI16(pCtx, pFmtArgs, (void*)(uint64_t)i);
+}
+
+ssize_t
+k_print_formatPU16(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    uint16_t i = *(uint16_t*)arg;
+    return k_print_formatU16(pCtx, pFmtArgs, (void*)(uint64_t)i);
+}
+
+ssize_t
+k_print_formatPI32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    return k_print_formatPInt(pCtx, pFmtArgs, arg);
+}
+
+ssize_t
+k_print_formatPU32(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    uint32_t u = *(uint32_t*)arg;
+    return k_print_formatU32(pCtx, pFmtArgs, (void*)(uint64_t)u);
+}
+
+ssize_t
+k_print_formatPI64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    int64_t u = *(int64_t*)arg;
+    return k_print_formatI64(pCtx, pFmtArgs, (void*)(uint64_t)u);
+}
+
+ssize_t
+k_print_formatPU64(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
+{
+    uint64_t u = *(uint64_t*)arg;
+    return k_print_formatU64(pCtx, pFmtArgs, (void*)(uint64_t)u);
 }
 
 ssize_t
