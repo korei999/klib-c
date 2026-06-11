@@ -188,6 +188,7 @@ k_MutexInit(k_Mutex* s, K_MUTEX_TYPE eType)
 {
 #if defined K_THREAD_WIN32
 
+    (void)eType;
     InitializeCriticalSection(&s->priv.mtx);
     return true;
 

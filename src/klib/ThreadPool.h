@@ -38,9 +38,9 @@ typedef struct k_ThreadPool
     void (*pfnLoopEnd)(void*);
     void* pLoopEndArg;
     k_atomic_Int nTasks;
-    char aPad0[64];
+    char aPad0[64 - sizeof(k_atomic_Int)];
     k_atomic_Int idCounter;
-    char aPad1[64];
+    char aPad1[64 - sizeof(k_atomic_Int)];
     k_atomic_Int nTasksActive;
     ssize_t memberSize;
     bool bStarted;
