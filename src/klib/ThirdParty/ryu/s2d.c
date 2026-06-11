@@ -44,10 +44,19 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 
+#ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wpointer-sign"
+#endif
+
 static inline uint32_t floor_log2(const uint64_t value) {
   long index;
   return _BitScanReverse64(&index, value) ? index : 64;
 }
+
+#ifdef __clang__
+    #pragma clang diagnostic pop
+#endif
 
 #else
 

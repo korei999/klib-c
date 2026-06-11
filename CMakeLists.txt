@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 file(STRINGS name projName)
 message(STATUS "projName: '${projName}'")
 
-project(${projName} VERSION 0.1 LANGUAGES C)
+project(${projName} VERSION 0.1 LANGUAGES C CXX)
 message(STATUS "CMAKE_PROJECT_VERSION: '${CMAKE_PROJECT_VERSION}'")
 
 execute_process(
@@ -81,8 +81,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 message(STATUS "CMAKE_C_COMPILER_ID: '${CMAKE_C_COMPILER_ID}'")
+message(STATUS "CMAKE_C_STANDARD: '${CMAKE_C_STANDARD}'")
 message(STATUS "CMAKE_CXX_COMPILER_ID: '${CMAKE_CXX_COMPILER_ID}'")
 message(STATUS "CMAKE_CXX_STANDARD: '${CMAKE_CXX_STANDARD}'")
 
@@ -190,6 +193,9 @@ endif()
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # add_compile_options(-fno-strict-aliasing)
 elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    if (CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "22.0")
+        add_compile_options(-Wno-language-extension-token -Wno-c2y-extensions)
+    endif()
 endif()
 
 message(STATUS "CMAKE_SYSTEM_NAME: '${CMAKE_SYSTEM_NAME}'")

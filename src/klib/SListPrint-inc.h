@@ -32,3 +32,6 @@ K_NAME(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
     nn += k_print_BuilderPushChar(pCtx->pBuilder, ']');
     return nn;
 }
+
+#undef K_NAME
+#undef K_PFORMATTER
