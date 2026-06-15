@@ -14,7 +14,7 @@
 #define K_DECL_MOD K_UNUSED static
 #define K_GEN_DECLS
 #define K_GEN_CODE
-#include "MapGen-inl.h"
+#include "MapGen-inc.h"
 
 struct k_print_Map
 {

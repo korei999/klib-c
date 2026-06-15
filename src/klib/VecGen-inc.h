@@ -30,12 +30,14 @@ typedef struct K_NAME
 
 K_DECL_MOD bool K_METHOD(Init)(K_NAME* s, k_IAllocator* pAlloc, ssize_t cap);
 K_DECL_MOD void K_METHOD(Destroy)(K_NAME* s, k_IAllocator* pAlloc);
+K_DECL_MOD bool K_METHOD(Grow)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
 K_DECL_MOD ssize_t K_METHOD(Push)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* pVal);
 K_DECL_MOD ssize_t K_METHOD(PushMany)(K_NAME* s, k_IAllocator* pAlloc, const K_TYPE* p, ssize_t size);
 K_DECL_MOD K_TYPE* K_METHOD(Pop)(K_NAME* s);
-K_DECL_MOD bool K_METHOD(PopShrink)(K_NAME* s, k_IAllocator* pAlloc);
-K_DECL_MOD bool K_METHOD(Grow)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
+K_DECL_MOD void K_METHOD(PopAsLast)(K_NAME* s, ssize_t i, K_TYPE* pPopDestOrNull);
+K_DECL_MOD void K_METHOD(Remove)(K_NAME* s, ssize_t i);
 K_DECL_MOD bool K_METHOD(Shrink)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
+K_DECL_MOD bool K_METHOD(PopShrink)(K_NAME* s, k_IAllocator* pAlloc);
 K_DECL_MOD bool K_METHOD(SetCap)(K_NAME* s, k_IAllocator* pAlloc, ssize_t newCap);
 K_DECL_MOD K_TYPE K_METHOD(Get)(K_NAME* s, ssize_t i);
 K_DECL_MOD K_TYPE* K_METHOD(GetP)(K_NAME* s, ssize_t i);
@@ -104,6 +106,20 @@ K_METHOD(Pop)(K_NAME* s)
 {
     assert(s->size > 0);
     return s->pData + --s->size;
+}
+
+K_DECL_MOD void
+K_METHOD(PopAsLast)(K_NAME* s, ssize_t i, K_TYPE* pPopDestOrNull)
+{
+    assert(s->size > 0);
+    if (pPopDestOrNull) memcpy(pPopDestOrNull, s->pData + i, sizeof(*s->pData));
+    memcpy(s->pData + i, s->pData + --s->size, sizeof(*s->pData));
+}
+
+K_DECL_MOD void
+K_METHOD(Remove)(K_NAME* s, ssize_t i)
+{
+    memcpy(s->pData + i, s->pData + --s->size, sizeof(*s->pData));
 }
 
 K_DECL_MOD bool

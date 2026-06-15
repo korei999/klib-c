@@ -8,7 +8,7 @@
 #define K_FN_KEY_CMP k_StringViewCmp
 #define K_GEN_DECLS
 #define K_GEN_CODE
-#include "klib/MapGen-inl.h"
+#include "klib/MapGen-inc.h"
 
 static ssize_t
 PMapSvToIntFormatter(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)

@@ -6,7 +6,7 @@
 #define K_TYPE int
 #define K_GEN_DECLS
 #define K_GEN_CODE
-#include "klib/VecGen-inl.h"
+#include "klib/VecGen-inc.h"
 
 int
 main(void)

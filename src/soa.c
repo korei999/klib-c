@@ -21,7 +21,7 @@ static const size_t aSIZE_MAP[] = {
 
 #define K_NAME SOA
 #define K_SIZE_MAP aSIZE_MAP
-#include "klib/soa-inl.h"
+#include "klib/soa-inc.h"
 
 static void
 test(void)

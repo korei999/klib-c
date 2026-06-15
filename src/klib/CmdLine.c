@@ -7,7 +7,7 @@
 #define K_VALUE_T ssize_t
 #define K_FN_HASH k_StringViewHash
 #define K_FN_KEY_CMP k_StringViewCmp
-#include "MapGen-inl.h"
+#include "MapGen-inc.h"
 
 typedef struct CmdCommand
 {

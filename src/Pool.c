@@ -3,7 +3,7 @@
 #define K_NAME PoolInt
 #define K_TYPE int
 #define K_INDEX_T int
-#include "klib/PoolGen-inl.h"
+#include "klib/PoolGen-inc.h"
 
 static void
 test(void)
