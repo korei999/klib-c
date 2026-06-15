@@ -300,7 +300,7 @@ ecs_MapAt(ecs_Map* s, int denseI, int eComp)
     K_ASSERT(eComp >= 0 && eComp < s->sizeMapSize, "");
     K_ASSERT(denseI >= 0 && denseI < s->cap, "denseI: {i}, cap: {i}", denseI, s->cap);
     ComponentDesc* pDense = (ComponentDesc*)(s->pDenseDesc + denseI*s->denseStride);
-    const int sparseI = pDense->sparseI;
+    K_UNUSED const int sparseI = pDense->sparseI;
     K_ASSERT(sparseI != -1, "sparse index {i} (dense: {i}) is deleted", sparseI, denseI);
 
     ecs_Component* pComp = &s->pSOAComponents[eComp];

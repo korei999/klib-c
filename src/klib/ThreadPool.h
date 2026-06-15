@@ -31,22 +31,23 @@ typedef struct k_ThreadPool
     k_Thread* pThreads;
     ssize_t nThreads;
     ssize_t arenaReserve;
-    k_atomic_Int bDone;
     k_Semaphore sem;
     void (*pfnLoopStart)(void*);
     void* pLoopStartArg;
     void (*pfnLoopEnd)(void*);
     void* pLoopEndArg;
-    k_atomic_Int nTasks;
+    k_atomic_Int bDone;
     char aPad0[64 - sizeof(k_atomic_Int)];
-    k_atomic_Int idCounter;
+    k_atomic_Int nTasks;
     char aPad1[64 - sizeof(k_atomic_Int)];
+    k_atomic_Int idCounter;
+    char aPad2[64 - sizeof(k_atomic_Int)];
     k_atomic_Int nTasksActive;
     ssize_t memberSize;
     bool bStarted;
 } k_ThreadPool;
 
-typedef struct k_ThreadPoolInitArgs
+typedef struct k_ThreadPoolInitOpts
 {
     ssize_t nThreads; /* 0 for 1 main thread arena, or use k_optimalThreadCount(). */
     int queueSlotSize; /* Maximum payload size. K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE by default. */

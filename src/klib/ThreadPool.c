@@ -22,6 +22,12 @@ static K_THREAD_LOCAL uint8_t* stl_pBuffer;
 
 typedef uint64_t Header;
 
+typedef struct
+{
+    k_ThreadPool* pPool;
+    ssize_t queueIndex;
+} ThreadSpawnArg;
+
 ssize_t
 k_logicalCoreCount(void)
 {

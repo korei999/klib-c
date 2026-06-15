@@ -49,7 +49,7 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
         y = _k_tmp_;                                                                                                   \
     } while (0)
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined __clang__
 
     #define K_UNUSED
     #define K_NO_UB
