@@ -11,7 +11,7 @@ buildScript(int argc, char** argv)
         .svBuildDir = K_SV("tmpBuild")
     };
 
-    k_StringView klibSourses[] = {
+    k_StringView klibSources[] = {
         K_SV("src/klib/Arena.c"),
         K_SV("src/klib/assert.c"),
         K_SV("src/klib/CmdLine.c"),
@@ -38,7 +38,7 @@ buildScript(int argc, char** argv)
     k_build_Target klib = {
         .eType = K_BUILD_TARGET_TYPE_LIBRARY_STATIC,
         .svName = K_SV("klib"),
-        .sources = {.pSvs = klibSourses, .size = K_ASIZE(klibSourses)},
+        .sources = {.pSvs = klibSources, .size = K_ASIZE(klibSources)},
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)},
         .svStandard = K_SV("-std=c11"),
         .svCflags = K_SV("-O3 -Wpedantic -Wall -Wextra -DNDEBUG"),
