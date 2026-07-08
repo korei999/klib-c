@@ -6,7 +6,7 @@ buildScript(int argc, char** argv)
     k_Arena* pArena = k_CtxArena();
     k_ArenaState arenaState = k_ArenaStatePush(pArena);
 
-    k_BuildCtx buildCtx = {
+    k_build_Ctx buildCtx = {
         .svCompiler = K_SV("gcc"),
         .svBuildDir = K_SV("tmpBuild")
     };

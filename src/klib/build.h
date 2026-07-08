@@ -14,10 +14,10 @@ typedef struct k_build_StringViews
     ssize_t size;
 } k_build_StringViews;
 
-typedef struct k_BuildCtx {
+typedef struct k_build_Ctx {
     k_StringView svCompiler;
     k_StringView svBuildDir;
-} k_BuildCtx;
+} k_build_Ctx;
 
 typedef enum K_BUILD_TARGET_TYPE
 {
@@ -91,7 +91,7 @@ k_build_CommandRun(const k_build_Command* pVCommands)
 }
 
 static inline bool
-k_build_createDirectory(k_StringView svPath, const k_BuildCtx* pBuildCtx)
+k_build_createDirectory(k_StringView svPath, const k_build_Ctx* pBuildCtx)
 {
     k_Arena* pArena = k_CtxArena();
     k_ArenaState arenaState = k_ArenaStatePush(pArena);
@@ -111,7 +111,7 @@ k_build_createDirectory(k_StringView svPath, const k_BuildCtx* pBuildCtx)
 }
 
 static inline bool
-k_build_TargetBuild(const k_build_Target* s, const k_BuildCtx* pBuildCtx)
+k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
 {
     k_ThreadPool* pTp = k_CtxThreadPool();
     k_Arena* pArena = k_CtxArena();
