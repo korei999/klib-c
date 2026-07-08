@@ -41,7 +41,7 @@ buildScript(int argc, char** argv)
         .sourses = {.pSvs = klibSourses, .size = K_ASIZE(klibSourses)},
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)},
         .svStandard = K_SV("-std=c11"),
-        .svCflags = K_SV("-O3 -Wpedantic -Wall -Wextra"),
+        .svCflags = K_SV("-O3 -Wpedantic -Wall -Wextra -DNDEBUG"),
     };
     k_build_TargetBuild(&klib, &buildCtx);
 
