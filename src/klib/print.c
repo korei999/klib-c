@@ -44,6 +44,7 @@ k_print_BuilderGrow(k_print_Builder* s, ssize_t newCap)
         if (!pNewData) return false;
 
         s->bAllocated = true;
+        /* Ignore asan. */
         memcpy(pNewData, s->pData, s->size);
     }
     else
