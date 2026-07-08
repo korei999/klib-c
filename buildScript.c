@@ -38,7 +38,7 @@ buildScript(int argc, char** argv)
     k_build_Target klib = {
         .eType = K_BUILD_TARGET_TYPE_LIBRARY_STATIC,
         .svName = K_SV("klib"),
-        .sourses = {.pSvs = klibSourses, .size = K_ASIZE(klibSourses)},
+        .sources = {.pSvs = klibSourses, .size = K_ASIZE(klibSourses)},
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)},
         .svStandard = K_SV("-std=c11"),
         .svCflags = K_SV("-O3 -Wpedantic -Wall -Wextra -DNDEBUG"),
