@@ -9,6 +9,7 @@
 #include "Gpa.h"
 
 #ifdef __GNUC__
+#pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
@@ -16,17 +17,11 @@ static K_THREAD_LOCAL k_Arena stl_arena;
 static K_THREAD_LOCAL int stl_threadI;
 static K_THREAD_LOCAL uint8_t* stl_pBuffer;
 
-#define PFN_SHIFT 2
-#define PTR_BIT 1
-#define FUTURE_BIT (1 << 1)
+#define K_THREAD_POOL_PFN_SHIFT 2
+#define K_THREAD_POOL_PTR_BIT 1
+#define K_THREAD_POOL_FUTURE_BIT (1 << 1)
 
-typedef uint64_t Header;
-
-typedef struct
-{
-    k_ThreadPool* pPool;
-    ssize_t queueIndex;
-} ThreadSpawnArg;
+typedef uint64_t k_ThreadPool_Header;
 
 ssize_t
 k_logicalCoreCount(void)
@@ -71,16 +66,16 @@ execTask(k_ThreadPool* s, void* p)
     k_atomic_IntSubRelaxed(&s->nTasks, 1);
 
     const uint64_t payload = *(uint64_t*)p;
-    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)(payload >> PFN_SHIFT);
+    k_ThreadPoolTaskPfn pfn = (k_ThreadPoolTaskPfn)(payload >> K_THREAD_POOL_PFN_SHIFT);
 
-    void** pArg = payload & FUTURE_BIT ?
+    void** pArg = payload & K_THREAD_POOL_FUTURE_BIT ?
         (void**)((uint8_t*)p + sizeof(pfn)*2) :
         (void**)((uint8_t*)p + sizeof(pfn));
-    k_Future* pFut = payload & FUTURE_BIT ?
+    k_Future* pFut = payload & K_THREAD_POOL_FUTURE_BIT ?
         *(k_Future**)((uint8_t*)p + sizeof(pfn)) :
         NULL;
 
-    if (payload & PTR_BIT) pfn(*pArg);
+    if (payload & K_THREAD_POOL_PTR_BIT) pfn(*pArg);
     else pfn(pArg);
 
     if (pFut) k_FutureSignal(pFut);
@@ -125,7 +120,7 @@ k_FutureWait(k_Future* s)
 }
 
 static K_THREAD_RESULT
-loop(void* pUser)
+k_TheadPoolLoop(void* pUser)
 {
     k_ThreadPool* s = pUser;
 
@@ -169,17 +164,17 @@ fail:
 }
 
 static bool
-start(k_ThreadPool* s)
+k_ThreadPoolStart(k_ThreadPool* s)
 {
     k_atomic_IntAddRelaxed(&s->idCounter, 1);
     for (ssize_t i = 0; i < s->nThreads; ++i)
-        if (!k_ThreadInit(&s->pThreads[i], loop, s))
+        if (!k_ThreadInit(&s->pThreads[i], k_TheadPoolLoop, s))
             goto fail;
 
     if (!k_ArenaInit(&stl_arena, s->arenaReserve, K_SIZE_1K*4))
         goto fail;
 
-    stl_pBuffer = calloc(1, s->memberSize + sizeof(Header));
+    stl_pBuffer = calloc(1, s->memberSize + sizeof(k_ThreadPool_Header));
 
     s->bStarted = true;
 
@@ -199,7 +194,7 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
 
     k_Gpa* pGpa = k_GpaInst();
     k_Thread* pNewThreads = NULL;
-    const int memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(Header) : opts.queueSlotSize + (int)sizeof(Header);
+    const int memberSize = opts.queueSlotSize <= 0 ? K_THREAD_POOL_DEFAULT_PAYLOAD_SIZE + (int)sizeof(k_ThreadPool_Header) : opts.queueSlotSize + (int)sizeof(k_ThreadPool_Header);
     if (opts.nThreads > 0)
     {
         pNewThreads = K_IZALLOC_T(&pGpa->base, k_Thread, opts.nThreads);
@@ -219,9 +214,9 @@ k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts opts)
     s->pfnLoopEnd = opts.pfnLoopEnd;
     s->pLoopEndArg = opts.pLoopEndArg;
     s->arenaReserve = opts.arenaReserve;
-    s->memberSize = memberSize - sizeof(Header);
+    s->memberSize = memberSize - sizeof(k_ThreadPool_Header);
 
-    if (!start(s)) goto fail0;
+    if (!k_ThreadPoolStart(s)) goto fail0;
     return true;
 
 fail0:
@@ -301,7 +296,7 @@ addEpilogue(k_ThreadPool* s)
 void
 k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize)
 {
-    Header header = (uint64_t)pfn << PFN_SHIFT;
+    k_ThreadPool_Header header = (uint64_t)pfn << K_THREAD_POOL_PFN_SHIFT;
 
     const k_Span aSps[] = {
         {&header, sizeof(header)},
@@ -317,7 +312,7 @@ k_ThreadPoolAddFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn, 
 {
     assert(pFut->pThreadPool == s && "use k_FutureCreate()");
 
-    Header header = ((uint64_t)pfn << PFN_SHIFT) | FUTURE_BIT;
+    k_ThreadPool_Header header = ((uint64_t)pfn << K_THREAD_POOL_PFN_SHIFT) | K_THREAD_POOL_FUTURE_BIT;
     void* aPayload[] = {(void*)header, pFut};
     const k_Span aSps[] = {
         {aPayload, sizeof(aPayload)},
@@ -333,7 +328,7 @@ k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn,
 {
     assert(pFut->pThreadPool == s && "use k_FutureCreate()");
 
-    Header header = ((uint64_t)pfn << PFN_SHIFT) | FUTURE_BIT | PTR_BIT;
+    k_ThreadPool_Header header = ((uint64_t)pfn << K_THREAD_POOL_PFN_SHIFT) | K_THREAD_POOL_FUTURE_BIT | K_THREAD_POOL_PTR_BIT;
     void* aPayload[] = {(void*)header, pFut, pArg};
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
@@ -343,10 +338,14 @@ k_ThreadPoolAddPFuture(k_ThreadPool* s, k_Future* pFut, k_ThreadPoolTaskPfn pfn,
 void
 k_ThreadPoolAddP(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg)
 {
-    Header header = ((uint64_t)pfn << PFN_SHIFT) | PTR_BIT;
+    k_ThreadPool_Header header = ((uint64_t)pfn << K_THREAD_POOL_PFN_SHIFT) | K_THREAD_POOL_PTR_BIT;
     void* aPayload[2] = {(void*)header, pArg};
 
     while (!k_QueueMPMCPush(&s->qTasks, aPayload, sizeof(aPayload)))
         ;
     addEpilogue(s);
 }
+
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#endif

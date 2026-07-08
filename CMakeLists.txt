@@ -98,8 +98,7 @@ endif()
 # endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    add_definitions("-D_DEFAULT_SOURCE")
-    add_definitions("-D_XOPEN_SOURCE")
+    # add_definitions("-D_XOPEN_SOURCE")
 endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "IAllocator.h"
 
 #include <stdlib.h>

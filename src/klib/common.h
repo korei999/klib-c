@@ -1,5 +1,11 @@
 #pragma once
 
+#ifdef __unix
+    #define _DEFAULT_SOURCE
+    #define _GNU_SOURCE
+    #define _XOPEN_SOURCE
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 

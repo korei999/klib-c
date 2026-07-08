@@ -53,6 +53,15 @@ k_StringViewCharAt(const k_StringView s, char c)
 }
 
 ssize_t
+k_StringViewCharAtRev(const k_StringView s, char c)
+{
+    for (ssize_t i = s.size - 1; i >= 0; --i)
+        if (s.pData[i] == c) return i;
+
+    return -1;
+}
+
+ssize_t
 k_StringViewSubStringAt(const k_StringView s, const k_StringView r)
 {
     if (s.size < r.size || s.size == 0 || r.size == 0)
@@ -135,4 +144,13 @@ k_StringViewEndsWith(const k_StringView s, const k_StringView svWith)
     if (s.size < svWith.size) return false;
     k_StringView svSub = k_StringViewSubString1(s, svWith.size - 1);
     return !k_StringViewCmp(&svWith, &svSub);
+}
+
+k_StringView
+k_StringViewPathEnding(const k_StringView s)
+{
+    ssize_t off = k_StringViewCharAtRev(s, '/');
+    if (off == -1 || (off + 1) == s.size) return s;
+
+    return (k_StringView){.pData = (char*)s.pData + off + 1, .size = s.size - off - 1};
 }

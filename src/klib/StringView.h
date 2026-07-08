@@ -23,12 +23,15 @@ static inline uint64_t k_StringViewHash(const k_StringView* pSv);
 
 static inline bool k_StringViewEq(const k_StringView s, const k_StringView r);
 ssize_t k_StringViewCharAt(const k_StringView s, char c);
+ssize_t k_StringViewCharAtRev(const k_StringView s, char c);
 ssize_t k_StringViewSubStringAt(const k_StringView s, const k_StringView svSub);
 bool k_StringViewHasSv(const k_StringView s, const k_StringView svSub);
 bool k_StringViewHasChar(const k_StringView s, char c);
 bool k_StringViewHasOneOf(const k_StringView s, const k_StringView svOneOf);
 bool k_StringViewStartsWith(const k_StringView s, const k_StringView svWith);
 bool k_StringViewEndsWith(const k_StringView s, const k_StringView svWith);
+
+k_StringView k_StringViewPathEnding(const k_StringView s);
 
 static inline k_StringView k_StringViewSubString(const k_StringView s, ssize_t startI, ssize_t size);
 static inline k_StringView k_StringViewSubString1(const k_StringView s, ssize_t startI);
