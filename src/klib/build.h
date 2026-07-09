@@ -3,7 +3,6 @@
 #include "WordIt.h"
 #include "String.h"
 #include "Ctx.h"
-#include "assert.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -211,6 +210,13 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         {
             k_build_CommandPushSv(&vLinkCommand, &pArena->base, &pBuildCtx->svCompiler);
 
+            /* Link flags. */
+            for (k_WordIt linkFlag = k_WordItCreate(s->svLDlags, K_SV(" ")); !k_WordItDone(&linkFlag); k_WordItNext(&linkFlag))
+            {
+                k_StringView svLinkFlag = k_WordItToSv(&linkFlag);
+                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svLinkFlag);
+            }
+
             k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("-o"));
 
             k_String sExecName = k_StringCreateSv(&pArena->base, pBuildCtx->svBuildDir);
@@ -272,7 +278,6 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
     }
 
 done:
-    // k_ThreadPoolWait(pTp);
     k_ArenaStateRestore(&arenaState);
     return bReturnStatus;
 }

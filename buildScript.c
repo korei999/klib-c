@@ -11,8 +11,8 @@ static k_build_Ctx s_buildCtx = {
     .svBuildDir = K_SV("tmpBuild")
 };
 
-static k_StringView s_svCflags = K_SV("-Wpedantic -Wall -Wextra");
-static k_StringView s_svLDflags = K_SV("");
+static k_String s_sCflags;
+static k_String s_sLDflags;
 
 static void
 testExecutableBuildTask(void* pArg)
@@ -27,6 +27,8 @@ buildScript(int argc, char** argv)
     k_ThreadPool* pTp = k_CtxThreadPool();
     k_Arena* pArena = k_CtxArena();
     k_ArenaState arenaState = k_ArenaStatePush(pArena);
+
+    k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
 
     k_StringView klibSources[] = {
         K_SV("src/klib/Arena.c"),
@@ -58,8 +60,8 @@ buildScript(int argc, char** argv)
         .sources = {.pSvs = klibSources, .size = K_ASIZE(klibSources)},
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)},
         .svStandard = K_SV("-std=c11"),
-        .svCflags = s_svCflags,
-        .svLDlags = s_svLDflags,
+        .svCflags = k_StringToSv(&s_sCflags),
+        .svLDlags = k_StringToSv(&s_sLDflags),
     };
     k_build_TargetBuild(&klib, &s_buildCtx);
 
@@ -68,7 +70,7 @@ buildScript(int argc, char** argv)
         k_build_Target* pLibs[] = {&klib};
         VecFutures vFutures = {0};
 
-        k_String sTestFlags = k_StringCreateSv(&pArena->base, s_svCflags);
+        k_String sTestFlags = k_StringCreateSv(&pArena->base, k_StringToSv(&s_sCflags));
         k_StringPushSv(&sTestFlags, &pArena->base,
             K_SV(
                 " -Wno-unused-but-set-variable"
@@ -85,6 +87,7 @@ buildScript(int argc, char** argv)
             .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)}, \
             .svStandard = K_SV("-std=c11"), \
             .svCflags = k_StringToSv(&sTestFlags), \
+            .svLDlags = k_StringToSv(&s_sLDflags), \
             .ppLibs = pLibs, .nLibs = K_ASIZE(pLibs), \
         }; \
         VecFuturesPushVal(&vFutures, &pArena->base, k_FutureCreate(pTp)); \
@@ -121,9 +124,16 @@ static K_CMD_LINE_RESULT
 releaseBuildArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
 {
     k_Arena* pArena = k_CtxArena();
-    k_String sFlags = k_StringCreateSv(&pArena->base, K_SV("-O3 -DNDEBUG "));
-    k_StringPushSv(&sFlags, &pArena->base, s_svCflags);
-    s_svCflags = k_StringToSv(&sFlags);
+    {
+        k_String sFlags = k_StringCreateSv(&pArena->base, K_SV("-O3 -DNDEBUG "));
+        k_StringPushSv(&sFlags, &pArena->base, k_StringToSv(&s_sCflags));
+        s_sCflags = sFlags;
+    }
+    {
+        k_String sLDflags = k_StringCreateSv(&pArena->base, K_SV("-flto=auto "));
+        k_StringPushSv(&sLDflags, &pArena->base, k_StringToSv(&s_sLDflags));
+        s_sLDflags = sLDflags;
+    }
     return K_CMD_LINE_RESULT_NEXT;
 }
 
@@ -131,9 +141,10 @@ static K_CMD_LINE_RESULT
 debugBuildArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
 {
     k_Arena* pArena = k_CtxArena();
-    k_String sFlags = k_StringCreateSv(&pArena->base, K_SV("-O0 -g "));
-    k_StringPushSv(&sFlags, &pArena->base, s_svCflags);
-    s_svCflags = k_StringToSv(&sFlags);
+    static k_String sFlags = {0};
+    sFlags = k_StringCreateSv(&pArena->base, K_SV("-O0 -g "));
+    k_StringPushSv(&sFlags, &pArena->base, k_StringToSv(&s_sCflags));
+    s_sCflags = sFlags;
     return K_CMD_LINE_RESULT_NEXT;
 }
 
@@ -143,11 +154,11 @@ asanBuildArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
     k_Arena* pArena = k_CtxArena();
     k_String sFlags = k_StringCreateSv(&pArena->base, K_SV("-O0 -g -fsanitize=address "));
     k_String sLDlags = k_StringCreateSv(&pArena->base, K_SV("-fsanitize=address "));
-    k_StringPushSv(&sFlags, &pArena->base, s_svCflags);
-    k_StringPushSv(&sLDlags, &pArena->base, s_svLDflags);
+    k_StringPushSv(&sFlags, &pArena->base, k_StringToSv(&s_sCflags));
+    k_StringPushSv(&sLDlags, &pArena->base, k_StringToSv(&s_sLDflags));
 
-    s_svCflags = k_StringToSv(&sFlags);
-    s_svLDflags = k_StringToSv(&sLDlags);
+    s_sCflags = sFlags;
+    s_sLDflags = sLDlags;
     return K_CMD_LINE_RESULT_NEXT;
 }
 
@@ -216,7 +227,8 @@ main(int argc, char** argv)
     k_CtxAllocGlobal(
         (k_LoggerInitOpts){
             .ringBufferSize = k_getPageSize(),
-            .eLogLevel = K_LOGGER_LEVEL_DEBUG
+            .eLogLevel = K_LOGGER_LEVEL_DEBUG,
+            .eFlags = K_LOGGER_FLAG_SOURCE
         },
         (k_ThreadPoolInitOpts){
             .nThreads = k_optimalThreadCount(),

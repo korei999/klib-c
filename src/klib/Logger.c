@@ -18,7 +18,7 @@ typedef struct LogHeader
 } LogHeader;
 
 static K_THREAD_RESULT
-loop(void* pArg)
+k_LoggerLoop(void* pArg)
 {
     k_Logger* s = pArg;
 
@@ -102,7 +102,7 @@ k_LoggerInit(k_Logger* s, k_IAllocator* pAlloc, k_LoggerInitOpts opts)
         s->eFlags |= K_LOGGER_FLAG_COLORS;
     else s->eFlags &= ~K_LOGGER_FLAG_COLORS;
 
-    k_ThreadInit(&s->thread, loop, s);
+    k_ThreadInit(&s->thread, k_LoggerLoop, s);
 
     s->bStarted = true;
 
@@ -125,7 +125,7 @@ k_LoggerDestroy(k_Logger* s)
 }
 
 static bool
-pushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
+k_LoggerPushMsg(k_Logger* s, K_LOGGER_LEVEL eLevel, const char* ntsFile, const char* ntsFunc, ssize_t line, const k_StringView svMsg)
 {
     if (svMsg.size + (ssize_t)sizeof(LogHeader) + k_RingMPSCHeaderSize() > k_RingMPSCCap(&s->rb)) return false;
 
@@ -168,7 +168,7 @@ k_LoggerPostVaList(k_Logger* s, k_Arena* pArena, K_LOGGER_LEVEL eLevel, const ch
             k_print_FmtArgs fmtArgs = k_print_FmtArgsCreate();
             k_print_BuilderPrintVaList(&pb, &fmtArgs, svFmt, pArgs);
             k_print_BuilderPushChar(&pb, '\n');
-            pushMsg(s, eLevel, ntsFile, ntsFunc, line, k_print_BuilderToSv(&pb));
+            k_LoggerPushMsg(s, eLevel, ntsFile, ntsFunc, line, k_print_BuilderToSv(&pb));
         }
     }
 }
@@ -238,10 +238,11 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOGGER_LEVEL eLevel, const c
         timeBuffSize = strftime(aTimeBuff, sizeof(aTimeBuff), "%Y-%m-%d %I:%M:%S%p", pTm);
     }
 
-    const char* ntsShorterFile = "";
     if (s->eFlags & K_LOGGER_FLAG_SOURCE)
     {
-        ntsShorterFile = k_file_shorterFILE(ntsFile);
+        /* FIXME: doesn't work anymore. */
+        // const char* ntsShorterFile = k_file_shorterFILE(ntsFile);
+        const char* ntsShorterFile = ntsFile;
         const ssize_t shorterFileSize = strlen(ntsShorterFile);
 
         return k_print_toBuffer(
