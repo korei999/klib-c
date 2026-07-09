@@ -44,6 +44,8 @@ K_DECL_MOD K_TYPE K_METHOD(Get)(K_NAME* s, ssize_t i);
 K_DECL_MOD K_TYPE* K_METHOD(GetP)(K_NAME* s, ssize_t i);
 K_DECL_MOD const K_TYPE* K_METHOD(GetPConst)(const K_NAME* s, ssize_t i);
 K_DECL_MOD void K_METHOD(Set)(K_NAME* s, ssize_t i, const K_TYPE* p);
+K_DECL_MOD K_TYPE* K_METHOD(FirstP)(K_NAME* s);
+K_DECL_MOD K_TYPE* K_METHOD(LastP)(K_NAME* s);
 
 #endif /* K_GEN_DECLS */
 
@@ -207,6 +209,18 @@ K_METHOD(Set)(K_NAME* s, ssize_t i, const K_TYPE* p)
 {
     assert(i >= 0 && i < s->size);
     s->pData[i] = *(K_TYPE*)p;
+}
+
+K_DECL_MOD K_TYPE*
+K_METHOD(FirstP)(K_NAME* s)
+{
+    return K_METHOD(GetP)(s, 0);
+}
+
+K_DECL_MOD K_TYPE*
+K_METHOD(LastP)(K_NAME* s)
+{
+    return K_METHOD(GetP)(s, s->size - 1);
 }
 
 #endif /* K_GEN_CODE */

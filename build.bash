@@ -2,5 +2,5 @@
 
 set -veuo pipefail
 
-gcc -I src/klib/ThirdParty/ -I src/ buildScript.c -o build
-./build
+gcc -O0 -g -I src/klib/ThirdParty/ -I src/ buildScript.c -o build
+./build "$@"

@@ -61,7 +61,7 @@ k_optimalThreadCount(void)
 }
 
 static void
-execTask(k_ThreadPool* s, void* p)
+k_ThreadPoolExecTask(k_ThreadPool* s, void* p)
 {
     k_atomic_IntSubRelaxed(&s->nTasks, 1);
 
@@ -84,7 +84,7 @@ execTask(k_ThreadPool* s, void* p)
 }
 
 static void
-stealTasks(k_ThreadPool* s)
+k_ThreadPoolStealTasks(k_ThreadPool* s)
 {
     uint8_t* pBuffer = stl_pBuffer;
 
@@ -93,13 +93,16 @@ stealTasks(k_ThreadPool* s)
         if (!k_QueueMPMCPop(&s->qTasks, pBuffer, s->memberSize))
             continue;
 
-        execTask(s, pBuffer);
+        k_ThreadPoolExecTask(s, pBuffer);
     }
 }
 
 void
 k_FutureWait(k_Future* s)
 {
+    if (k_atomic_U8LoadRelaxed(&s->bDone))
+        return;
+
     uint8_t* pBuffer = stl_pBuffer;
 
     while (k_atomic_IntLoadAcquire(&s->pThreadPool->nTasks) > 0)
@@ -107,7 +110,7 @@ k_FutureWait(k_Future* s)
         if (!k_QueueMPMCPop(&s->pThreadPool->qTasks, pBuffer, s->pThreadPool->memberSize))
             continue;
 
-        execTask(s->pThreadPool, pBuffer);
+        k_ThreadPoolExecTask(s->pThreadPool, pBuffer);
 
         if (k_atomic_U8LoadRelaxed(&s->bDone))
             return;
@@ -115,8 +118,6 @@ k_FutureWait(k_Future* s)
 
     while (!k_atomic_U8LoadRelaxed(&s->bDone))
         k_ThreadYield();
-
-    k_atomic_U8StoreRelaxed(&s->bDone, false);
 }
 
 static K_THREAD_RESULT
@@ -143,7 +144,7 @@ k_TheadPoolLoop(void* pUser)
             if (!k_QueueMPMCPop(&s->qTasks, pBuffer, s->memberSize))
                 continue;
 
-            execTask(s, pBuffer);
+            k_ThreadPoolExecTask(s, pBuffer);
         }
         else
         {
@@ -265,7 +266,7 @@ void
 k_ThreadPoolWait(k_ThreadPool* s)
 {
     if (s->nThreads <= 0) return;
-    stealTasks(s);
+    k_ThreadPoolStealTasks(s);
 
     while (k_atomic_IntLoadRelaxed(&s->nTasksActive) > 0)
         k_ThreadYield();

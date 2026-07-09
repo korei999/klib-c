@@ -33,7 +33,7 @@ struct k_CmdLine
 void
 k_CmdLineArgPrintDescription(k_CmdLineArg* s, k_IAllocator* pAlloc, FILE* pFile)
 {
-    if (s->svDescription.size <= 0) return;
+    if (s->svDescription.size <= 0 && !s->cShortName && s->svLongName.size <= 0) return;
 
     char aBuff[128];
     k_print_Builder pb;
@@ -54,6 +54,8 @@ k_CmdLineArgPrintDescription(k_CmdLineArg* s, k_IAllocator* pAlloc, FILE* pFile)
 k_CmdLine*
 k_CmdLineAlloc(k_IAllocator* pAlloc, FILE* pFile, const k_StringView svName, const k_StringView svUsageDescription, k_CmdLineArg* pArgs, ssize_t nArgs)
 {
+    if (nArgs <= 0) return NULL;
+
     k_CmdLine* s = k_IAllocatorMalloc(pAlloc, sizeof(k_CmdLine));
     if (!s) return NULL;
 

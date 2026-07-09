@@ -1,9 +1,9 @@
 #pragma once
 
-/* Bootstrap all klib sources. */
-#include "unityBuild-inc.h"
-
 #include "WordIt.h"
+#include "String.h"
+#include "Ctx.h"
+#include "assert.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -37,6 +37,8 @@ typedef struct k_build_Target
     k_StringView svLDlags;
     k_StringView svPkgCflags;
     k_StringView svPkgLDflags;
+    struct k_build_Target** ppLibs;
+    ssize_t nLibs;
 } k_build_Target;
 
 #define K_NAME k_build_Command
@@ -51,7 +53,7 @@ k_build_CommandPushSv(k_build_Command* s, k_IAllocator* pAlloc, const k_StringVi
 }
 
 static inline void
-k_build_CommandRunTask(void* pArg)
+k_build_CommandRunThreadTask(void* pArg)
 {
     char** ppCommands = pArg;
 
@@ -68,7 +70,7 @@ k_build_CommandRunTask(void* pArg)
 }
 
 static inline void
-k_build_CommandRun(const k_build_Command* pVCommands)
+k_build_CommandRun(const k_build_Command* pVCommands, k_Future* pFut)
 {
     k_Arena* pArena = k_CtxArena();
 
@@ -87,7 +89,7 @@ k_build_CommandRun(const k_build_Command* pVCommands)
     K_CTX_LOG_INFO("{PS}", &s);
 
     k_ThreadPool* pTp = k_CtxThreadPool();
-    k_ThreadPoolAddP(pTp, k_build_CommandRunTask, ppCommands);
+    k_ThreadPoolAddPFuture(pTp, pFut, k_build_CommandRunThreadTask, ppCommands);
 }
 
 static inline bool
@@ -126,6 +128,10 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         bReturnStatus = false;
         goto done;
     }
+
+    k_Future* pFutures = k_ArenaZalloc(pArena, sizeof(*pFutures)*s->sources.size);
+    for (ssize_t i = 0; i < s->sources.size; ++i)
+        pFutures[i] = k_FutureCreate(pTp);
 
     for (ssize_t sourceI = 0; sourceI < s->sources.size; ++sourceI)
     {
@@ -171,6 +177,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             }
         }
 
+        /* Make .o file. */
         k_print_BuilderPushSv(&pbNestedDirs, svSourceEnding);
         k_print_BuilderPushSv(&pbNestedDirs, K_SV(".o"));
 
@@ -179,10 +186,21 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svObjectName);
         k_build_CommandPushSv(&vFinalLinkObjects, &pArena->base, &svObjectName);
 
-        k_build_CommandRun(&vCompileCommands);
+        // /* Make .d file. */
+        // {
+        //     k_String sDep = k_StringCreateSv(&pArena->base, k_print_BuilderToSv(&pbNestedDirs));
+        //     k_StringSet(&sDep, k_StringSize(&sDep) - 1, 'd');
+
+        //     k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-MD"));
+        //     k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-MF"));
+        //     k_build_CommandPush(&vCompileCommands, &pArena->base, &sDep);
+        // }
+
+        k_build_CommandRun(&vCompileCommands, pFutures + sourceI);
     }
 
-    k_ThreadPoolWait(pTp);
+    for (ssize_t sourceI = 0; sourceI < s->sources.size; ++sourceI)
+        k_FutureWait(&pFutures[sourceI]);
 
     k_build_Command vLinkCommand = {0};
     k_build_CommandInit(&vLinkCommand, &pArena->base, 8);
@@ -191,6 +209,38 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
     {
         case K_BUILD_TARGET_TYPE_EXECUTABLE:
         {
+            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &pBuildCtx->svCompiler);
+
+            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("-o"));
+
+            k_String sExecName = k_StringCreateSv(&pArena->base, pBuildCtx->svBuildDir);
+            k_StringPushSv(&sExecName, &pArena->base, K_SV("/"));
+            k_StringPushSv(&sExecName, &pArena->base, s->svName);
+
+            k_build_CommandPushVal(&vLinkCommand, &pArena->base, sExecName);
+
+            for (ssize_t linkI = 0; linkI < vFinalLinkObjects.size; ++linkI)
+                k_build_CommandPush(&vLinkCommand, &pArena->base, vFinalLinkObjects.pData + linkI);
+
+            for (ssize_t libI = 0; libI < s->nLibs; ++libI)
+            {
+                k_build_Target* pLib = s->ppLibs[libI];
+
+                k_String sLib = k_StringCreateSv(&pArena->base, pBuildCtx->svBuildDir);
+                k_StringPushSv(&sLib, &pArena->base, K_SV("/"));
+                k_StringPushSv(&sLib, &pArena->base, pLib->svName);
+
+                if (pLib->eType == K_BUILD_TARGET_TYPE_LIBRARY_STATIC)
+                    k_StringPushSv(&sLib, &pArena->base, K_SV(".a"));
+                else if (pLib->eType == K_BUILD_TARGET_TYPE_LIBRARY_SHARED)
+                    k_StringPushSv(&sLib, &pArena->base, K_SV(".o"));
+
+                k_build_CommandPushVal(&vLinkCommand, &pArena->base, sLib);
+            }
+
+            k_Future fut = k_FutureCreate(pTp);
+            k_build_CommandRun(&vLinkCommand, &fut);
+            k_FutureWait(&fut);
         }
         break;
 
@@ -214,13 +264,15 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             for (ssize_t i = 0; i < vFinalLinkObjects.size; ++i)
                 k_build_CommandPush(&vLinkCommand, &pArena->base, &vFinalLinkObjects.pData[i]);
 
-            k_build_CommandRun(&vLinkCommand);
+            k_Future fut = k_FutureCreate(pTp);
+            k_build_CommandRun(&vLinkCommand, &fut);
+            k_FutureWait(&fut);
         }
         break;
     }
 
 done:
-    k_ThreadPoolWait(pTp);
+    // k_ThreadPoolWait(pTp);
     k_ArenaStateRestore(&arenaState);
     return bReturnStatus;
 }

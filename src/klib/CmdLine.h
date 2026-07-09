@@ -7,10 +7,10 @@
 
 typedef enum K_CMD_LINE_RESULT
 {
-    K_CMD_LINE_RESULT_SUCCESS,
-    K_CMD_LINE_RESULT_FAIL,
-    K_CMD_LINE_RESULT_NEXT,
-    K_CMD_LINE_RESULT_BREAK,
+    K_CMD_LINE_RESULT_SUCCESS, /* Immediately break and return SUCCESS. */
+    K_CMD_LINE_RESULT_FAIL, /* Immediately break and return FAIL. */
+    K_CMD_LINE_RESULT_NEXT, /* Proceed to next arg. */
+    K_CMD_LINE_RESULT_BREAK, /* Immediately break and return BREAK. */
 } K_CMD_LINE_RESULT;
 
 typedef struct k_CmdLine k_CmdLine;

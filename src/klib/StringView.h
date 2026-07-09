@@ -23,7 +23,7 @@ static inline uint64_t k_StringViewHash(const k_StringView* pSv);
 
 static inline bool k_StringViewEq(const k_StringView s, const k_StringView r);
 ssize_t k_StringViewCharAt(const k_StringView s, char c);
-ssize_t k_StringViewCharAtRev(const k_StringView s, char c);
+ssize_t k_StringViewCharAtRev(const k_StringView s, char c); /* Last to first order. */
 ssize_t k_StringViewSubStringAt(const k_StringView s, const k_StringView svSub);
 bool k_StringViewHasSv(const k_StringView s, const k_StringView svSub);
 bool k_StringViewHasChar(const k_StringView s, char c);

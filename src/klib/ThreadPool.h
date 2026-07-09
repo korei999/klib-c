@@ -62,7 +62,7 @@ typedef struct k_ThreadPoolInitOpts
 bool k_ThreadPoolInit(k_ThreadPool* s, k_ThreadPoolInitOpts args);
 void k_ThreadPoolDestroy(k_ThreadPool* s);
 int k_ThreadPoolThreadId(void);
-void k_ThreadPoolWait(k_ThreadPool* s);
+void k_ThreadPoolWait(k_ThreadPool* s); /* Never use within tasks. Always prefer k_Futures. */
 k_Arena* k_ThreadPoolArena(k_ThreadPool* s); /* Get thread local arena. */
 uint8_t** k_ThreadPoolBuffer(void); /* Get thread local payload buffer. */
 void k_ThreadPoolAdd(k_ThreadPool* s, k_ThreadPoolTaskPfn pfn, void* pArg, ssize_t argSize);
