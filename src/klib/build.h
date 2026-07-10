@@ -70,7 +70,7 @@ k_build_CommandRunThreadTask(void* pArg)
 }
 
 static inline void
-k_build_CommandRun(const k_build_Command* pVCommands, k_Future* pFut)
+k_build_CommandRunTask(const k_build_Command* pVCommands, k_Future* pFut)
 {
     k_Arena* pArena = k_CtxArena();
 
@@ -95,6 +95,7 @@ k_build_CommandRun(const k_build_Command* pVCommands, k_Future* pFut)
 static inline bool
 k_build_createDirectory(k_StringView svPath, const k_build_Ctx* pBuildCtx)
 {
+    bool bReturnStatus = true;
     k_Arena* pArena = k_CtxArena();
     k_ArenaState arenaState = k_ArenaStatePush(pArena);
 
@@ -103,13 +104,11 @@ k_build_createDirectory(k_StringView svPath, const k_build_Ctx* pBuildCtx)
     if (mkdir(k_StringData(&s), 0777) != 0 && errno != EEXIST)
     {
         K_CTX_LOG_ERROR("mkdir({PS}) failed: ({int}) '{nts}'", &svPath, errno, strerror(errno));
-
-        k_ArenaStateRestore(&arenaState);
-        return false;
+        bReturnStatus = false;
     }
 
     k_ArenaStateRestore(&arenaState);
-    return true;
+    return bReturnStatus;
 }
 
 static inline bool
@@ -203,7 +202,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         //     k_build_CommandPush(&vCompileCommands, &pArena->base, &sDep);
         // }
 
-        k_build_CommandRun(&vCompileCommands, pFutures + sourceI);
+        k_build_CommandRunTask(&vCompileCommands, pFutures + sourceI);
     }
 
     for (ssize_t sourceI = 0; sourceI < s->sources.size; ++sourceI)
@@ -253,7 +252,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             }
 
             k_Future fut = k_FutureCreate(pTp);
-            k_build_CommandRun(&vLinkCommand, &fut);
+            k_build_CommandRunTask(&vLinkCommand, &fut);
             k_FutureWait(&fut);
         }
         break;
@@ -279,7 +278,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
                 k_build_CommandPush(&vLinkCommand, &pArena->base, &vFinalLinkObjects.pData[i]);
 
             k_Future fut = k_FutureCreate(pTp);
-            k_build_CommandRun(&vLinkCommand, &fut);
+            k_build_CommandRunTask(&vLinkCommand, &fut);
             k_FutureWait(&fut);
         }
         break;
