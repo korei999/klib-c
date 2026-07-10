@@ -11,6 +11,7 @@ static k_build_Ctx s_buildCtx = {
     .svBuildDir = K_SV("tmpBuild")
 };
 
+static k_StringView s_svStandard = K_SV("-std=c11");
 static k_String s_sCflags;
 static k_String s_sLDflags;
 
@@ -30,24 +31,25 @@ buildScript(int argc, char** argv)
 
     k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
 
+    const k_StringView svKlibSourcesPrefix = K_SV("src/klib");
     k_StringView klibSources[] = {
-        K_SV("src/klib/Arena.c"),
-        K_SV("src/klib/assert.c"),
-        K_SV("src/klib/CmdLine.c"),
-        K_SV("src/klib/Ctx.c"),
-        K_SV("src/klib/file.c"),
-        K_SV("src/klib/IAllocator.c"),
-        K_SV("src/klib/Json.c"),
-        K_SV("src/klib/Logger.c"),
-        K_SV("src/klib/print.c"),
-        K_SV("src/klib/RingBuffer.c"),
-        K_SV("src/klib/RingMPSC.c"),
-        K_SV("src/klib/String.c"),
-        K_SV("src/klib/StringView.c"),
-        K_SV("src/klib/ThreadPool.c"),
-        K_SV("src/klib/time.c"),
-        K_SV("src/klib/ThirdParty/ryu/d2fixed.c"),
-        K_SV("src/klib/ThirdParty/ryu/d2s.c"),
+        K_SV("Arena.c"),
+        K_SV("assert.c"),
+        K_SV("CmdLine.c"),
+        K_SV("Ctx.c"),
+        K_SV("file.c"),
+        K_SV("IAllocator.c"),
+        K_SV("Json.c"),
+        K_SV("Logger.c"),
+        K_SV("print.c"),
+        K_SV("RingBuffer.c"),
+        K_SV("RingMPSC.c"),
+        K_SV("String.c"),
+        K_SV("StringView.c"),
+        K_SV("ThreadPool.c"),
+        K_SV("time.c"),
+        K_SV("ThirdParty/ryu/d2fixed.c"),
+        K_SV("ThirdParty/ryu/d2s.c"),
     };
 
     k_StringView klibIncludes[] = {
@@ -58,9 +60,10 @@ buildScript(int argc, char** argv)
     k_build_Target klib = {
         .eType = K_BUILD_TARGET_TYPE_LIBRARY_STATIC,
         .svName = K_SV("klib"),
+        .svSourcePrefix = svKlibSourcesPrefix,
         .sources = {.pSvs = klibSources, .size = K_ASIZE(klibSources)},
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)},
-        .svStandard = K_SV("-std=c11"),
+        .svStandard = s_svStandard,
         .svCflags = k_StringToSv(&s_sCflags),
         .svLDlags = k_StringToSv(&s_sLDflags),
     };
@@ -88,7 +91,7 @@ buildScript(int argc, char** argv)
         .svName = K_SV(#name), \
         .sources = {.pSvs = &K_SV("src/" #name ".c"), .size = 1}, \
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)}, \
-        .svStandard = K_SV("-std=c11"), \
+        .svStandard = s_svStandard, \
         .svCflags = k_StringToSv(&sTestFlags), \
         .svLDlags = k_StringToSv(&s_sLDflags), \
         .ppLibs = pLibs, .nLibs = K_ASIZE(pLibs), \
@@ -121,7 +124,7 @@ buildScript(int argc, char** argv)
         .svName = K_SV(#name), \
         .sources = {.pSvs = srcs, .size = K_ASIZE(srcs)}, \
         .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)}, \
-        .svStandard = K_SV("-std=c11"), \
+        .svStandard = s_svStandard, \
         .svCflags = k_StringToSv(&sTestFlags), \
         .svLDlags = k_StringToSv(&s_sLDflags), \
         .ppLibs = pLibs, .nLibs = K_ASIZE(pLibs), \
@@ -155,7 +158,7 @@ releaseBuildArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
 {
     k_Arena* pArena = k_CtxArena();
     {
-        k_String sFlags = k_StringCreateSv(&pArena->base, K_SV("-O3 -DNDEBUG "));
+        k_String sFlags = k_StringCreateSv(&pArena->base, K_SV("-O3 -flto=auto -DNDEBUG "));
         k_StringPushSv(&sFlags, &pArena->base, k_StringToSv(&s_sCflags));
         s_sCflags = sFlags;
     }

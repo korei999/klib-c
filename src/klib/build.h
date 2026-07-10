@@ -29,6 +29,7 @@ typedef struct k_build_Target
 {
     K_BUILD_TARGET_TYPE eType;
     k_StringView svName;
+    k_StringView svSourcePrefix;
     k_build_StringViews sources;
     k_build_StringViews includes;
     k_StringView svStandard;
@@ -134,6 +135,13 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
 
     for (ssize_t sourceI = 0; sourceI < s->sources.size; ++sourceI)
     {
+        k_String sFullSourcePath = k_StringCreateSv(&pArena->base, s->svSourcePrefix);
+        if (k_StringSize(&sFullSourcePath) > 0)
+            k_StringPushSv(&sFullSourcePath, &pArena->base, K_SV("/"));
+
+        k_StringPushSv(&sFullSourcePath, &pArena->base, s->sources.pSvs[sourceI]);
+        k_StringView svThisSource = k_StringToSv(&sFullSourcePath);
+
         k_build_Command vCompileCommands = {0};
         k_build_CommandInit(&vCompileCommands, &pArena->base, 8);
         k_build_CommandPushSv(&vCompileCommands, &pArena->base, &pBuildCtx->svCompiler);
@@ -151,16 +159,16 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         }
 
         k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-c"));
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &s->sources.pSvs[sourceI]);
+        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svThisSource);
 
-        k_StringView svSourceEnding = k_StringViewPathEnding(s->sources.pSvs[sourceI]);
+        k_StringView svSourceEnding = k_StringViewPathEnding(svThisSource);
 
         /* Create subdirectories. */
         k_print_Builder pbNestedDirs = {0};
         k_print_BuilderInit(&pbNestedDirs, (k_print_BuilderInitOpts){.pAllocOrNull = &pArena->base});
         k_print_BuilderPrint(&pbNestedDirs, "{PSv}/", &pBuildCtx->svBuildDir);
 
-        for (k_WordIt folder = k_WordItCreate(s->sources.pSvs[sourceI], K_SV("/")); !k_WordItDone(&folder); k_WordItNext(&folder))
+        for (k_WordIt folder = k_WordItCreate(svThisSource, K_SV("/")); !k_WordItDone(&folder); k_WordItNext(&folder))
         {
             k_StringView svFolder = k_WordItToSv(&folder);
 
