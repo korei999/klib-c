@@ -131,7 +131,7 @@ static void
 popQTask(void* pArg)
 {
     QueueTask* pTask = pArg;
-    uint8_t* pBuff;
+    uint8_t* pBuff = NULL;
     while (k_atomic_IntLoadRelaxed(&s_taskCount) < NTASKS)
     {
         if (k_QueueMPMCPop(pTask->pQ, &pBuff, sizeof(pBuff)))

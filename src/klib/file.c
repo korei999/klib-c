@@ -56,21 +56,16 @@ k_file_write(int fd, void* pBuff, ssize_t buffSize)
 #endif
 }
 
-k_StringView
-k_file_cwd(void)
+k_String
+k_file_cwd(k_IAllocator* pAlloc)
 {
-    static k_StringView s_sv;
-    static char s_aBuff[500];
+    char aBuff[500] = {0};
 
-    if (!s_sv.pData)
-    {
 #if defined _WIN32
-        _getcwd(s_aBuff, sizeof(s_aBuff));
+    _getcwd(aBuff, sizeof(aBuff));
 #elif defined __unix__
-        getcwd(s_aBuff, sizeof(s_aBuff));
+    getcwd(aBuff, sizeof(aBuff));
 #endif
-        s_sv = K_NTS(s_aBuff);
-    }
 
-    return s_sv;
+    return k_StringCreateNts(pAlloc, aBuff);
 }

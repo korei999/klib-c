@@ -240,17 +240,14 @@ k_LoggerDefaultFormatter(k_Logger* s, void* pArg, K_LOGGER_LEVEL eLevel, const c
 
     if (s->eFlags & K_LOGGER_FLAG_SOURCE)
     {
-        /* FIXME: doesn't work anymore. */
-        // const char* ntsShorterFile = k_file_shorterFILE(ntsFile);
-        const char* ntsShorterFile = ntsFile;
-        const ssize_t shorterFileSize = strlen(ntsShorterFile);
+        const ssize_t fileSize = strlen(ntsFile);
 
         return k_print_toBuffer(
             spSink.pData, spSink.size,
             "[{s}{s}" "{PSv}{s}" "{s}{s}" "{s}{s}" "{sz}]: ",
             ntsLevel, len > 0 ? ", " : "",
             &(k_StringView){aTimeBuff, timeBuffSize}, timeBuffSize > 0 ? ", " : "",
-            ntsShorterFile, shorterFileSize > 0 ? ", " : "",
+            ntsFile, fileSize > 0 ? ", " : "",
             s->eFlags & K_LOGGER_FLAG_FUNC ? ntsFunc : "", s->eFlags & K_LOGGER_FLAG_FUNC ? ", " : "",
             line
         );

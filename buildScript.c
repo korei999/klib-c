@@ -51,6 +51,7 @@ buildScript(int argc, char** argv)
     };
 
     k_StringView klibIncludes[] = {
+        K_SV("src"),
         K_SV("src/klib/ThirdParty"),
     };
 
@@ -65,56 +66,85 @@ buildScript(int argc, char** argv)
     };
     k_build_TargetBuild(&klib, &s_buildCtx);
 
+    k_build_Target* pLibs[] = {&klib};
+
+    k_String sTestFlags = k_StringCreateSv(&pArena->base, k_StringToSv(&s_sCflags));
+    k_StringPushSv(&sTestFlags, &pArena->base,
+        K_SV(
+            " -Wno-unused-but-set-variable"
+            " -Wno-unused-parameter"
+            " -Wno-unused-variable"
+        )
+    );
+
+    /* Careful with arena pushes (unstable addresses). */
+    VecFutures vFutures = {0};
+    VecFuturesInit(&vFutures, &pArena->base, 50);
+
     /* Tests. */
-    {
-        k_build_Target* pLibs[] = {&klib};
-        VecFutures vFutures = {0};
-
-        k_String sTestFlags = k_StringCreateSv(&pArena->base, k_StringToSv(&s_sCflags));
-        k_StringPushSv(&sTestFlags, &pArena->base,
-            K_SV(
-                " -Wno-unused-but-set-variable"
-                " -Wno-unused-parameter"
-                " -Wno-unused-variable"
-            )
-        );
-
 #define BUILD_TEST_EXECUTABLE(name) \
-        k_build_Target t##name = { \
-            .eType = K_BUILD_TARGET_TYPE_EXECUTABLE, \
-            .svName = K_SV(#name), \
-            .sources = {.pSvs = &K_SV("src/" #name ".c"), .size = 1}, \
-            .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)}, \
-            .svStandard = K_SV("-std=c11"), \
-            .svCflags = k_StringToSv(&sTestFlags), \
-            .svLDlags = k_StringToSv(&s_sLDflags), \
-            .ppLibs = pLibs, .nLibs = K_ASIZE(pLibs), \
-        }; \
-        VecFuturesPushVal(&vFutures, &pArena->base, k_FutureCreate(pTp)); \
-        k_ThreadPoolAddPFuture(pTp, VecFuturesLastP(&vFutures), testExecutableBuildTask, &t##name);
+    k_build_Target t##name = { \
+        .eType = K_BUILD_TARGET_TYPE_EXECUTABLE, \
+        .svName = K_SV(#name), \
+        .sources = {.pSvs = &K_SV("src/" #name ".c"), .size = 1}, \
+        .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)}, \
+        .svStandard = K_SV("-std=c11"), \
+        .svCflags = k_StringToSv(&sTestFlags), \
+        .svLDlags = k_StringToSv(&s_sLDflags), \
+        .ppLibs = pLibs, .nLibs = K_ASIZE(pLibs), \
+    }; \
+    VecFuturesPushVal(&vFutures, &pArena->base, k_FutureCreate(pTp)); \
+    k_ThreadPoolAddPFuture(pTp, VecFuturesLastP(&vFutures), testExecutableBuildTask, &t##name);
 
-        BUILD_TEST_EXECUTABLE(Arena);
-        BUILD_TEST_EXECUTABLE(CmdLine);
-        BUILD_TEST_EXECUTABLE(Json);
-        BUILD_TEST_EXECUTABLE(Logger);
-        BUILD_TEST_EXECUTABLE(main);
-        BUILD_TEST_EXECUTABLE(Map);
-        BUILD_TEST_EXECUTABLE(Pool);
-        BUILD_TEST_EXECUTABLE(print);
-        BUILD_TEST_EXECUTABLE(RingBuffer);
-        BUILD_TEST_EXECUTABLE(SList);
-        BUILD_TEST_EXECUTABLE(soa);
-        BUILD_TEST_EXECUTABLE(sort);
-        BUILD_TEST_EXECUTABLE(String);
-        BUILD_TEST_EXECUTABLE(Thread);
-        BUILD_TEST_EXECUTABLE(ThreadPool);
-        BUILD_TEST_EXECUTABLE(Vec);
+    BUILD_TEST_EXECUTABLE(Arena);
+    BUILD_TEST_EXECUTABLE(CmdLine);
+    BUILD_TEST_EXECUTABLE(Json);
+    BUILD_TEST_EXECUTABLE(Logger);
+    BUILD_TEST_EXECUTABLE(main);
+    BUILD_TEST_EXECUTABLE(Map);
+    BUILD_TEST_EXECUTABLE(Pool);
+    BUILD_TEST_EXECUTABLE(print);
+    BUILD_TEST_EXECUTABLE(RingBuffer);
+    BUILD_TEST_EXECUTABLE(SList);
+    BUILD_TEST_EXECUTABLE(soa);
+    BUILD_TEST_EXECUTABLE(sort);
+    BUILD_TEST_EXECUTABLE(String);
+    BUILD_TEST_EXECUTABLE(Thread);
+    BUILD_TEST_EXECUTABLE(ThreadPool);
+    BUILD_TEST_EXECUTABLE(Vec);
 
 #undef BUILD_TEST_EXECUTABLE
 
-        for (ssize_t i = 0; i < vFutures.size; ++i)
-            k_FutureWait(VecFuturesGetP(&vFutures, i));
-    }
+#define BUILD_TEST_EXECUTABLE2(name, srcs) \
+    k_build_Target t##name = { \
+        .eType = K_BUILD_TARGET_TYPE_EXECUTABLE, \
+        .svName = K_SV(#name), \
+        .sources = {.pSvs = srcs, .size = K_ASIZE(srcs)}, \
+        .includes = {.pSvs = klibIncludes, .size = K_ASIZE(klibIncludes)}, \
+        .svStandard = K_SV("-std=c11"), \
+        .svCflags = k_StringToSv(&sTestFlags), \
+        .svLDlags = k_StringToSv(&s_sLDflags), \
+        .ppLibs = pLibs, .nLibs = K_ASIZE(pLibs), \
+    }; \
+    VecFuturesPushVal(&vFutures, &pArena->base, k_FutureCreate(pTp)); \
+    k_ThreadPoolAddPFuture(pTp, VecFuturesLastP(&vFutures), testExecutableBuildTask, &t##name);
+
+    k_StringView aEcsSources[] = {
+        K_SV("src/ecs/ecs.c"),
+        K_SV("src/ecs/main.c"),
+    };
+    BUILD_TEST_EXECUTABLE2(ecs, aEcsSources);
+
+    k_StringView aQueueMPMCSources[] = {K_SV("src/QueueMPMC/main.c")};
+    BUILD_TEST_EXECUTABLE2(QueueMPMC, aQueueMPMCSources);
+
+    k_StringView aRingMPMCSources[] = {K_SV("src/QueueMPMC/mainRing.c")};
+    BUILD_TEST_EXECUTABLE2(RingMCMP, aRingMPMCSources);
+
+#undef BUILD_TEST_EXECUTABLE2
+
+    for (ssize_t i = 0; i < vFutures.size; ++i)
+        k_FutureWait(VecFuturesGetP(&vFutures, i));
 
     k_ArenaStateRestore(&arenaState);
     return true;
@@ -170,6 +200,19 @@ printHelpArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg)
     return K_CMD_LINE_RESULT_BREAK;
 }
 
+static K_CMD_LINE_RESULT
+buildDirArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svValue)
+{
+    if (svValue.size <= 0)
+    {
+        K_CTX_LOG_ERROR("no build directory");
+        return K_CMD_LINE_RESULT_FAIL;
+    }
+
+    s_buildCtx.svBuildDir = svValue;
+    return K_CMD_LINE_RESULT_NEXT;
+}
+
 static bool
 parseArgs(int argc, char** argv)
 {
@@ -177,6 +220,12 @@ parseArgs(int argc, char** argv)
     bool bReturnStatus = true;
 
     k_CmdLineArg aCmdArgs[] = {
+        (k_CmdLineArg){
+            .svLongName = K_SV("help"),
+            .cShortName = 'h',
+            .pfnHandler = printHelpArg,
+            .svDescription = K_SV("print this menu"),
+        },
         (k_CmdLineArg){
             .svLongName = K_SV("release"),
             .pfnHandler = releaseBuildArg,
@@ -190,10 +239,10 @@ parseArgs(int argc, char** argv)
             .pfnHandler = asanBuildArg,
         },
         (k_CmdLineArg){
-            .svLongName = K_SV("help"),
-            .cShortName = 'h',
-            .pfnHandler = printHelpArg,
-            .svDescription = K_SV("print this menu"),
+            .svLongName = K_SV("buildDir"),
+            .cShortName = 'b',
+            .bNeedsValue = true,
+            .pfnValueHandler = buildDirArg,
         },
     };
     k_CmdLine* pCmdLine = k_CmdLineAlloc(
