@@ -280,7 +280,7 @@ main(int argc, char** argv)
         (k_LoggerInitOpts){
             .ringBufferSize = k_getPageSize(),
             .eLogLevel = K_LOGGER_LEVEL_DEBUG,
-            .eFlags = K_LOGGER_FLAG_SOURCE
+            .eFlags = 0
         },
         (k_ThreadPoolInitOpts){
             .nThreads = k_optimalThreadCount(),
