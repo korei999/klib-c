@@ -70,6 +70,12 @@ static const uint64_t K_NPOS64 = (uint64_t)-1;
     #define K_ALWAYS_INLINE __attribute__((always_inline)) inline
 
 #else
+
+    #define K_UNUSED
+    #define K_NO_UB
+    #define K_NO_DISCARD
+    #define K_ALWAYS_INLINE inline
+
 #endif
 
 #if defined __GNUC__ || defined __clang__

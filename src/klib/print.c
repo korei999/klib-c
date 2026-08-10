@@ -1060,7 +1060,7 @@ ssize_t
 k_print_formatPBool(k_print_Context* pCtx, k_print_FmtArgs* pFmtArgs, const void* arg)
 {
     bool b = *(bool*)arg;
-    return k_print_formatBool(pCtx, pFmtArgs, (void*)b);
+    return k_print_formatBool(pCtx, pFmtArgs, (void*)(uint64_t)b);
 }
 
 ssize_t

@@ -34,7 +34,9 @@ static inline const char* k_StringDataConst(const k_String* s);
 static inline k_StringView k_StringToSv(const k_String* s);
 bool k_StringReallocWith(k_String* s, k_IAllocator* pAlloc, const k_StringView svWith);
 bool k_StringPush(k_String* s, k_IAllocator* pAlloc, const char* pData, ssize_t size);
+bool k_StringPushFront(k_String* s, k_IAllocator* pAlloc, const char* pData, ssize_t size);
 static inline bool k_StringPushSv(k_String* s, k_IAllocator* pAlloc, const k_StringView sv);
+static inline bool k_StringPushFrontSv(k_String* s, k_IAllocator* pAlloc, const k_StringView sv);
 static inline char k_StringGet(const k_String* s, ssize_t i);
 static inline void k_StringSet(k_String* s, ssize_t i, char c);
 
@@ -106,6 +108,12 @@ static inline bool
 k_StringPushSv(k_String* s, k_IAllocator* pAlloc, const k_StringView sv)
 {
     return k_StringPush(s, pAlloc, sv.pData, sv.size);
+}
+
+static inline bool
+k_StringPushFrontSv(k_String* s, k_IAllocator* pAlloc, const k_StringView sv)
+{
+    return k_StringPushFront(s, pAlloc, sv.pData, sv.size);
 }
 
 static inline char
