@@ -36,13 +36,10 @@ typedef struct k_ThreadPool
     void* pLoopStartArg;
     void (*pfnLoopEnd)(void*);
     void* pLoopEndArg;
-    k_atomic_Int bDone;
-    char aPad0[64 - sizeof(k_atomic_Int)];
-    k_atomic_Int nTasks;
-    char aPad1[64 - sizeof(k_atomic_Int)];
-    k_atomic_Int idCounter;
-    char aPad2[64 - sizeof(k_atomic_Int)];
-    k_atomic_Int nTasksActive;
+    _Alignas(K_THREAD_CACHE_SIZE) k_atomic_Int bDone;
+    _Alignas(K_THREAD_CACHE_SIZE) k_atomic_Int nTasks;
+    _Alignas(K_THREAD_CACHE_SIZE) k_atomic_Int idCounter;
+    _Alignas(K_THREAD_CACHE_SIZE) k_atomic_Int nTasksActive;
     ssize_t memberSize;
     bool bStarted;
 } k_ThreadPool;

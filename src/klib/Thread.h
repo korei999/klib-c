@@ -4,6 +4,8 @@
 
 #include <assert.h>
 
+#define K_THREAD_CACHE_SIZE 64
+
 #if defined _WIN32
 
     #define K_THREAD_WIN32
