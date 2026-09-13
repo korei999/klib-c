@@ -26,19 +26,21 @@ buildScript(int argc, char** argv)
     k_Arena* pArena = k_CtxArena();
     k_ArenaState arenaState = k_ArenaStatePush(pArena);
 
-    s_buildCtx.svCompiler = K_SV("cl");
-    s_buildCtx.svBuildDir = K_SV("tmpBuild");
-    s_svStandard = K_SV("/std:c11");
-    // s_svStandard = K_SV("-std=c11");
+#ifdef __unix__
 
-    if (k_StringViewEq(s_buildCtx.svCompiler, K_SV("cl")))
-    {
-        k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" /nologo"));
-    }
-    else
-    {
-        k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
-    }
+    s_buildCtx.svCompiler = K_SV("gcc");
+    s_svStandard = K_SV("-std=c11");
+    k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
+
+#elif defined _WIN32
+
+    s_buildCtx.svCompiler = K_SV("cl");
+    s_svStandard = K_SV("/std:c11");
+    k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" /nologo"));
+
+#endif
+
+    s_buildCtx.svBuildDir = K_SV("tmpBuild");
 
     const k_StringView svKlibSourcesPrefix = K_SV("src/klib");
     k_StringView klibSources[] = {
