@@ -6,12 +6,9 @@
 #define K_TYPE k_Future
 #include "klib/VecGen-inc.h"
 
-static k_build_Ctx s_buildCtx = {
-    .svCompiler = K_SV("gcc"),
-    .svBuildDir = K_SV("tmpBuild")
-};
+static k_build_Ctx s_buildCtx;
 
-static k_StringView s_svStandard = K_SV("-std=c11");
+static k_StringView s_svStandard;
 static k_String s_sCflags;
 static k_String s_sLDflags;
 
@@ -29,7 +26,19 @@ buildScript(int argc, char** argv)
     k_Arena* pArena = k_CtxArena();
     k_ArenaState arenaState = k_ArenaStatePush(pArena);
 
-    k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
+    s_buildCtx.svCompiler = K_SV("cl");
+    s_buildCtx.svBuildDir = K_SV("tmpBuild");
+    s_svStandard = K_SV("/std:c11");
+    // s_svStandard = K_SV("-std=c11");
+
+    if (k_StringViewEq(s_buildCtx.svCompiler, K_SV("cl")))
+    {
+        k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" /nologo"));
+    }
+    else
+    {
+        k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
+    }
 
     const k_StringView svKlibSourcesPrefix = K_SV("src/klib");
     k_StringView klibSources[] = {
@@ -72,13 +81,13 @@ buildScript(int argc, char** argv)
     k_build_Target* pLibs[] = {&klib};
 
     k_String sTestFlags = k_StringCreateSv(&pArena->base, k_StringToSv(&s_sCflags));
-    k_StringPushSv(&sTestFlags, &pArena->base,
-        K_SV(
-            " -Wno-unused-but-set-variable"
-            " -Wno-unused-parameter"
-            " -Wno-unused-variable"
-        )
-    );
+    // k_StringPushSv(&sTestFlags, &pArena->base,
+    //     K_SV(
+    //         " -Wno-unused-but-set-variable"
+    //         " -Wno-unused-parameter"
+    //         " -Wno-unused-variable"
+    //     )
+    // );
 
     /* Careful with arena pushes (unstable addresses). */
     VecFutures vFutures = {0};

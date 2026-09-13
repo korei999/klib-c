@@ -112,6 +112,34 @@ k_StringPushFront(k_String* s, k_IAllocator* pAlloc, const char* pData, ssize_t 
 
     k_StringView svThis = k_StringToSv(s);
 
-    /* TODO: finish tomorrow. */
+    if (svThis.size + size >= s->priv.cap)
+    {
+        ssize_t newCap = s->priv.cap * 2;
+        if (svThis.size + size + 1 > newCap) newCap = svThis.size + size + 1;
+        char* pNew;
+
+        if (s->priv.cap > K_STRING_SMALL_SIZE)
+        {
+            pNew = k_IAllocatorRealloc(pAlloc, svThis.pData, svThis.size, newCap);
+            if (!pNew) return false;
+        }
+        else
+        {
+            pNew = k_IAllocatorMalloc(pAlloc, newCap);
+            if (!pNew) return false;
+            memcpy(pNew, svThis.pData, svThis.size);
+        }
+
+        svThis.pData = pNew;
+        s->priv.ptr.pData = pNew;
+        s->priv.cap = newCap;
+    }
+
+    memmove(svThis.pData + size, svThis.pData, svThis.size);
+    memcpy(svThis.pData, pData, size);
+
+    svThis.pData[svThis.size + size] = '\0';
+    if (s->priv.cap > K_STRING_SMALL_SIZE) s->priv.ptr.size = svThis.size + size;
+
     return true;
 }

@@ -5,7 +5,16 @@
 #include "Ctx.h"
 
 #include <sys/stat.h>
-#include <sys/wait.h>
+
+#ifdef __unix__
+    #include <sys/wait.h>
+#endif
+
+#ifdef __unix__
+    #define K_BUILD_UNIX true
+#else
+    #define K_BUILD_UNIX false
+#endif
 
 typedef struct k_build_StringViews
 {
@@ -57,6 +66,8 @@ k_build_CommandRunThreadTask(void* pArg)
 {
     char** ppCommands = pArg;
 
+#ifdef __unix__
+
     int pid;
     if ((pid = fork()) == 0)
     {
@@ -67,6 +78,44 @@ k_build_CommandRunThreadTask(void* pArg)
 
     int waitStatus = 0;
     waitpid(pid, &waitStatus, 0);
+
+#else /* FIXME: what if clang? */
+
+    k_Arena* pArena = k_CtxArena();
+    k_ArenaState arenaState = k_ArenaStatePush(pArena);
+
+    k_String sCmdLine = k_StringCreateSmall();
+
+    for (char* pStr = ppCommands[0]; pStr; pStr = *(++ppCommands))
+    {
+        k_StringPush(&sCmdLine, &pArena->base, pStr, strlen(pStr));
+        if (*(ppCommands + 1)) k_StringPushSv(&sCmdLine, &pArena->base, K_SV(" "));
+    }
+
+    STARTUPINFO startupInfo = {sizeof(STARTUPINFO)};
+    PROCESS_INFORMATION processInfo = {0};
+
+    if (CreateProcessA(
+        NULL,
+        k_StringData(&sCmdLine),
+        NULL,
+        NULL,
+        false,
+        0,
+        NULL,
+        NULL,
+        &startupInfo,
+        &processInfo
+    ))
+    {
+        WaitForSingleObject(processInfo.hProcess, INFINITE);
+        CloseHandle(processInfo.hProcess);
+        CloseHandle(processInfo.hThread);
+    }
+
+    k_ArenaStateRestore(&arenaState);
+
+#endif
 }
 
 static inline void
@@ -86,7 +135,14 @@ k_build_CommandRunTask(const k_build_Command* pVCommands, k_Future* pFut)
         if (i != pVCommands->size - 1)
             k_StringPushSv(&s, &pArena->base, K_SV(" "));
     }
-    K_CTX_LOG_INFO("{PS}", &s);
+
+    if (pVCommands->size > 0)
+    {
+        const k_String* pS = k_build_CommandGetPConst(pVCommands, 0);
+        k_StringView sv = k_StringToSv(pS);
+        if (!K_BUILD_UNIX)
+            K_CTX_LOG_INFO("{PS}", &s);
+    }
 
     k_ThreadPool* pTp = k_CtxThreadPool();
     k_ThreadPoolAddPFuture(pTp, pFut, k_build_CommandRunThreadTask, ppCommands);
@@ -101,7 +157,12 @@ k_build_createDirectory(k_StringView svPath, const k_build_Ctx* pBuildCtx)
 
     k_String s = k_StringCreateSv(&pArena->base, svPath);
 
+#ifdef __unix__
     if (mkdir(k_StringData(&s), 0777) != 0 && errno != EEXIST)
+#else
+        /* FIXME: handle CreateDirectory error correctly. */
+    if (CreateDirectoryA(k_StringData(&s), NULL) && GetLastError() != ERROR_ALREADY_EXISTS)
+#endif
     {
         K_CTX_LOG_ERROR("mkdir({PS}) failed: ({int}) '{nts}'", &svPath, errno, strerror(errno));
         bReturnStatus = false;
@@ -157,7 +218,10 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             k_build_CommandPushSv(&vCompileCommands, &pArena->base, &s->includes.pSvs[includeI]);
         }
 
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-c"));
+        if (k_StringViewEq(pBuildCtx->svCompiler, K_SV("cl")))
+            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("/c"));
+        else k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-c"));
+
         k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svThisSource);
 
         k_StringView svSourceEnding = k_StringViewPathEnding(svThisSource);
@@ -187,7 +251,10 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         k_print_BuilderPushSv(&pbNestedDirs, svSourceEnding);
         k_print_BuilderPushSv(&pbNestedDirs, K_SV(".o"));
 
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-o"));
+        if (k_StringViewEq(pBuildCtx->svCompiler, K_SV("cl")))
+            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("/Fo:"));
+        else k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-o"));
+
         k_StringView svObjectName = k_print_BuilderToSv(&pbNestedDirs);
         k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svObjectName);
         k_build_CommandPushSv(&vFinalLinkObjects, &pArena->base, &svObjectName);
@@ -244,9 +311,15 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
                 k_StringPushSv(&sLib, &pArena->base, pLib->svName);
 
                 if (pLib->eType == K_BUILD_TARGET_TYPE_LIBRARY_STATIC)
-                    k_StringPushSv(&sLib, &pArena->base, K_SV(".a"));
+                {
+                    if (!K_BUILD_UNIX)
+                        k_StringPushSv(&sLib, &pArena->base, K_SV(".lib"));
+                    else k_StringPushSv(&sLib, &pArena->base, K_SV(".a"));
+                }
                 else if (pLib->eType == K_BUILD_TARGET_TYPE_LIBRARY_SHARED)
+                {
                     k_StringPushSv(&sLib, &pArena->base, K_SV(".o"));
+                }
 
                 k_build_CommandPushVal(&vLinkCommand, &pArena->base, sLib);
             }
@@ -264,13 +337,26 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
 
         case K_BUILD_TARGET_TYPE_LIBRARY_STATIC:
         {
-            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("gcc-ar"));
-            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("rcs"));
-
             k_String sName = k_StringCreateSv(&pArena->base, pBuildCtx->svBuildDir);
-            k_StringPushSv(&sName, &pArena->base, K_SV("/"));
-            k_StringPushSv(&sName, &pArena->base, s->svName);
-            k_StringPushSv(&sName, &pArena->base, K_SV(".a"));
+
+            if (!K_BUILD_UNIX)
+            {
+                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("lib"));
+
+                k_StringPushSv(&sName, &pArena->base, K_SV("/"));
+                k_StringPushSv(&sName, &pArena->base, s->svName);
+                k_StringPushSv(&sName, &pArena->base, K_SV(".lib"));
+                k_StringPushFrontSv(&sName, &pArena->base, K_SV("/OUT:"));
+            }
+            else
+            {
+                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("gcc-ar"));
+                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("rcs"));
+                k_StringPushSv(&sName, &pArena->base, K_SV("/"));
+                k_StringPushSv(&sName, &pArena->base, s->svName);
+                k_StringPushSv(&sName, &pArena->base, K_SV(".a"));
+            }
+
             k_StringView svName = k_StringToSv(&sName);
 
             k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svName);
