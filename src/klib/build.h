@@ -140,7 +140,7 @@ k_build_CommandRunTask(const k_build_Command* pVCommands, k_Future* pFut)
     {
         const k_String* pS = k_build_CommandGetPConst(pVCommands, 0);
         k_StringView sv = k_StringToSv(pS);
-        if (!K_BUILD_UNIX)
+        if (K_BUILD_UNIX)
             K_CTX_LOG_INFO("{PS}", &s);
     }
 
