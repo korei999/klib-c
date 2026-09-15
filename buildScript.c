@@ -29,6 +29,7 @@ buildScript(int argc, char** argv)
 #ifdef __unix__
 
     s_buildCtx.svCompiler = K_SV("gcc");
+    // s_buildCtx.svLinker = K_SV("ld");
     s_svStandard = K_SV("-std=c11");
     k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
 

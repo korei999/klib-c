@@ -24,6 +24,7 @@ typedef struct k_build_StringViews
 
 typedef struct k_build_Ctx {
     k_StringView svCompiler;
+    k_StringView svLinker;
     k_StringView svBuildDir;
 } k_build_Ctx;
 
@@ -54,6 +55,7 @@ typedef struct k_build_Target
 #define K_TYPE k_String
 #include "VecGen-inc.h"
 
+/* FIXME: this leaks if pAlloc is not Arena. All this should probably be arena anyway. */
 static inline ssize_t
 k_build_CommandPushSv(k_build_Command* s, k_IAllocator* pAlloc, const k_StringView* pSv)
 {
@@ -289,6 +291,14 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             {
                 k_StringView svLinkFlag = k_WordItToSv(&linkFlag);
                 k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svLinkFlag);
+            }
+
+            if (!k_StringViewEq(pBuildCtx->svLinker, K_SV("ld")) && pBuildCtx->svLinker.size > 0)
+            {
+                k_String sLinker = k_StringCreateSv(&pArena->base, K_SV("-fuse-ld="));
+                k_StringPushSv(&sLinker, &pArena->base, pBuildCtx->svLinker);
+                k_StringView svLinker = k_StringToSv(&sLinker);
+                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svLinker);
             }
 
             k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("-o"));
