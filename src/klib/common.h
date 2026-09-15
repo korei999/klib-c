@@ -27,6 +27,8 @@
 
 #endif
 
+#define K_CACHE_SIZE 64
+
 static const int K_NPOS = -1;
 static const uint8_t K_NPOS8 = (uint8_t)-1;
 static const uint16_t K_NPOS16 = (uint16_t)-1;
