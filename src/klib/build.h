@@ -55,12 +55,12 @@ typedef struct k_build_Target
 #define K_TYPE k_String
 #include "VecGen-inc.h"
 
-/* FIXME: this leaks if pAlloc is not Arena. All this should probably be arena anyway. */
 static inline ssize_t
-k_build_CommandPushSv(k_build_Command* s, k_IAllocator* pAlloc, const k_StringView* pSv)
+k_build_CommandPushSv(k_build_Command* s, const k_StringView sv)
 {
-    k_String ss = k_StringCreateSv(pAlloc, *pSv);
-    return k_build_CommandPush(s, pAlloc, &ss);
+    k_Arena* pArena = k_CtxArena();
+    k_String ss = k_StringCreateSv(&pArena->base, sv); /* Should be allocated somewhere outside this frame. */
+    return k_build_CommandPush(s, &pArena->base, &ss);
 }
 
 static inline void
@@ -206,25 +206,25 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
 
         k_build_Command vCompileCommands = {0};
         k_build_CommandInit(&vCompileCommands, &pArena->base, 8);
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &pBuildCtx->svCompiler);
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &s->svStandard);
+        k_build_CommandPushSv(&vCompileCommands, pBuildCtx->svCompiler);
+        k_build_CommandPushSv(&vCompileCommands, s->svStandard);
         for (k_WordIt flag = k_WordItCreate(s->svCflags, K_SV(" ")); !k_WordItDone(&flag); k_WordItNext(&flag))
         {
             k_StringView svFlag = k_WordItToSv(&flag);
-            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svFlag);
+            k_build_CommandPushSv(&vCompileCommands, svFlag);
         }
 
         for (ssize_t includeI = 0; includeI < s->includes.size; ++includeI)
         {
-            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-I"));
-            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &s->includes.pSvs[includeI]);
+            k_build_CommandPushSv(&vCompileCommands, K_SV("-I"));
+            k_build_CommandPushSv(&vCompileCommands, s->includes.pSvs[includeI]);
         }
 
         if (k_StringViewEq(pBuildCtx->svCompiler, K_SV("cl")))
-            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("/c"));
-        else k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-c"));
+            k_build_CommandPushSv(&vCompileCommands, K_SV("/c"));
+        else k_build_CommandPushSv(&vCompileCommands, K_SV("-c"));
 
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svThisSource);
+        k_build_CommandPushSv(&vCompileCommands, svThisSource);
 
         k_StringView svSourceEnding = k_StringViewPathEnding(svThisSource);
 
@@ -254,12 +254,12 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
         k_print_BuilderPushSv(&pbNestedDirs, K_SV(".o"));
 
         if (k_StringViewEq(pBuildCtx->svCompiler, K_SV("cl")))
-            k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("/Fo:"));
-        else k_build_CommandPushSv(&vCompileCommands, &pArena->base, &K_SV("-o"));
+            k_build_CommandPushSv(&vCompileCommands, K_SV("/Fo:"));
+        else k_build_CommandPushSv(&vCompileCommands, K_SV("-o"));
 
         k_StringView svObjectName = k_print_BuilderToSv(&pbNestedDirs);
-        k_build_CommandPushSv(&vCompileCommands, &pArena->base, &svObjectName);
-        k_build_CommandPushSv(&vFinalLinkObjects, &pArena->base, &svObjectName);
+        k_build_CommandPushSv(&vCompileCommands, svObjectName);
+        k_build_CommandPushSv(&vFinalLinkObjects, svObjectName);
 
         // /* Make .d file. */
         // {
@@ -284,24 +284,25 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
     {
         case K_BUILD_TARGET_TYPE_EXECUTABLE:
         {
-            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &pBuildCtx->svCompiler);
+            k_build_CommandPushSv(&vLinkCommand, pBuildCtx->svCompiler);
 
             /* Link flags. */
             for (k_WordIt linkFlag = k_WordItCreate(s->svLDlags, K_SV(" ")); !k_WordItDone(&linkFlag); k_WordItNext(&linkFlag))
             {
                 k_StringView svLinkFlag = k_WordItToSv(&linkFlag);
-                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svLinkFlag);
+                k_build_CommandPushSv(&vLinkCommand, svLinkFlag);
             }
 
+            /* -fuse-ld=ld doesn't wish to work. */
             if (!k_StringViewEq(pBuildCtx->svLinker, K_SV("ld")) && pBuildCtx->svLinker.size > 0)
             {
                 k_String sLinker = k_StringCreateSv(&pArena->base, K_SV("-fuse-ld="));
                 k_StringPushSv(&sLinker, &pArena->base, pBuildCtx->svLinker);
                 k_StringView svLinker = k_StringToSv(&sLinker);
-                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svLinker);
+                k_build_CommandPushSv(&vLinkCommand, svLinker);
             }
 
-            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("-o"));
+            k_build_CommandPushSv(&vLinkCommand, K_SV("-o"));
 
             k_String sExecName = k_StringCreateSv(&pArena->base, pBuildCtx->svBuildDir);
             k_StringPushSv(&sExecName, &pArena->base, K_SV("/"));
@@ -351,7 +352,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
 
             if (!K_BUILD_UNIX)
             {
-                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("lib"));
+                k_build_CommandPushSv(&vLinkCommand, K_SV("lib"));
 
                 k_StringPushSv(&sName, &pArena->base, K_SV("/"));
                 k_StringPushSv(&sName, &pArena->base, s->svName);
@@ -360,8 +361,8 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             }
             else
             {
-                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("gcc-ar"));
-                k_build_CommandPushSv(&vLinkCommand, &pArena->base, &K_SV("rcs"));
+                k_build_CommandPushSv(&vLinkCommand, K_SV("gcc-ar"));
+                k_build_CommandPushSv(&vLinkCommand, K_SV("rcs"));
                 k_StringPushSv(&sName, &pArena->base, K_SV("/"));
                 k_StringPushSv(&sName, &pArena->base, s->svName);
                 k_StringPushSv(&sName, &pArena->base, K_SV(".a"));
@@ -369,7 +370,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
 
             k_StringView svName = k_StringToSv(&sName);
 
-            k_build_CommandPushSv(&vLinkCommand, &pArena->base, &svName);
+            k_build_CommandPushSv(&vLinkCommand, svName);
             for (ssize_t i = 0; i < vFinalLinkObjects.size; ++i)
                 k_build_CommandPush(&vLinkCommand, &pArena->base, &vFinalLinkObjects.pData[i]);
 
