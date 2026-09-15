@@ -28,8 +28,17 @@ buildScript(int argc, char** argv)
 
 #ifdef __unix__
 
-    s_buildCtx.svCompiler = K_SV("gcc");
-    // s_buildCtx.svLinker = K_SV("ld");
+    if (k_StringViewEq(s_buildCtx.svCompiler, K_SV("clang")))
+    {
+        s_buildCtx.svCompiler = K_SV("clang");
+        s_buildCtx.svLinker = K_SV("lld");
+        s_buildCtx.svArchiver = K_SV("llvm-ar");
+    }
+    else
+    {
+        s_buildCtx.svCompiler = K_SV("gcc");
+    }
+
     s_svStandard = K_SV("-std=c11");
     k_StringPushSv(&s_sCflags, &pArena->base, K_SV(" -Wpedantic -Wall -Wextra"));
 
@@ -228,6 +237,19 @@ buildDirArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svVal
     return K_CMD_LINE_RESULT_NEXT;
 }
 
+static K_CMD_LINE_RESULT
+complierArg(k_CmdLine* pCmdLine, k_CmdLineArg* pCmdArg, const k_StringView svValue)
+{
+    if (svValue.size <= 0)
+    {
+        K_CTX_LOG_ERROR("no compiler specified");
+        return K_CMD_LINE_RESULT_FAIL;
+    }
+
+    s_buildCtx.svCompiler = svValue;
+    return K_CMD_LINE_RESULT_NEXT;
+}
+
 static bool
 parseArgs(int argc, char** argv)
 {
@@ -258,6 +280,12 @@ parseArgs(int argc, char** argv)
             .cShortName = 'b',
             .bNeedsValue = true,
             .pfnValueHandler = buildDirArg,
+        },
+        (k_CmdLineArg){
+            .svLongName = K_SV("compiler"),
+            .cShortName = 'c',
+            .bNeedsValue = true,
+            .pfnValueHandler = complierArg,
         },
     };
     k_CmdLine* pCmdLine = k_CmdLineAlloc(

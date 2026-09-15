@@ -25,6 +25,7 @@ typedef struct k_build_StringViews
 typedef struct k_build_Ctx {
     k_StringView svCompiler;
     k_StringView svLinker;
+    k_StringView svArchiver;
     k_StringView svBuildDir;
 } k_build_Ctx;
 
@@ -293,8 +294,7 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
                 k_build_CommandPushSv(&vLinkCommand, svLinkFlag);
             }
 
-            /* -fuse-ld=ld doesn't wish to work. */
-            if (!k_StringViewEq(pBuildCtx->svLinker, K_SV("ld")) && pBuildCtx->svLinker.size > 0)
+            if (pBuildCtx->svLinker.size > 0)
             {
                 k_String sLinker = k_StringCreateSv(&pArena->base, K_SV("-fuse-ld="));
                 k_StringPushSv(&sLinker, &pArena->base, pBuildCtx->svLinker);
@@ -361,7 +361,10 @@ k_build_TargetBuild(const k_build_Target* s, const k_build_Ctx* pBuildCtx)
             }
             else
             {
-                k_build_CommandPushSv(&vLinkCommand, K_SV("gcc-ar"));
+                if (pBuildCtx->svArchiver.size > 0)
+                    k_build_CommandPushSv(&vLinkCommand, pBuildCtx->svArchiver);
+                else k_build_CommandPushSv(&vLinkCommand, K_SV("ar"));
+
                 k_build_CommandPushSv(&vLinkCommand, K_SV("rcs"));
                 k_StringPushSv(&sName, &pArena->base, K_SV("/"));
                 k_StringPushSv(&sName, &pArena->base, s->svName);
